@@ -1,0 +1,90 @@
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background-color: #000000;
+  border-bottom: 1px solid #ddd;
+}
+
+/* Navigation menu */
+.nav-menu ul {
+  list-style: none;
+  display: flex;
+  gap: 20px;
+}
+
+/* Style for nav links */
+.nav-menu a {
+  text-decoration: none;
+  color: white;
+  padding: 10px 15px;
+  border-radius: 5px;
+  transition: all 0.3s ease;
+}
+
+/* Hover effect - purple background */
+.nav-menu a:hover {
+  background: #e42fee;
+  color: white;
+}
+
+/* Selected (active) page - text turns purple */
+.nav-menu a.active {
+  color: #e42fee;
+  font-weight: bold;
+}
+
+/* Profile dropdown */
+.profile-container {
+  position: relative;
+  cursor: pointer;
+}
+
+.profile-icon {
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* Dropdown menu */
+.dropdown-menu {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  background: rgb(0, 0, 0);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 5px;
+  padding: 10px;
+  min-width: 150px;
+  z-index: 100;
+}
+
+/* Dropdown items */
+.dropdown-menu a,
+.dropdown-menu button {
+  display: block;
+  padding: 10px;
+  text-align: left;
+  border: none;
+  background: none;
+  width: 100%;
+  cursor: pointer;
+  color: white;
+}
+
+/* Hover effect in dropdown */
+.dropdown-menu a:hover,
+.dropdown-menu button:hover {
+  background: #e42fee;
+}
+/* Add styles for the donation link */
+.donation-link {
+  font-size: 12px;
+  color: #777; /* Light grey for subtlety */
+  margin-left: 10px; /* Add space between the logo and link */
+  text-decoration: none;
+}
+
+.donation-link:hover {
+  color: #e42fee; /* Purple hover effect */
+}

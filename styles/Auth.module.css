@@ -1,0 +1,110 @@
+.authContainer {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  max-width: 400px;
+  margin: 50px auto;
+  padding: 30px 20px; /* Adjusted for better spacing */
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  background-color: #f9f9f9;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Slight shadow for better visibility */
+}
+
+.authContainer h2 {
+  font-size: 24px;
+  font-weight: bold;
+  color: #4C1D95; /* MyRide's purple shade */
+  margin-bottom: 20px; /* Space before the form */
+  text-align: center;
+}
+
+.authContainer input {
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+  transition: border-color 0.3s;
+}
+
+.authContainer input:focus {
+  border-color: #e42fee; /* Highlight with MyRide's purple when focused */
+}
+
+.authContainer button {
+  width: 100%;
+  padding: 12px;
+  margin: 15px 0;
+  background-color: #000000; /* MyRide's purple */
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.authContainer button:hover {
+  background-color: #d035f1; /* Slightly darker purple on hover */
+}
+
+.authContainer .text-center {
+  text-align: center;
+  color: #4C1D95; /* Text color matching MyRide purple */
+}
+
+.authContainer .mb-8 {
+  margin-bottom: 30px; /* Larger spacing between message and form */
+}
+
+.authContainer .list-disc {
+  text-align: left;
+  padding-left: 20px;
+}
+
+.authContainer .list-inside {
+  list-style-position: inside;
+}
+
+.authContainer .text-sm {
+  font-size: 14px;
+  color: #777;
+}
+
+.authContainer .mt-8 {
+  margin-top: 20px; /* Spacing for additional info */
+}
+
+.authContainer p {
+  margin-top: 10px;
+}
+
+/* Style the datepicker calendar dropdown */
+.custom-calendar .react-datepicker__header {
+  background-color: #fff !important;  /* Make sure the background is light */
+  color: #4C1D95;  /* MyRide's purple color for the text */
+  font-weight: bold;
+  text-align: center;
+  z-index: 10; /* Make sure the header is on top */
+}
+
+/* Style the month and year selector (prevent overlap) */
+.custom-calendar .react-datepicker__current-month {
+  background-color: #fff !important; /* Ensure background is white */
+  color: #4C1D95; /* Purple text for month/year */
+  z-index: 10;
+}
+
+/* Fix issue with calendar dropdown items covering month/year text */
+.react-datepicker__month {
+  z-index: 5;  /* Lower the z-index of the month/day grid */
+}
+
+/* Optional: Add padding and margins to make things more readable */
+.custom-calendar .react-datepicker__month-text {
+  padding: 10px;
+}
+

@@ -1,0 +1,49 @@
+/* Footer.css */
+
+/* General footer styles */
+.footer {
+    background: #212121; /* Dark gray for a clean, modern look */
+    color: white;
+    padding: 40px 20px;
+    text-align: center;
+    font-family: 'Arial', sans-serif;
+    box-shadow: 0px -4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Footer content alignment */
+  .footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  /* Footer links styles */
+  .footer-links {
+    margin-top: 20px;
+  }
+  
+  .footer-links a {
+    text-decoration: none;
+    color: #00bcd4; /* Blue color for links */
+    margin: 0 15px;
+    font-weight: 600;
+    font-size: 14px;
+    transition: color 0.3s ease-in-out;
+  }
+  
+  /* Hover effect for links */
+  .footer-links a:hover {
+    color: #ffeb3b; /* Bright yellow on hover */
+  }
+  
+  /* Mobile responsiveness */
+  @media (max-width: 768px) {
+    .footer-links {
+      margin-top: 15px;
+      flex-direction: column;
+    }
+  
+    .footer-links a {
+      margin-bottom: 10px;
+    }
+  }
+  

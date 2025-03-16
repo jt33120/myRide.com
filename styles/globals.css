@@ -1,0 +1,294 @@
+/* global.css */
+
+/* Import Tailwind's base, components, and utilities */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.input {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+}
+.loading-spinner {
+  border: 16px solid #f3f3f3; /* Light grey */
+  border-top: 16px solid #3498db; /* Blue */
+  border-radius: 50%;
+  width: 120px;
+  height: 120px;
+  animation: spin 2s linear infinite;
+  margin: 0 auto; /* Center the spinner */
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loader {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 2s linear infinite;
+}
+
+.btn {
+  background-color: #ac63ff; /* Purple */
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  width: 100%; /* Make button fill the container */
+  text-align: center; /* Center the text */
+}
+
+.btn:hover {
+  background-color: #ac63ff; /* Darker purple on hover */
+  transform: translateY(-2px); /* Lift the button */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+  transform: none; /* Prevent animation on disabled state */
+}
+
+.form-container {
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 40px;
+  background-color: #f9f9f9;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+}
+
+.form-title {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.form-section {
+  margin-bottom: 20px;
+}
+
+.form-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  font-size: 16px;
+  background-color: #f9f9f9;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #ac63ff; /* Light purple focus border */
+}
+
+.form-subtitle {
+  font-size: 20px;
+  font-weight: 600;
+  color: #555;
+  margin-top: 30px;
+}
+
+.form-message {
+  text-align: center;
+  color: rgb(123, 192, 216);
+  font-weight: 600;
+}
+
+.spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #ac63ff;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.form-button {
+  background-color: black; /* Black background */
+  color: white;
+  padding: 15px 30px; /* Bigger size */
+  border: none;
+  border-radius: 8px; /* Optional: Rounded corners */
+  font-size: 18px; /* Larger font */
+  cursor: pointer;
+  transition: background-color 0.3s ease; /* Smooth transition for hover effect */
+}
+
+.form-button:hover {
+  background-color: #ac63ff; /* Purple background on hover */
+}
+
+/* Ensure the carousel takes up half the height of the screen */
+.carousel-container {
+  height: 50vh; /* 16:9 aspect ratio */
+  width: 100%;
+  position: relative;
+}
+
+.carousel-image {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+}
+
+/* Slick slider styles */
+.slick-slider {
+  width: 100%; /* Ensure it spans the full width */
+  height: 100%; /* Ensure it spans the full height */
+  margin: auto; /* Center it */
+}
+
+.slick-list {
+  height: 100%;
+  width: 100%; /* Ensure the list spans the full height */
+}
+
+.slick-track {
+  height: 100%; 
+  height: 100%;/* Ensure the track spans the full height */
+}
+
+.welcome-text {
+  color: white;
+  font-style: italic;
+}
+
+/* Add the CropperJS styles here */
+.cropper-container {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: hidden;
+  position: relative;
+}
+
+.cropper-crop-box {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 1px dashed #ac63ff;
+  visibility: visible;
+}
+
+/* Add this to your Auth.module.css file */
+.cropper {
+  height: 400px;
+  width: 100%;
+}
+
+.cropper img {
+  max-width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Add more styles here if needed */
+/* Style for the Documents Page */
+.documents-page {
+  padding: 20px;
+  text-align: center;
+  font-family: Arial, sans-serif;
+}
+
+.document-list ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.document-list li {
+  margin: 15px 0;
+}
+
+.document-list a {
+  text-decoration: none;
+  font-size: 18px;
+  color: #ac63ff; /* Link color */
+  transition: color 0.3s ease;
+}
+
+.document-list a:hover {
+  text-decoration: underline;
+  color: #ac63ff; /* Darker shade on hover */
+}
+.return-button {
+  position: fixed;
+  top: 8rem; /* Adjust as needed */
+  left: 1rem; /* Adjust as needed */
+  background: none;
+  border: none;
+  font-size: 1.25rem; /* Adjust as needed */
+  color: #4a5568; /* Gray color */
+  cursor: pointer;
+  z-index: 1000; /* Ensure it stays on top of other elements */
+}
+.return-button:hover {
+  color: #ac63ff; /* Slightly darker blue */
+}
+
+.form-section {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 20px;
+}
+
+.form-input {
+  margin-bottom: 10px;
+}
+
+.button-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center; /* Ensure buttons are vertically aligned */
+  width: 100%; /* Ensure the container takes the full width */
+}
+
+
+.previous-button {
+  margin-right: auto;
+}
+
+.next-button {
+  margin-left: auto;
+}
+
+.checkbox-container {
+  display: flex;
+  gap: 20px; /* Adjust the gap as needed */
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+}
+
+.checkbox-item .form-label {
+  margin-right: 10px; /* Adjust the spacing between label and input */
+}
