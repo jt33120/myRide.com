@@ -175,7 +175,7 @@ const ChatPage = () => {
 
   return (
     <div className="max-w-2xl mx-auto p-4">
-      <button onClick={() => router.back()} className="return-button mb-4">Return</button>
+      <button onClick={() => router.back()} className="bg-blue-500 text-white p-2 rounded-md mb-4">Return</button>
       <h2 className="text-2xl font-bold mb-2">Chat with {otherUser?.firstName || 'User'}</h2>
       <p className="text-gray-500 mb-4">About: {vehicleTitle || 'General Inquiry'}</p>
 
