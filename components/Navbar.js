@@ -5,7 +5,6 @@ import { useRouter } from 'next/router';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ref, getDownloadURL } from 'firebase/storage'; // For fetching the image URL from Firebase Storage
-import '../styles/Navbar.css';
 
 const NavBar = () => {
   const [user, setUser] = useState(null);
