@@ -66,7 +66,7 @@ export default function SignUp() {
       // Wait for the image upload to complete
       uploadTask.on(
         "state_changed",
-        (snapshot) => {},
+        () => {},
         (err) => {
           setError(err.message);
         },

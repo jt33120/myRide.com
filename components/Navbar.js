@@ -74,9 +74,13 @@ const NavBar = () => {
     router.push('/login_page');
   };
 
+  const handleLogoClick = () => {
+    router.push('/myDashboard_page');
+  };
+
   return (
     <header className="navbar">
-      <div className="logo">
+      <div className="logo" onClick={handleLogoClick} style={{ cursor: 'pointer' }}>
         <Image src="/logo.png" alt="Marketplace Logo" width={75} height={50} priority />
         <a
           href="https://buymeacoffee.com/frenchybikj"

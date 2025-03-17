@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { auth, db } from '../lib/firebase';
-import { doc, getDoc, collection } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { getStorage, ref, listAll, getDownloadURL } from 'firebase/storage';
+import Image from 'next/image';
 
 const MyGarage = () => {
   const [firstName, setFirstName] = useState('');
@@ -31,6 +32,23 @@ const MyGarage = () => {
 
     fetchUserData();
   }, []);
+
+  const fetchVehicleImages = useCallback(async (vehicleId) => {
+    const imagesRef = ref(storage, `listing/${vehicleId}/photos`);
+    const imageList = await listAll(imagesRef);
+    const imageUrls = await Promise.all(
+      imageList.items.map((imageRef) => getDownloadURL(imageRef))
+    );
+
+    // Move the "front" image to the first position
+    const frontImageIndex = imageUrls.findIndex(url => url.includes("front"));
+    if (frontImageIndex > -1) {
+      const [frontImage] = imageUrls.splice(frontImageIndex, 1);
+      imageUrls.unshift(frontImage);
+    }
+
+    return imageUrls;
+  }, [storage]);
 
   // Fetch vehicles once user data is available
   useEffect(() => {
@@ -80,25 +98,7 @@ const MyGarage = () => {
     };
 
     fetchVehicles();
-  }, [firstName]);
-
-  // Fetch images from Firebase Storage based on vehicle ID
-  const fetchVehicleImages = async (vehicleId) => {
-    const imagesRef = ref(storage, `listing/${vehicleId}/photos`);
-    const imageList = await listAll(imagesRef);
-    const imageUrls = await Promise.all(
-      imageList.items.map((imageRef) => getDownloadURL(imageRef))
-    );
-
-    // Move the "front" image to the first position
-    const frontImageIndex = imageUrls.findIndex(url => url.includes("front"));
-    if (frontImageIndex > -1) {
-      const [frontImage] = imageUrls.splice(frontImageIndex, 1);
-      imageUrls.unshift(frontImage);
-    }
-
-    return imageUrls;
-  };
+  }, [firstName, fetchVehicleImages]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -137,9 +137,11 @@ const MyGarage = () => {
               <div className="carousel-container relative mr-4 w-48 h-48">
                 <div className="carousel-images overflow-hidden w-full h-full">
                   {vehicle.images.length > 0 && (
-                    <img
+                    <Image
                       src={vehicle.images[currentIndex]} 
                       alt={`${vehicle.make} ${vehicle.model}`}
+                      width={200}
+                      height={200}
                       className="w-full h-full object-cover rounded-lg"
                     />
                   )}

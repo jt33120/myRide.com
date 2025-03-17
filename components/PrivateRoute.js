@@ -1,18 +1,24 @@
 // PrivateRoute.js
-import { useRouter } from 'next/router';
 import { useEffect } from 'react';
+import { useRouter } from 'next/router';
 import { auth } from '../lib/firebase';
 
 const PrivateRoute = ({ children }) => {
   const router = useRouter();
 
   useEffect(() => {
-    if (auth.currentUser) {
-      router.push("/dashboard"); // Redirect to dashboard if logged in
-    }
-  }, []);
+    if (typeof window !== 'undefined') {
+      const unsubscribe = auth.onAuthStateChanged((user) => {
+        if (!user) {
+          router.push('/login_page');
+        }
+      });
 
-  return !auth.currentUser ? children : null; // Only render children if not logged in
+      return () => unsubscribe();
+    }
+  }, [router]);
+
+  return children;
 };
 
 export default PrivateRoute;

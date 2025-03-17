@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { auth, db, storage } from '../lib/firebase';
 import { collection, doc, getDoc, query, orderBy, onSnapshot, setDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import Image from 'next/image';
 
 const fetchConversation = async (conversationId, user) => {
   const convoRef = doc(db, 'conversations', conversationId);
@@ -140,7 +141,7 @@ const ChatPage = () => {
 
     uploadTask.on(
       'state_changed',
-      (snapshot) => {
+      () => {
         // Handle progress
       },
       (error) => {
@@ -174,13 +175,7 @@ const ChatPage = () => {
 
   return (
     <div className="max-w-2xl mx-auto p-4">
-      <button
-        onClick={() => router.push('/myMessages_page')}
-        className="return-button mb-4"
-        title="Back to Messages"
-      >
-        ⏎
-      </button>
+      <button onClick={() => router.back()} className="return-button mb-4">Return</button>
       <h2 className="text-2xl font-bold mb-2">Chat with {otherUser?.firstName || 'User'}</h2>
       <p className="text-gray-500 mb-4">About: {vehicleTitle || 'General Inquiry'}</p>
 
@@ -189,9 +184,11 @@ const ChatPage = () => {
         {messages.map((msg) => (
           <div key={msg.id} className={`mb-2 p-2 rounded-md ${msg.sender === user.uid ? 'bg-blue-500 text-white self-end' : 'bg-white text-gray-900'}`}>
             {msg.type === 'image' ? (
-              <img
+              <Image
                 src={msg.content}
                 alt="Shared content"
+                width={200}
+                height={200}
                 className="max-w-xs h-auto rounded-md cursor-pointer"
                 onClick={() => handleImageClick(msg.content)}
               />
@@ -227,7 +224,7 @@ const ChatPage = () => {
       {selectedImage && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
           <div className="relative">
-            <img src={selectedImage} alt="Selected content" className="max-w-full max-h-full rounded-md" />
+            <Image src={selectedImage} alt="Selected content" width={500} height={500} className="max-w-full max-h-full rounded-md" />
             <button onClick={closeModal} className="absolute top-5 left-5 bg-white text-white p-2 rounded-full">✕</button>
           </div>
         </div>

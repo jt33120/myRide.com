@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { auth, db } from '../lib/firebase'; // Adjust the import based on your Firebase setup
+import { db } from '../lib/firebase'; // Adjust the import based on your Firebase setup
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 
 const ModifyVehiclePage = () => {

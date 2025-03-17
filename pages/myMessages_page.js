@@ -76,10 +76,11 @@ const MyMessages = () => {
   if (loading) return <div className="p-4 text-center">Loading messages...</div>;
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
-      <button
+    <div className="min-h-screen p-6 bg-gray-100 text-black relative">
+      {/* Exit Button */}
+      <button 
         onClick={() => router.push('/myDashboard_page')}
-        className="return-button mb-4"
+        className="absolute top-4 left-4 bg-none border-none text-xl text-gray-600 cursor-pointer"
         title="Back to Dashboard"
       >
         ⏎

@@ -245,7 +245,7 @@ const VehicleForm = () => {
   return (
     <div className="form-container">
       <h2 className="form-title">Add a Vehicle</h2>
-      <p>Sorry, it will be a bit longer than for marketplace, but your vehicle deserves it. We recommend you to be next to your vehicle, photos are required!</p>
+      <p>I know it super ugly but it works (or at least, it should). It will be a bit longer than for marketplace to fill the form, but your vehicles deserve it. I recommend you to be next to your vehicle, photos are required!</p>
       <form onSubmit={(e) => handleSubmit(e, formData, setLoading, router)} className="vehicle-form">
         {loading && <div className="loading-spinner"></div>} {/* Add loading spinner */}
         {!loading && currentStep === 1 && (

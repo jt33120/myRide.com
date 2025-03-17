@@ -7,6 +7,7 @@ const MyFriendsPage = () => {
   const [parent, setParent] = useState(null);  // The inviter's UID
   const [parentName, setParentName] = useState(''); // The inviter's firstName
   const [invitedMembers, setInvitedMembers] = useState([]);
+  const [invitationCode, setInvitationCode] = useState(''); // Store invitation code
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -25,6 +26,7 @@ const MyFriendsPage = () => {
           const inviterUid = userData.inviter; // Getting the inviter's UID
 
           setParent(inviterUid || null);
+          setInvitationCode(userData.invitationcode || ''); // Set the invitation code
 
           // 2️⃣ Query the members collection to find users invited by this user
           const invitesQuery = query(
@@ -72,6 +74,14 @@ const MyFriendsPage = () => {
     getParentName();
   }, [parent]);  // Only run when parent UID changes
 
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(invitationCode).then(() => {
+      alert('Invitation code copied to clipboard!');
+    }).catch((error) => {
+      console.error('Error copying invitation code:', error);
+    });
+  };
+
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: 'auto', position: 'relative' }}>
       {/* Exit Button */}
@@ -110,6 +120,29 @@ const MyFriendsPage = () => {
               </span>
             </div>
           )}
+
+          {/* Invitation Code */}
+          <div style={{ marginBottom: '20px', padding: '10px', background: '#f3f3f3', borderRadius: '5px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <strong>My Invitation Code:</strong>{' '}
+              <span style={{ color: '#e42fee' }}>
+                {invitationCode || 'No code available'}
+              </span>
+            </div>
+            <button
+              onClick={copyToClipboard}
+              style={{
+                background: '#e42fee',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '5px',
+                padding: '5px 10px',
+                cursor: 'pointer'
+              }}
+            >
+              Copy
+            </button>
+          </div>
 
           {/* List of People the User Invited */}
           <h3 style={{ color: '#666' }}>People I Invited:</h3>

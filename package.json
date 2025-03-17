@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@react-google-maps/api": "^2.20.6",
+    "@vercel/analytics": "^1.5.0",
     "chart.js": "^4.4.8",
     "cropperjs": "^2.0.0",
     "firebase": "^11.3.1",

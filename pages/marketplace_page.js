@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { db } from "../lib/firebase";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/router";
 import { getStorage, ref, listAll, getDownloadURL } from "firebase/storage";
+import Image from 'next/image';
 
 export default function MarketplacePage() {
   const [vehicles, setVehicles] = useState([]);
@@ -28,6 +29,22 @@ export default function MarketplacePage() {
     }));
   };
   
+  const fetchVehicleImages = useCallback(async (vehicleId) => {
+    const imagesRef = ref(storage, `listing/${vehicleId}/photos`);
+    const imageList = await listAll(imagesRef);
+    const imageUrls = await Promise.all(
+      imageList.items.map((imageRef) => getDownloadURL(imageRef))
+    );
+
+    // Move the "front" image to the first position
+    const frontImageIndex = imageUrls.findIndex(url => url.includes("front"));
+    if (frontImageIndex > -1) {
+      const [frontImage] = imageUrls.splice(frontImageIndex, 1);
+      imageUrls.unshift(frontImage);
+    }
+
+    return imageUrls;
+  }, [storage]);
 
   useEffect(() => {
     async function fetchVehicles() {
@@ -80,27 +97,8 @@ export default function MarketplacePage() {
     }
   
     fetchVehicles();
-  }, [filters]);
+  }, [filters, fetchVehicleImages]);
   
-
-  // Fetch images from Firebase Storage based on vehicle ID
-  const fetchVehicleImages = async (vehicleId) => {
-    const imagesRef = ref(storage, `listing/${vehicleId}/photos`);
-    const imageList = await listAll(imagesRef);
-    const imageUrls = await Promise.all(
-      imageList.items.map((imageRef) => getDownloadURL(imageRef))
-    );
-
-    // Move the "front" image to the first position
-    const frontImageIndex = imageUrls.findIndex(url => url.includes("front"));
-    if (frontImageIndex > -1) {
-      const [frontImage] = imageUrls.splice(frontImageIndex, 1);
-      imageUrls.unshift(frontImage);
-    }
-
-    return imageUrls;
-  };
-
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const handleDotClick = (index) => {
@@ -195,9 +193,11 @@ export default function MarketplacePage() {
             <div className="carousel-container relative mr-4 w-48 h-48">
               <div className="carousel-images overflow-hidden w-full h-full">
                 {vehicle.images.length > 0 && (
-                  <img
+                  <Image
                     src={vehicle.images[currentIndex]} 
                     alt={`${vehicle.make} ${vehicle.model}`}
+                    width={200}
+                    height={200}
                     className="w-full h-full object-cover rounded-lg"
                   />
                 )}

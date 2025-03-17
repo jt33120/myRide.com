@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import "../styles/globals.css"; // Ensure global styles are applied
 
 export default function WelcomePage() {
   const router = useRouter();

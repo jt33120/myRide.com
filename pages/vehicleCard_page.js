@@ -117,7 +117,7 @@ const VehicleCardPage = () => {
   const [vehicleData, setVehicleData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
-  const [documents, setDocuments] = useState({ title: '', inspection: '', registration: '' });
+  const [setDocuments] = useState({ title: '', inspection: '', registration: '' });
   const [uploading, setUploading] = useState(false);
   const [receipts, setReceipts] = useState([]);
   const [showReceiptForm, setShowReceiptForm] = useState(false);
@@ -135,7 +135,6 @@ const VehicleCardPage = () => {
   const user = auth.currentUser;
   const [conversationId, setConversationId] = useState(null);
   const [ownerName, setOwnerName] = useState('');
-  const [totalAmountSpent, setTotalAmountSpent] = useState(0);
   const [sumType, setSumType] = useState('Total Spent'); // State to track the current sum type
 
   const calculateSum = (type) => {
@@ -290,9 +289,6 @@ const VehicleCardPage = () => {
             .sort((a, b) => b.date.seconds - a.date.seconds); // Sort by date, most recent first
           setReceipts(sortedReceipts);
   
-          const totalSpent = sortedReceipts.reduce((sum, receipt) => sum + (receipt.price || 0), 0);
-          setTotalAmountSpent(totalSpent);
-  
           const folderRef = ref(storage, `listing/${id}/photos/`);
           const result = await listAll(folderRef);
           const urls = await Promise.all(result.items.map(fileRef => getDownloadURL(fileRef)));
@@ -408,7 +404,6 @@ const VehicleCardPage = () => {
     const parsedMileage = receiptMileage === 'Unknown' ? receiptMileage : parseFloat(receiptMileage);
   
     setUploading(true);
-    const formattedDate = new Date(receiptDate).toISOString().split('T')[0];
     const receiptId = receiptTitle.replace(/\s+/g, '-').toLowerCase(); // Use the receipt title as the document ID
   
     const uploadPromises = Array.from(receiptFiles).map(async (file, index) => {
@@ -572,7 +567,7 @@ const VehicleCardPage = () => {
 
       <ImageCarousel imageUrls={imageUrls} />
 
-      <h1 className="text-3xl font-bold mb-6 text-center">{ownerName}'s {vehicleData.year} {vehicleData.model}</h1>
+      <h1 className="text-3xl font-bold mb-6 text-center">{ownerName}&apos;s {vehicleData.year} {vehicleData.model}</h1>
 
       <div className="flex justify-around w-full px-6 mb-6">
         <button onClick={() => document.getElementById('info-section').scrollIntoView({ behavior: 'smooth' })}>

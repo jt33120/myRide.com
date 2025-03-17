@@ -15,7 +15,7 @@ export default function Login() {
       await signInWithEmailAndPassword(auth, email, password);
       // If authentication is successful, redirect to the dashboard
       router.push("/myDashboard_page");
-    } catch (error) {
+    } catch {
       // If authentication fails, display an error message
       setError('Invalid email or password. Please try again.');
     }
