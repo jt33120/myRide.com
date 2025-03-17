@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { getFirestore, doc, setDoc, getDoc, collection, getDocs } from "firebase/firestore";
+import { getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc, arrayUnion } from "firebase/firestore";
 import { getAuth } from "firebase/auth"; // Import Firebase Authentication
 import heic2any from 'heic2any';
 import { useRouter } from 'next/router';
@@ -42,7 +42,7 @@ const uploadFilesToFirebase = async (formData, vehicleId) => {
   return fileUrls;
 };
 
-const handleSubmit = async (e, formData, setLoading,router) => {
+const handleSubmit = async (e, formData, setLoading, router) => {
   e.preventDefault();
   setLoading(true); // Set loading to true
 
@@ -213,6 +213,14 @@ const VehicleForm = () => {
     fetchVehicleModels();
   }, [formData.make]);
 
+  useEffect(() => {
+    // Ensure this code only runs on the client side
+    if (typeof window !== 'undefined') {
+      // Client-side code that uses `window`
+      console.log('Client-side code running');
+    }
+  }, []);
+
   const handleChange = (e) => {
     const { name, value, files, type, checked } = e.target;
   
@@ -316,7 +324,7 @@ const VehicleForm = () => {
             <label className="form-label">Bought in *</label>
             <input
               type="text"
-              name="year"
+              name="boughtIn"
               value={formData.boughtIn}
               onChange={handleChange}
               className="form-input"
