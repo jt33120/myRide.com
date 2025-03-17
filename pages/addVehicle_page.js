@@ -213,6 +213,14 @@ const VehicleForm = () => {
     fetchVehicleModels();
   }, [formData.make]);
 
+  useEffect(() => {
+    // Ensure this code only runs on the client side
+    if (typeof window !== 'undefined') {
+      // Client-side code that uses `window`
+      console.log('Client-side code running');
+    }
+  }, []);
+
   const handleChange = (e) => {
     const { name, value, files, type, checked } = e.target;
   
