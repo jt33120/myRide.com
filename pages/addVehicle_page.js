@@ -68,7 +68,6 @@ const handleSubmit = async (e, formData, setLoading, router) => {
       mileage: Number(formData.mileage), // Convert mileage to number
       boughtIn: Number(formData.boughtIn), // Convert  to number
       boughtAt: Number(formData.boughtAt), // Convert  to number
-      
     };
 
     // Filter out fields that are not relevant to the vehicle type
@@ -213,14 +212,6 @@ const VehicleForm = () => {
     fetchVehicleModels();
   }, [formData.make]);
 
-  useEffect(() => {
-    // Ensure this code only runs on the client side
-    if (typeof window !== 'undefined') {
-      // Client-side code that uses `window`
-      console.log('Client-side code running');
-    }
-  }, []);
-
   const handleChange = (e) => {
     const { name, value, files, type, checked } = e.target;
   
@@ -257,7 +248,6 @@ const VehicleForm = () => {
       <form onSubmit={(e) => handleSubmit(e, formData, setLoading, router)} className="vehicle-form">
         {loading && <div className="loading-spinner"></div>} {/* Add loading spinner */}
         {!loading && currentStep === 1 && (
-
         <div className="form-section frame" style={{ border: '2px solid #e42fee' }}>
           <h3>General Details</h3>
 
