@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
-import { auth, db } from '../lib/firebase';
+import { auth, db, storage } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { ref, getDownloadURL } from 'firebase/storage'; // For fetching the image URL from Firebase Storage
 import PrivateRoute from '../components/PrivateRoute';
 
 const Dashboard = () => {
   const [firstName, setFirstName] = useState('');
+  const [profilePicture, setProfilePicture] = useState('/anonymous.png'); // Default image
   const router = useRouter();
 
   // Fetch user's first name and profile picture from Firestore and Firebase Storage
@@ -20,9 +22,20 @@ const Dashboard = () => {
         if (userDoc.exists()) {
           setFirstName(userDoc.data().firstName); // Set the first name from Firestore
 
-          // Fetch the profile picture from Vercel function
-          const profilePictureUrl = `/api/image?uid=${user.uid}&filename=profilepicture.png`;
-          setProfilePicture(profilePictureUrl);
+          // Check if profile picture URL exists in Firestore
+          const userProfilePicture = userDoc.data().profileImage;
+          if (userProfilePicture) {
+            setProfilePicture(userProfilePicture); // Set the profile picture from Firestore
+          } else {
+            // Fetch the profile picture from Firebase Storage if not found in Firestore
+            const storageRef = ref(storage, `members/${user.uid}/profilepicture.png`);
+            try {
+              const url = await getDownloadURL(storageRef); // Fetch the URL of the profile picture
+              setProfilePicture(url); // Set the profile picture from Firebase Storage
+            } catch (error) {
+              console.log('Error fetching profile picture:', error);
+            }
+          }
         } else {
           console.log("No such document!");
         }
@@ -40,6 +53,7 @@ const Dashboard = () => {
     <PrivateRoute>
       <div style={{ textAlign: 'center', padding: '50px' }}>
         <div style={{ marginBottom: '10px', textAlign: 'center' }}>
+          {/* Display profile picture */}
           <h1 style={{ color: 'black' }}>
             {firstName ? `${firstName}'s Dashboard` : "Loading..."}
           </h1>
