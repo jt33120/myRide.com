@@ -1,241 +1,143 @@
-import { useState } from 'react';
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { getFirestore, doc, setDoc, getDoc
- } from "firebase/firestore";
-import { getAuth } from "firebase/auth"; // Import Firebase Authentication
-import heic2any from 'heic2any';
+import { useState } from 'react'; // Removed useEffect import
 import { useRouter } from 'next/router';
+import { auth, db, storage } from '../lib/firebase';
+import { collection, addDoc } from 'firebase/firestore';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
-const storage = getStorage();
-const db = getFirestore();
-const auth = getAuth(); // Initialize Firebase Authentication
+const AddVehiclePage = () => {
+  const [make, setMake] = useState('');
+  const [model, setModel] = useState('');
+  const [year, setYear] = useState('');
+  const [mileage, setMileage] = useState('');
+  const [images, setImages] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const router = useRouter();
 
-const uploadFilesToFirebase = async (formData, vehicleId) => {
-  const fileUrls = {};
-  const files = Object.keys(formData).filter(key => key.includes('Image') || key === 'vehicleVideo');
+  const handleFileChange = (e) => {
+    setImages(e.target.files);
+  };
 
-  for (const fileKey of files) {
-    if (formData[fileKey]) {
-      let file = formData[fileKey];
-
-      // Convert HEIC/HEIF images to PNG
-      if (file.type === 'image/heic' || file.type === 'image/heif') {
-        try {
-          const convertedBlob = await heic2any({ blob: file, toType: 'image/png' });
-          file = new File([convertedBlob], file.name.replace(/\.[^/.]+$/, ".png"), { type: 'image/png' });
-        } catch (error) {
-          console.error("Error converting HEIC image:", error);
-          continue;
-        }
-      }
-
-      const folder = fileKey.includes('Image') ? 'photos' : 'docs';
-      const fileName = `${fileKey}.png`; // Rename the file based on its purpose
-      const storageRef = ref(storage, `listing/${vehicleId}/${folder}/${fileName}`);
-      await uploadBytes(storageRef, file);
-      const fileUrl = await getDownloadURL(storageRef);
-      fileUrls[fileKey] = fileUrl;
-    }
-  }
-
-  return fileUrls;
-};
-
-const handleSubmit = async (e, formData, setLoading, router) => {
-  e.preventDefault();
-  setLoading(true);
-
-  const mandatoryFields = ['make', 'year', 'model', 'vin', 'title', 'mileage', 'frontImage', 'leftImage', 'rightImage', 'rearImage', 'dashboardImage'];
-  for (const field of mandatoryFields) {
-    if (!formData[field]) {
-      alert(`Please fill in the ${field} field.`);
-      setLoading(false);
+  const handleAddVehicle = async () => {
+    setUploading(true);
+    const user = auth.currentUser;
+    if (!user) {
+      alert('You must be logged in to add a vehicle.');
+      setUploading(false);
       return;
     }
-  }
 
-  try {
-    const transformedFormData = {
-      ...formData,
-      make: formData.make.toUpperCase(),
-      model: formData.model.toUpperCase(),
-      city: formData.city.toUpperCase(),
-      color: formData.color.toUpperCase(),
-      year: Number(formData.year),
-      mileage: Number(formData.mileage),
-      boughtIn: Number(formData.boughtIn),
-      boughtAt: Number(formData.boughtAt),
-    };
+    try {
+      const vehicleData = {
+        make,
+        model,
+        year,
+        mileage,
+        uid: user.uid,
+        createdAt: new Date(),
+      };
 
-    const filteredFormData = { ...transformedFormData };
-    if (formData.type === "car") {
-      delete filteredFormData.cc;
-      delete filteredFormData.chainImage;
-      delete filteredFormData.dropped;
-    } else if (formData.type === "motorcycle") {
-      delete filteredFormData.interiorColor;
-      delete filteredFormData.awd;
-      delete filteredFormData.package;
-      delete filteredFormData.option;
-      delete filteredFormData.leftfrontWheelImage;
-      delete filteredFormData.rightfrontWheelImage;
-      delete filteredFormData.leftrearWheelImage;
-      delete filteredFormData.rightrearWheelImage;
-      delete filteredFormData.engineBayImage;
-    }
+      const docRef = await addDoc(collection(db, 'listing'), vehicleData);
+      const vehicleId = docRef.id;
 
-    const timestamp = new Date().toLocaleString('en-US', { timeZone: 'UTC', hour12: false }).replace(/[/,: ]/g, '-');
-    const vehicleId = `${filteredFormData.type.toUpperCase()}-${auth.currentUser.uid}-${timestamp}`;
+      const uploadPromises = Array.from(images).map(async (file, index) => {
+        const fileName = `${vehicleId}-${index}`;
+        const storageRef = ref(storage, `listing/${vehicleId}/photos/${fileName}`);
+        const uploadTask = uploadBytesResumable(storageRef, file);
 
-    const fileUrls = await uploadFilesToFirebase(filteredFormData, vehicleId);
+        return new Promise((resolve, reject) => {
+          uploadTask.on(
+            'state_changed',
+            (snapshot) => {
+              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+              console.log(`Image ${index + 1} upload is ${progress}% done`);
+            },
+            (error) => {
+              console.error("Error uploading image:", error);
+              reject(error);
+            },
+            async () => {
+              try {
+                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                resolve(downloadURL);
+              } catch (error) {
+                console.error("Error retrieving download URL:", error);
+                reject(error);
+              }
+            }
+          );
+        });
+      });
 
-    const vehicleData = {
-      ...filteredFormData,
-      ...fileUrls,
-      uid: auth.currentUser.uid,
-      createdAt: new Date()
-    };
+      const imageUrls = await Promise.all(uploadPromises);
+      await addDoc(collection(db, `listing/${vehicleId}/photos`), { urls: imageUrls });
 
-    await setDoc(doc(db, "listing", vehicleId), vehicleData);
-
-    const userDocRef = doc(db, 'members', auth.currentUser.uid);
-    await updateDoc(userDocRef, {
-      vehicles: arrayUnion(vehicleId)
-    });
-
-    const makeDocRef = doc(db, 'vehicles', filteredFormData.type.toLowerCase(), filteredFormData.make, filteredFormData.year);
-    const makeDoc = await getDoc(makeDocRef);
-
-    if (!makeDoc.exists()) {
-      await setDoc(makeDocRef, { [filteredFormData.model]: true });
-    } else {
-      const modelData = makeDoc.data();
-      if (!modelData[filteredFormData.model]) {
-        await setDoc(makeDocRef, { [filteredFormData.model]: true }, { merge: true });
-      }
-    }
-
-    alert("Vehicle added successfully!");
-    router.push('/myDashboard_page');
-  } catch (error) {
-    console.error("Error uploading files or saving data:", error);
-    alert("There was an error while submitting the form.");
-  } finally {
-    setLoading(false);
-  }
-};
-
-const usStates = [
-  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
-];
-
-const VehicleForm = () => {
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
-  const [formData, setFormData] = useState({
-    type: "car",
-    make: "",
-    year: "",
-    model: "",
-    zip: "",
-    state: "",
-    city: "",
-    color: "",
-    vin: "",
-    title: "",
-    mileage: "",
-    tracked: false,
-    dropped: false,
-    interiorColor: "",
-    awd: false,
-    package: "",
-    option: "",
-    cc: "",
-    modifications: "",
-    maintenance: "",
-    aftermarketMods: "",
-    boughtIn: "",
-    boughtAt: "",
-    cosmeticDefaults: "",
-    description: "",
-    garageKept: false,
-    frontImage: null,
-    leftImage: null,
-    rightImage: null,
-    rearImage: null,
-    leftfrontWheelImage: null,
-    rightfrontWheelImage: null,
-    leftrearWheelImage: null,
-    rightrearWheelImage: null,
-    engineBayImage: null,
-    dashboardImage: null,
-    chainImage: null,
-    vehicleVideo: null,
-    otherImage: null,
-  });
-
-  const handleChange = (e) => {
-    const { name, value, files, type, checked } = e.target;
-
-    if (files) {
-      setFormData(prevData => ({
-        ...prevData,
-        [name]: files[0],
-      }));
-    } else if (type === 'checkbox') {
-      setFormData(prevData => ({
-        ...prevData,
-        [name]: checked,
-      }));
-    } else {
-      setFormData(prevData => ({
-        ...prevData,
-        [name]: value,
-      }));
+      setUploading(false);
+      router.push(`/vehicleCard_page?id=${vehicleId}`);
+    } catch (error) {
+      console.error("Error adding vehicle:", error);
+      setUploading(false);
     }
   };
 
   return (
-    <div className="form-container">
-      <h2 className="form-title">Add a Vehicle</h2>
-      <p>We recommend you to be next to your vehicle, as photos are required!</p>
-      <form onSubmit={(e) => handleSubmit(e, formData, setLoading, router)} className="vehicle-form">
-        {loading && <div className="loading-spinner"></div>}
-        {!loading && (
-          <>
-            <h3>General Details</h3>
-            <input type="text" name="make" placeholder="Make" value={formData.make} onChange={handleChange} required />
-            <input type="text" name="model" placeholder="Model" value={formData.model} onChange={handleChange} required />
-            <input type="text" name="year" placeholder="Year" value={formData.year} onChange={handleChange} required />
-            <input type="text" name="vin" placeholder="VIN" value={formData.vin} onChange={handleChange} required />
-            <input type="text" name="mileage" placeholder="Mileage" value={formData.mileage} onChange={handleChange} required />
-            <input type="text" name="color" placeholder="Color" value={formData.color} onChange={handleChange} />
-            <input type="text" name="zip" placeholder="ZIP Code" value={formData.zip} onChange={handleChange} />
-            <select name="state" value={formData.state} onChange={handleChange}>
-              <option value="">Select State</option>
-              {usStates.map((state, index) => (
-                <option key={index} value={state}>{state}</option>
-              ))}
-            </select>
-
-            <h3>Photos</h3>
-            <input type="file" name="frontImage" onChange={handleChange} required />
-            <input type="file" name="leftImage" onChange={handleChange} required />
-            <input type="file" name="rightImage" onChange={handleChange} required />
-            <input type="file" name="rearImage" onChange={handleChange} required />
-            <input type="file" name="dashboardImage" onChange={handleChange} required />
-
-            <h3>Additional Details</h3>
-            <textarea name="description" placeholder="Description" value={formData.description} onChange={handleChange} />
-            <textarea name="cosmeticDefaults" placeholder="Cosmetic Defaults" value={formData.cosmeticDefaults} onChange={handleChange} />
-            <textarea name="aftermarketMods" placeholder="Aftermarket Mods" value={formData.aftermarketMods} onChange={handleChange} />
-
-            <button type="submit">Submit</button>
-          </>
-        )}
-      </form>
+    <div className="min-h-screen p-6 bg-gray-100 text-black">
+      <h1 className="text-3xl font-bold mb-6 text-center">Add Vehicle</h1>
+      <div className="form-container">
+        <div className="form-section">
+          <label className="form-label">Make</label>
+          <input
+            type="text"
+            value={make}
+            onChange={(e) => setMake(e.target.value)}
+            className="form-input"
+          />
+        </div>
+        <div className="form-section">
+          <label className="form-label">Model</label>
+          <input
+            type="text"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            className="form-input"
+          />
+        </div>
+        <div className="form-section">
+          <label className="form-label">Year</label>
+          <input
+            type="number"
+            value={year}
+            onChange={(e) => setYear(e.target.value)}
+            className="form-input"
+          />
+        </div>
+        <div className="form-section">
+          <label className="form-label">Mileage</label>
+          <input
+            type="number"
+            value={mileage}
+            onChange={(e) => setMileage(e.target.value)}
+            className="form-input"
+          />
+        </div>
+        <div className="form-section">
+          <label className="form-label">Images</label>
+          <input
+            type="file"
+            multiple
+            onChange={handleFileChange}
+            className="form-input"
+          />
+        </div>
+        <button
+          onClick={handleAddVehicle}
+          className="btn"
+          disabled={uploading}
+        >
+          {uploading ? <div className="loader"></div> : 'Add Vehicle'}
+        </button>
+      </div>
     </div>
   );
 };
 
-export default VehicleForm;
+export default AddVehiclePage;
