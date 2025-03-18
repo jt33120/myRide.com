@@ -34,10 +34,13 @@ const NavBar = () => {
             try {
               const url = await getDownloadURL(storageRef); // Fetch the URL of the profile picture
               setProfilePicture(url); // Set the profile picture from Firebase Storage
+              console.log('Profile picture URL:', url); // Log the profile picture URL
             } catch (error) {
               console.log('Error fetching profile picture:', error);
             }
           }
+        } else {
+          console.log("No such document!");
         }
       } else {
         setFirstName(""); // Reset if logged out
