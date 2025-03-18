@@ -66,6 +66,8 @@ const MyGarage = () => {
         );
         const vehiclesSnapshot = await getDocs(vehiclesQuery);
 
+        console.log("Fetched vehicles:", vehiclesSnapshot.docs.map(doc => doc.data())); // Log fetched vehicles
+
         const vehicleList = await Promise.all(
           vehiclesSnapshot.docs.map(async (doc) => {
             const vehicleData = doc.data();
