@@ -54,13 +54,6 @@ const Dashboard = () => {
       <div style={{ textAlign: 'center', padding: '50px' }}>
         <div style={{ marginBottom: '10px', textAlign: 'center' }}>
           {/* Display profile picture */}
-          <Image 
-            src={profilePicture} 
-            alt="Profile Picture" 
-            width={100} 
-            height={100} 
-            style={{ borderRadius: '50%' }} // Make the image round
-          />
           <h1 style={{ color: 'black' }}>
             {firstName ? `${firstName}'s Dashboard` : "Loading..."}
           </h1>

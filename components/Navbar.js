@@ -101,7 +101,7 @@ const NavBar = () => {
         </ul>
       </nav>
 
-      <div className="profile-container">
+      <div className="profile-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <Image
           src={profilePicture}
           alt="Profile"
@@ -109,7 +109,7 @@ const NavBar = () => {
           height={40}
           className="profile-icon"
           onClick={() => setMenuOpen(!menuOpen)}
-          style={{ borderRadius: '50%' }} // Make the image round
+          style={{ borderRadius: '50%', cursor: 'pointer' }} // Make the image round and add cursor pointer
         />
 
         {menuOpen && (

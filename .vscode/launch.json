@@ -8,8 +8,31 @@
             "type": "chrome",
             "request": "launch",
             "name": "Launch Chrome against localhost",
-            "url": "http://localhost:8080",
+            "url": "http://localhost:3000",
             "webRoot": "${workspaceFolder}"
+        },
+        {
+            "name": "Launch iPhone Simulator",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceFolder}/node_modules/.bin/next",
+            "args": ["dev"],
+            "console": "integratedTerminal",
+            "env": {
+                "BROWSER": "open -a Simulator --args -CurrentDeviceUDID $(xcrun simctl list devices | grep -m1 -oE '[A-F0-9-]{36}')"
+            },
+            "preLaunchTask": "Start iPhone Simulator"
         }
-    ]
+    ],
+    "tasks": {
+        "version": "2.0.0",
+        "tasks": [
+            {
+                "label": "Start iPhone Simulator",
+                "type": "shell",
+                "command": "xcrun simctl boot $(xcrun simctl list devices | grep -m1 -oE '[A-F0-9-]{36}')",
+                "problemMatcher": []
+            }
+        ]
+    }
 }
