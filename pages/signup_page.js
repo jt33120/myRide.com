@@ -136,7 +136,7 @@ export default function SignUp() {
 
       {/* Date of Birth with DatePicker */}
       <label>Date of Birth</label>
-      <DatePicker selected={dob} onChange={(date) => setDob(date)} dateFormat="MM/dd/yy" placeholderText="Select your birth date" className="input" required />
+      <DatePicker selected={dob} onChange={(date) => setDob(date)} dateFormat="MM/dd/yy" placeholderText="MM/DD/YY" className="input" required />
 
       <input type="text" placeholder="Zip Code" value={zipCode} onChange={(e) => setZipCode(e.target.value)} required />
 
