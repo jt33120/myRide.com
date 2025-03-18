@@ -7,7 +7,6 @@ import { useRouter } from "next/router";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import styles from '../styles/Auth.module.css';
-import sharp from "sharp"; // Import sharp for image processing
 import { Cropper as ReactCropper } from 'react-cropper'; // Import the cropper component with a unique name
 import Modal from 'react-modal'; // Import the Modal component
 
@@ -33,85 +32,86 @@ export default function SignUp() {
     if (!inviteCode) return setError("You need an invite code!");
     if (!image) return setError("You must upload a profile image!");
 
-    // Query the "members" collection to check if the invitation code exists
     const membersQuery = query(collection(db, "members"), where("invitationcode", "==", inviteCode));
     const querySnapshot = await getDocs(membersQuery);
-  
+
     if (querySnapshot.empty) return setError("Invalid invite code!");
 
     try {
-      // Check if the email is valid
       if (!email || !email.includes("@")) {
         return setError("Please provide a valid email!");
       }
-  
-      // Check password length
+
       if (password.length < 6) {
         return setError("Password should be at least 6 characters!");
       }
-  
-      // Register the user with email and password
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-  
-      // Generate the invite code with prefix and user's UID
-      const invitationCode = `MYRIDE-SP-${userCredential.user.uid}`;
 
-      // Fetch the inviter's UID from the invite code document
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const invitationCode = `MYRIDE-SP-${userCredential.user.uid}`;
       const inviterUID = querySnapshot.docs[0].data().uid;
 
-      // Automatically crop and resize the image to a square
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const buffer = Buffer.from(reader.result.split(",")[1], "base64");
-        const processedImage = await sharp(buffer)
-          .resize(300, 300) // Resize to 300x300 pixels
-          .png() // Convert to PNG
-          .toBuffer();
+      // Resize the image to 300x300 using a canvas
+      const resizedImage = await resizeImage(image, 300, 300);
 
-        // Upload the processed image to Firebase Storage
-        const storageRef = ref(storage, `members/${userCredential.user.uid}/profilepicture.png`);
-        const uploadTask = uploadBytesResumable(storageRef, processedImage);
+      const storageRef = ref(storage, `members/${userCredential.user.uid}/profilepicture.png`);
+      const uploadTask = uploadBytesResumable(storageRef, resizedImage);
 
-        // Wait for the image upload to complete
-        uploadTask.on(
-          "state_changed",
-          () => {},
-          (err) => {
-            setError(err.message);
-          },
-          async () => {
-            const imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
+      uploadTask.on(
+        "state_changed",
+        () => {},
+        (err) => {
+          setError(err.message);
+        },
+        async () => {
+          const imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
 
-            // Save user information to Firestore
-            await setDoc(doc(db, "members", userCredential.user.uid), {
-              email,
-              firstName,
-              lastName,
-              middleName,
-              phoneNumber,
-              dob,
-              zipCode,
-              state,
-              inviter: inviterUID,
-              rating: 5,
-              uid: userCredential.user.uid,
-              invitationcode: invitationCode,
-              profileImage: imageUrl, // Save the image URL
-            });
-  
-            // Mark the invite code as used (optional)
-            await setDoc(doc(db, "members", querySnapshot.docs[0].id), { used: true }, { merge: true });
-  
-            // Redirect user to dashboard
-            router.push("/myDashboard_page");
-          }
-        );
-      };
+          await setDoc(doc(db, "members", userCredential.user.uid), {
+            email,
+            firstName,
+            lastName,
+            middleName,
+            phoneNumber,
+            dob,
+            zipCode,
+            state,
+            inviter: inviterUID,
+            rating: 5,
+            uid: userCredential.user.uid,
+            invitationcode: invitationCode,
+            profileImage: imageUrl,
+          });
 
-      reader.readAsDataURL(image);
+          await setDoc(doc(db, "members", querySnapshot.docs[0].id), { used: true }, { merge: true });
+
+          router.push("/myDashboard_page");
+        }
+      );
     } catch (error) {
-      setError(error.message); // Handle any errors from Firebase
+      setError(error.message);
     }
+  };
+
+  const resizeImage = (file, width, height) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob((blob) => {
+            resolve(blob);
+          }, "image/png");
+        };
+        img.onerror = reject;
+        img.src = event.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   };
 
   const handleImageChange = (e) => {
@@ -139,22 +139,16 @@ export default function SignUp() {
       <h2>Register</h2>
       {error && <p className="text-red-500">{error}</p>}
 
-      {/* Form Fields */}
       <input type="text" placeholder="First Name" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
       <input type="text" placeholder="Last Name" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
       <input type="text" placeholder="Middle Name (optional)" value={middleName} onChange={(e) => setMiddleName(e.target.value)} />
       <input type="text" placeholder="Phone Number" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} required />
-
-      {/* Date of Birth with DatePicker */}
       <label>Date of Birth</label>
       <DatePicker selected={dob} onChange={(date) => setDob(date)} dateFormat="MM/dd/yy" placeholderText="MM/DD/YY" className="input" required />
-
       <input type="text" placeholder="Zip Code" value={zipCode} onChange={(e) => setZipCode(e.target.value)} required />
-
       <label>State</label>
       <select value={state} onChange={(e) => setState(e.target.value)} required>
         <option value="">Select your state</option>
-        {/* State options here */}
         <option value="AL">Alabama</option>
         <option value="AK">Alaska</option>
         <option value="AZ">Arizona</option>
@@ -206,12 +200,9 @@ export default function SignUp() {
         <option value="WI">Wisconsin</option>
         <option value="WY">Wyoming</option>
       </select>
-
       <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
       <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
       <input type="text" placeholder="Invite Code" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} required />
-
-      {/* Profile Image Upload */}
       <input type="file" onChange={handleImageChange} accept="image/*" required />
 
       {/* Modal for Image Cropper */}
@@ -231,7 +222,6 @@ export default function SignUp() {
         
       </Modal>
 
-      {/* Register Button */}
       <button onClick={handleRegister}>Register</button>
   
       <p className="text-sm mt-5 text-center text-gray-500">
