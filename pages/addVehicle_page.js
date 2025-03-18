@@ -241,6 +241,14 @@ const VehicleForm = () => {
     setCurrentStep(currentStep - 1);
   };
 
+  useEffect(() => {
+    // Ensure this code only runs on the client side
+    if (typeof window !== 'undefined') {
+      // Client-side code that uses `window`
+      console.log('Client-side code running');
+    }
+  }, []);
+
   return (
     <div className="form-container">
       <h2 className="form-title">Add a Vehicle</h2>
