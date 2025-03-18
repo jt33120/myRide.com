@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { auth, db } from '../lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { getStorage, ref, listAll, getDownloadURL } from 'firebase/storage';
 import Image from 'next/image';
 
@@ -58,38 +58,29 @@ const MyGarage = () => {
       setLoading(true);
       try {
         const user = auth.currentUser;
-        const userRef = doc(db, "members", user.uid);
-        const userDoc = await getDoc(userRef);
-        const userData = userDoc.data();
+        if (!user) return;
 
-        if (userData?.vehicles && userData.vehicles.length > 0) {
-          const vehicleList = [];
-          for (let vehicleId of userData.vehicles) {
-            const vehicleRef = doc(db, "listing", vehicleId);
-            const vehicleDoc = await getDoc(vehicleRef);
-            const vehicleData = vehicleDoc.data();
-            if (vehicleData) {
-              console.log(`Fetched Vehicle Data for ID ${vehicleId}:`, vehicleData); // Debug log
-              
-              // Fetch images from Firebase Storage
-              const images = await fetchVehicleImages(vehicleId);
+        const vehiclesQuery = query(
+          collection(db, 'listing'),
+          where('uid', '==', user.uid)
+        );
+        const vehiclesSnapshot = await getDocs(vehiclesQuery);
 
-              vehicleList.push({
-                id: vehicleId,
-                make: vehicleData.make,    // Ensure field names match exactly
-                model: vehicleData.model,  // Ensure field names match exactly
-                year: vehicleData.year,    // Ensure field names match exactly
-                images: images,            // Set the fetched images
-              });
-            } else {
-              console.log(`No data found for vehicle ID: ${vehicleId}`);
-            }
-          }
-          setVehicles(vehicleList);
-        } else {
-          setVehicles([]);
-        }
-        
+        const vehicleList = await Promise.all(
+          vehiclesSnapshot.docs.map(async (doc) => {
+            const vehicleData = doc.data();
+            const images = await fetchVehicleImages(doc.id);
+            return {
+              id: doc.id,
+              make: vehicleData.make,
+              model: vehicleData.model,
+              year: vehicleData.year,
+              images: images,
+            };
+          })
+        );
+
+        setVehicles(vehicleList);
       } catch (error) {
         console.error("Error fetching vehicles:", error);
       } finally {
