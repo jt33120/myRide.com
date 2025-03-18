@@ -6,8 +6,39 @@ import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { useRouter } from "next/router";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { useMediaQuery } from "react-responsive"; // Import useMediaQuery for responsive handling
 import styles from '../styles/Auth.module.css';
 import Resizer from "react-image-file-resizer"; // Import the image resizer library
+
+const usStates = [
+  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
+];
+
+const MyDatePicker = ({ selectedDate, setSelectedDate }) => {
+  const isMobile = useMediaQuery({ maxWidth: 768 }); // Detect if the user is on mobile
+
+  return isMobile ? (
+    <input
+      type="date"
+      value={selectedDate ? selectedDate.toISOString().split("T")[0] : ""}
+      onChange={(e) => setSelectedDate(new Date(e.target.value))}
+      className="border border-gray-300 p-2 rounded-md w-full mb-2"
+      required
+    />
+  ) : (
+    <DatePicker
+      selected={selectedDate}
+      onChange={setSelectedDate}
+      showYearDropdown
+      scrollableYearDropdown
+      dateFormat="MM/dd/yy"
+      placeholderText="Date of birth (MM/DD/YY)"
+      title="Date of birth (MM/DD/YY)"
+      className="border border-gray-300 p-2 rounded-md w-full mb-2"
+      required
+    />
+  );
+};
 
 export default function SignUp() {
   const [email, setEmail] = useState("");
@@ -133,66 +164,20 @@ export default function SignUp() {
       <input type="text" placeholder="Middle Name (optional)" value={middleName} onChange={(e) => setMiddleName(e.target.value)} />
       <input type="text" placeholder="Phone Number" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} required />
 
-      {/* Date of Birth with DatePicker */}
-      <label>Date of Birth</label>
-      <DatePicker selected={dob} onChange={(date) => setDob(date)} dateFormat="MM/dd/yy" placeholderText="MM/DD/YY" className="input" required />
+      {/* Date of Birth */}
+      <MyDatePicker selectedDate={dob} setSelectedDate={setDob} />
 
       <input type="text" placeholder="Zip Code" value={zipCode} onChange={(e) => setZipCode(e.target.value)} required />
-
-      <label>State</label>
-      <select value={state} onChange={(e) => setState(e.target.value)} required>
-        <option value="">Select your state</option>
-        {/* State options here */}
-        <option value="AL">Alabama</option>
-        <option value="AK">Alaska</option>
-        <option value="AZ">Arizona</option>
-        <option value="AR">Arkansas</option>
-        <option value="CA">California</option>
-        <option value="CO">Colorado</option>
-        <option value="CT">Connecticut</option>
-        <option value="DE">Delaware</option>
-        <option value="FL">Florida</option>
-        <option value="GA">Georgia</option>
-        <option value="HI">Hawaii</option>
-        <option value="ID">Idaho</option>
-        <option value="IL">Illinois</option>
-        <option value="IN">Indiana</option>
-        <option value="IA">Iowa</option>
-        <option value="KS">Kansas</option>
-        <option value="KY">Kentucky</option>
-        <option value="LA">Louisiana</option>
-        <option value="ME">Maine</option>
-        <option value="MD">Maryland</option>
-        <option value="MA">Massachusetts</option>
-        <option value="MI">Michigan</option>
-        <option value="MN">Minnesota</option>
-        <option value="MS">Mississippi</option>
-        <option value="MO">Missouri</option>
-        <option value="MT">Montana</option>
-        <option value="NE">Nebraska</option>
-        <option value="NV">Nevada</option>
-        <option value="NH">New Hampshire</option>
-        <option value="NJ">New Jersey</option>
-        <option value="NM">New Mexico</option>
-        <option value="NY">New York</option>
-        <option value="NC">North Carolina</option>
-        <option value="ND">North Dakota</option>
-        <option value="OH">Ohio</option>
-        <option value="OK">Oklahoma</option>
-        <option value="OR">Oregon</option>
-        <option value="PA">Pennsylvania</option>
-        <option value="RI">Rhode Island</option>
-        <option value="SC">South Carolina</option>
-        <option value="SD">South Dakota</option>
-        <option value="TN">Tennessee</option>
-        <option value="TX">Texas</option>
-        <option value="UT">Utah</option>
-        <option value="VT">Vermont</option>
-        <option value="VA">Virginia</option>
-        <option value="WA">Washington</option>
-        <option value="WV">West Virginia</option>
-        <option value="WI">Wisconsin</option>
-        <option value="WY">Wyoming</option>
+      <select
+        value={state}
+        onChange={(e) => setState(e.target.value)}
+        className="border border-gray-300 p-2 rounded-md w-full mb-2 text-gray-500" // Styled to match other inputs
+        required
+      >
+        <option value="" disabled>Select your state</option> {/* Placeholder styled in gray */}
+        {usStates.map((state, index) => (
+          <option key={index} value={state}>{state}</option>
+        ))}
       </select>
 
       <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -201,9 +186,7 @@ export default function SignUp() {
 
       {/* Profile Image Upload */}
       <label>Profile Picture</label>
-      <p className="text-gray-500 text-sm mb-2">
-        Please upload a clear profile picture. This will be used for your account.
-      </p>
+      <p className="text-xs text-gray-500"> If you can cropped it to square format for the moment...</p>
       <input type="file" onChange={handleImageChange} accept="image/*" required />
 
       {/* Register Button */}
@@ -212,7 +195,7 @@ export default function SignUp() {
       </button>
   
       <p className="text-sm mt-5 text-center text-gray-500">
-        ID verification and phone confirmation will be required later. For each sponsored friend, you’ll get $10 offered on the app!
+        To come : cropping tool ID verification and phone confirmation will be required later.
       </p>
     </div>
   );

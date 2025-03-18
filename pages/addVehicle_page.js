@@ -157,43 +157,43 @@ const AddVehiclePage = () => {
       <h1 className="text-3xl font-bold mb-6 text-center">Add Vehicle</h1>
       <div className="form-container">
         <div className="form-section">
-          <label className="form-label">Vehicle Type</label>
-          <select value={vehicleType} onChange={(e) => setVehicleType(e.target.value)}>
+          <label className="form-label">Vehicle Type *</label>
+          <select value={vehicleType} onChange={(e) => setVehicleType(e.target.value)} required>
             <option value="">Select Vehicle Type</option>
             <option value="car">Car</option>
             <option value="motorcycle">Motorcycle</option>
           </select>
         </div>
         <div className="form-section">
-          <label className="form-label">Make</label>
+          <label className="form-label">Make *</label>
           <input type="text" value={make} onChange={(e) => setMake(e.target.value)} required />
         </div>
         <div className="form-section">
-          <label className="form-label">Model</label>
+          <label className="form-label">Model *</label>
           <input type="text" value={model} onChange={(e) => setModel(e.target.value)} required />
         </div>
         <div className="form-section">
-          <label className="form-label">Year</label>
+          <label className="form-label">Year *</label>
           <input type="text" value={year} onChange={(e) => setYear(e.target.value)} required />
         </div>
         <div className="form-section">
-          <label className="form-label">Bought in</label>
+          <label className="form-label">Bought in *</label>
           <input type="text" value={boughtIn} onChange={(e) => setBoughtIn(e.target.value)} required />
         </div>
         <div className="form-section">
-          <label className="form-label">Bought at</label>
+          <label className="form-label">Bought at *</label>
           <input type="text" value={boughtAt} onChange={(e) => setBoughtAt(e.target.value)} required />
         </div>
         <div className="form-section">
-          <label className="form-label">Color</label>
-          <input type="text" value={color} onChange={(e) => setColor(e.target.value)} />
+          <label className="form-label">Color *</label>
+          <input type="text" value={color} onChange={(e) => setColor(e.target.value)} required />
         </div>
         <div className="form-section">
-          <label className="form-label">VIN</label>
+          <label className="form-label">VIN *</label>
           <input type="text" value={vin} onChange={(e) => setVin(e.target.value)} required />
         </div>
         <div className="form-section">
-          <label className="form-label">Title</label>
+          <label className="form-label">Title *</label>
           <select value={title} onChange={(e) => setTitle(e.target.value)} required>
             <option value="">Select Title Status</option>
             <option value="clean">Clean</option>
@@ -202,16 +202,16 @@ const AddVehiclePage = () => {
           </select>
         </div>
         <div className="form-section">
-          <label className="form-label">Mileage</label>
+          <label className="form-label">Mileage *</label>
           <input type="text" value={mileage} onChange={(e) => setMileage(e.target.value)} required />
         </div>
         <div className="form-section">
-          <label className="form-label">ZIP Code</label>
-          <input type="text" value={zip} onChange={(e) => setZip(e.target.value)} maxlength="5" pattern="\d*" />
+          <label className="form-label">ZIP Code *</label>
+          <input type="text" value={zip} onChange={(e) => setZip(e.target.value)} maxLength="5" pattern="\d*" required />
         </div>
         <div className="form-section">
-          <label className="form-label">State</label>
-          <select value={state} onChange={(e) => setState(e.target.value)}>
+          <label className="form-label">State *</label>
+          <select value={state} onChange={(e) => setState(e.target.value)} required>
             <option value="">Select State</option>
             {usStates.map((state, index) => (
               <option key={index} value={state}>{state}</option>
@@ -219,8 +219,8 @@ const AddVehiclePage = () => {
           </select>
         </div>
         <div className="form-section">
-          <label className="form-label">City</label>
-          <input type="text" value={city} onChange={(e) => setCity(e.target.value)} />
+          <label className="form-label">City *</label>
+          <input type="text" value={city} onChange={(e) => setCity(e.target.value)} required />
         </div>
         {vehicleType === 'car' && (
           <>
@@ -275,46 +275,46 @@ const AddVehiclePage = () => {
           <textarea value={aftermarketMods} onChange={(e) => setAftermarketMods(e.target.value)} />
         </div>
         <div className="form-section">
-          <label className="form-label">Front Image</label>
+          <label className="form-label">Front Image *</label>
           <input type="file" onChange={(e) => setFrontImage(e.target.files[0])} required />
         </div>
         <div className="form-section">
           <label className="form-label">Left Image</label>
-          <input type="file" onChange={(e) => setLeftImage(e.target.files[0])} required />
+          <input type="file" onChange={(e) => setLeftImage(e.target.files[0])} />
         </div>
         <div className="form-section">
           <label className="form-label">Right Image</label>
-          <input type="file" onChange={(e) => setRightImage(e.target.files[0])} required />
+          <input type="file" onChange={(e) => setRightImage(e.target.files[0])} />
         </div>
         <div className="form-section">
           <label className="form-label">Rear Image</label>
-          <input type="file" onChange={(e) => setRearImage(e.target.files[0])} required />
+          <input type="file" onChange={(e) => setRearImage(e.target.files[0])} />
         </div>
         <div className="form-section">
           <label className="form-label">Dashboard Image</label>
-          <input type="file" onChange={(e) => setDashboardImage(e.target.files[0])} required />
+          <input type="file" onChange={(e) => setDashboardImage(e.target.files[0])} />
         </div>
         {vehicleType === 'car' && (
           <>
             <div className="form-section">
               <label className="form-label">Left Front Wheel Image</label>
-              <input type="file" onChange={(e) => setLeftFrontWheelImage(e.target.files[0])} required />
+              <input type="file" onChange={(e) => setLeftFrontWheelImage(e.target.files[0])} />
             </div>
             <div className="form-section">
               <label className="form-label">Right Front Wheel Image</label>
-              <input type="file" onChange={(e) => setRightFrontWheelImage(e.target.files[0])} required />
+              <input type="file" onChange={(e) => setRightFrontWheelImage(e.target.files[0])} />
             </div>
             <div className="form-section">
               <label className="form-label">Left Rear Wheel Image</label>
-              <input type="file" onChange={(e) => setLeftRearWheelImage(e.target.files[0])} required />
+              <input type="file" onChange={(e) => setLeftRearWheelImage(e.target.files[0])} />
             </div>
             <div className="form-section">
               <label className="form-label">Right Rear Wheel Image</label>
-              <input type="file" onChange={(e) => setRightRearWheelImage(e.target.files[0])} required />
+              <input type="file" onChange={(e) => setRightRearWheelImage(e.target.files[0])} />
             </div>
             <div className="form-section">
               <label className="form-label">Engine Bay Image</label>
-              <input type="file" onChange={(e) => setEngineBayImage(e.target.files[0])} required />
+              <input type="file" onChange={(e) => setEngineBayImage(e.target.files[0])} />
             </div>
           </>
         )}
@@ -322,15 +322,15 @@ const AddVehiclePage = () => {
           <>
             <div className="form-section">
               <label className="form-label">Chain Image</label>
-              <input type="file" onChange={(e) => setChainImage(e.target.files[0])} required />
+              <input type="file" onChange={(e) => setChainImage(e.target.files[0])} />
             </div>
             <div className="form-section">
               <label className="form-label">Front Wheel Image</label>
-              <input type="file" onChange={(e) => setFrontWheelImage(e.target.files[0])} required />
+              <input type="file" onChange={(e) => setFrontWheelImage(e.target.files[0])} />
             </div>
             <div className="form-section">
               <label className="form-label">Rear Wheel Image</label>
-              <input type="file" onChange={(e) => setRearWheelImage(e.target.files[0])} required />
+              <input type="file" onChange={(e) => setRearWheelImage(e.target.files[0])} />
             </div>
           </>
         )}
