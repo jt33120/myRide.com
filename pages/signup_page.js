@@ -18,13 +18,21 @@ const MyDatePicker = ({ selectedDate, setSelectedDate }) => {
   const isMobile = useMediaQuery({ maxWidth: 768 }); // Detect if the user is on mobile
 
   return isMobile ? (
-    <input
-      type="date"
-      value={selectedDate ? selectedDate.toISOString().split("T")[0] : ""}
-      onChange={(e) => setSelectedDate(new Date(e.target.value))}
-      className="border border-gray-300 p-2 rounded-md w-full mb-2"
-      required
-    />
+    <div className="relative">
+      <input
+        type="date"
+        value={selectedDate ? selectedDate.toISOString().split("T")[0] : ""}
+        onChange={(e) => setSelectedDate(new Date(e.target.value))}
+        className="border border-gray-300 p-2 rounded-md w-full mb-2 text-gray-500 placeholder-gray-400"
+        placeholder="Date of Birth" // Added placeholder
+        required
+      />
+      {!selectedDate && (
+        <span className="absolute left-3 top-2 text-gray-400 pointer-events-none">
+          Date of Birth
+        </span>
+      )}
+    </div>
   ) : (
     <DatePicker
       selected={selectedDate}
@@ -32,8 +40,8 @@ const MyDatePicker = ({ selectedDate, setSelectedDate }) => {
       showYearDropdown
       scrollableYearDropdown
       dateFormat="MM/dd/yy"
-      placeholderText="Date of birth (MM/DD/YY)"
-      title="Date of birth (MM/DD/YY)"
+      placeholderText="Date of Birth (MM/DD/YY)" // Added placeholder
+      title="Date of Birth (MM/DD/YY)"
       className="border border-gray-300 p-2 rounded-md w-full mb-2"
       required
     />
