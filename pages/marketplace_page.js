@@ -12,23 +12,6 @@ export default function MarketplacePage() {
   // Firebase storage instance
   const storage = getStorage();
 
-  const [filters, setFilters] = useState({
-    make: '',
-    model: '',
-    year: '',
-    zip: '',
-    state: '',
-    city: '',
-  });
-  
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters((prevFilters) => ({
-      ...prevFilters,
-      [name]: value,
-    }));
-  };
-  
   const fetchVehicleImages = useCallback(async (vehicleId) => {
     const imagesRef = ref(storage, `listing/${vehicleId}/photos`);
     const imageList = await listAll(imagesRef);
@@ -59,46 +42,37 @@ export default function MarketplacePage() {
   
         if (vehicleSnap.exists()) {
           const vehicleData = vehicleSnap.data();
-          
-          // Apply filters
-          const matchesFilters =
-            (filters.make === '' || vehicleData.make === filters.make) &&
-            (filters.model === '' || vehicleData.model === filters.model) &&
-            (filters.year === '' || vehicleData.year.toString() === filters.year) &&
-            (filters.zip === '' || vehicleData.zip === filters.zip) &&
-            (filters.state === '' || vehicleData.state === filters.state) &&
-            (filters.city === '' || vehicleData.city === filters.city);
+          const marketplaceData = vehicleDoc.data(); // Fetch data from "on_marketplace" collection
   
-          if (matchesFilters) {
-            let ownerName = "Unknown Seller";
-            if (vehicleData.uid) {
-              const ownerRef = doc(db, "members", vehicleData.uid);
-              const ownerSnap = await getDoc(ownerRef);
-              if (ownerSnap.exists()) {
-                ownerName = ownerSnap.data().firstName || "Unknown Seller";
-              }
+          let ownerName = "Unknown Seller";
+          if (vehicleData.uid) {
+            const ownerRef = doc(db, "members", vehicleData.uid);
+            const ownerSnap = await getDoc(ownerRef);
+            if (ownerSnap.exists()) {
+              ownerName = ownerSnap.data().firstName || "Unknown Seller";
             }
-  
-            // Fetch images from Firebase Storage
-            const images = await fetchVehicleImages(vehicleId);
-  
-            vehicleList.push({
-              id: vehicleId,
-              make: vehicleData.make || "Unknown Make",
-              model: vehicleData.model || "Unknown Model",
-              year: vehicleData.year || "Unknown Year",
-              owner: ownerName,
-              images: images, // Set the fetched images
-            });
           }
+  
+          // Fetch images from Firebase Storage
+          const images = await fetchVehicleImages(vehicleId);
+  
+          vehicleList.push({
+            id: vehicleId,
+            make: vehicleData.make || "Unknown Make",
+            model: vehicleData.model || "Unknown Model",
+            year: vehicleData.year || "Unknown Year",
+            owner: ownerName,
+            images: images, // Set the fetched images
+            price: marketplaceData.price || "N/A", // Fetch price from "on_marketplace"
+          });
         }
       }
       setVehicles(vehicleList);
     }
   
     fetchVehicles();
-  }, [filters, fetchVehicleImages]);
-  
+  }, [fetchVehicleImages]);
+
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const handleDotClick = (index) => {
@@ -109,76 +83,9 @@ export default function MarketplacePage() {
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">Marketplace</h1>
   
-      {/* Filter Section */}
+      {/* AI Prompt Placeholder */}
       <div className="mb-4">
-        <div className="flex flex-wrap gap-4">
-          {/* Make Filter */}
-          <select
-            name="make"
-            value={filters.make}
-            onChange={handleFilterChange}
-            className="p-2 border rounded"
-          >
-            <option value="">Select Make</option>
-            {/* Add options dynamically based on available makes */}
-            <option value="Toyota">Toyota</option>
-            <option value="Honda">Honda</option>
-            {/* Add other options as necessary */}
-          </select>
-  
-          {/* Model Filter */}
-          <select
-            name="model"
-            value={filters.model}
-            onChange={handleFilterChange}
-            className="p-2 border rounded"
-          >
-            <option value="">Select Model</option>
-            {/* Add options dynamically based on available models */}
-            <option value="Camry">Camry</option>
-            <option value="Civic">Civic</option>
-            {/* Add other options as necessary */}
-          </select>
-  
-          {/* Year Filter */}
-          <select
-            name="year"
-            value={filters.year}
-            onChange={handleFilterChange}
-            className="p-2 border rounded"
-          >
-            <option value="">Select Year</option>
-            <option value="2022">2022</option>
-            <option value="2021">2021</option>
-            {/* Add other options as necessary */}
-          </select>
-  
-          {/* Location Filters */}
-          <input
-            type="text"
-            name="zip"
-            value={filters.zip}
-            onChange={handleFilterChange}
-            placeholder="ZIP Code"
-            className="p-2 border rounded"
-          />
-          <input
-            type="text"
-            name="state"
-            value={filters.state}
-            onChange={handleFilterChange}
-            placeholder="State"
-            className="p-2 border rounded"
-          />
-          <input
-            type="text"
-            name="city"
-            value={filters.city}
-            onChange={handleFilterChange}
-            placeholder="City"
-            className="p-2 border rounded"
-          />
-        </div>
+        <p className="text-gray-600 text-lg">No filters anymore, a simple AI prompt is coming soon!</p>
       </div>
   
       {/* Display Vehicles */}
@@ -219,6 +126,7 @@ export default function MarketplacePage() {
             <div className="ml-4">
               <h2 className="text-lg font-semibold">{vehicle.make} {vehicle.model}</h2>
               <p className="text-gray-600">Year: {vehicle.year}</p>
+              <p className="text-purple-500 xl font-bold text-600"> ${vehicle.price}</p> {/* Display price */}
               <p className="text-gray-500 text-sm">By {vehicle.owner}</p>
             </div>
           </div>

@@ -341,12 +341,22 @@ const VehicleCardPage = () => {
   };
 
   const handleSellVehicle = async (id) => {
+    const price = prompt("Enter the price for your vehicle:");
+    
+    // Validate the price input
+    if (!price || isNaN(price) || parseFloat(price) <= 0) {
+      alert("Please enter a valid price.");
+      return;
+    }
+  
     try {
       await setDoc(doc(db, "on_marketplace", id), {
         listedAt: new Date(),
         status: "listed",
+        price: parseFloat(price), // Save the price as a number
       });
       alert("Vehicle listed for sale!");
+      setIsListed(true); // Update the state to reflect the listing
     } catch (error) {
       console.error("Error listing vehicle:", error);
       alert("Failed to list vehicle.");
