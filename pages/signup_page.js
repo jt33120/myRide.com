@@ -7,6 +7,7 @@ import { useRouter } from "next/router";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import styles from '../styles/Auth.module.css';
+import sharp from "sharp"; // Import sharp for image processing
 import { Cropper as ReactCropper } from 'react-cropper'; // Import the cropper component with a unique name
 import Modal from 'react-modal'; // Import the Modal component
 
@@ -59,45 +60,56 @@ export default function SignUp() {
       // Fetch the inviter's UID from the invite code document
       const inviterUID = querySnapshot.docs[0].data().uid;
 
-      // Upload the image to Firebase Storage after cropping
-      const storageRef = ref(storage, `members/${userCredential.user.uid}/profilepicture.png`);
-      const uploadTask = uploadBytesResumable(storageRef, croppedImage);
+      // Automatically crop and resize the image to a square
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const buffer = Buffer.from(reader.result.split(",")[1], "base64");
+        const processedImage = await sharp(buffer)
+          .resize(300, 300) // Resize to 300x300 pixels
+          .png() // Convert to PNG
+          .toBuffer();
 
-      // Wait for the image upload to complete
-      uploadTask.on(
-        "state_changed",
-        () => {},
-        (err) => {
-          setError(err.message);
-        },
-        async () => {
-          const imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
+        // Upload the processed image to Firebase Storage
+        const storageRef = ref(storage, `members/${userCredential.user.uid}/profilepicture.png`);
+        const uploadTask = uploadBytesResumable(storageRef, processedImage);
 
-          // Save user information to Firestore
-          await setDoc(doc(db, "members", userCredential.user.uid), {
-            email,
-            firstName,
-            lastName,
-            middleName,
-            phoneNumber,
-            dob,
-            zipCode,
-            state,
-            inviter: inviterUID,
-            rating: 5,
-            uid: userCredential.user.uid,
-            invitationcode: invitationCode,
-            profileImage: imageUrl, // Save the image URL
-          });
+        // Wait for the image upload to complete
+        uploadTask.on(
+          "state_changed",
+          () => {},
+          (err) => {
+            setError(err.message);
+          },
+          async () => {
+            const imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
+
+            // Save user information to Firestore
+            await setDoc(doc(db, "members", userCredential.user.uid), {
+              email,
+              firstName,
+              lastName,
+              middleName,
+              phoneNumber,
+              dob,
+              zipCode,
+              state,
+              inviter: inviterUID,
+              rating: 5,
+              uid: userCredential.user.uid,
+              invitationcode: invitationCode,
+              profileImage: imageUrl, // Save the image URL
+            });
   
-          // Mark the invite code as used (optional)
-          await setDoc(doc(db, "members", querySnapshot.docs[0].id), { used: true }, { merge: true });
+            // Mark the invite code as used (optional)
+            await setDoc(doc(db, "members", querySnapshot.docs[0].id), { used: true }, { merge: true });
   
-          // Redirect user to dashboard
-          router.push("/myDashboard_page");
-        }
-      );
-      
+            // Redirect user to dashboard
+            router.push("/myDashboard_page");
+          }
+        );
+      };
+
+      reader.readAsDataURL(image);
     } catch (error) {
       setError(error.message); // Handle any errors from Firebase
     }
