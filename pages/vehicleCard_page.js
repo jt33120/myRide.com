@@ -69,6 +69,8 @@ const ReceiptForm = ({ onClose, onSave, receiptTitle, setReceiptTitle, receiptDa
           value={receiptDate}
           onChange={(e) => setReceiptDate(e.target.value)}
           className="border border-gray-300 p-2 rounded-md w-full mb-2"
+          title="Date" // Added title
+          placeholder="MM/DD/YYYY" // Added placeholder
         />
         <select
           value={receiptCategory}
@@ -624,7 +626,7 @@ const VehicleCardPage = () => {
       {isOwner && (
       <section id="maintenance-section" className="snap-start h-screen flex items-center justify-center">
         <div className="max-w-lg mx-auto bg-gray-200 p-6 rounded-lg shadow-md border border-gray-300 relative">
-          <h2 className="text-2xl font-semibold mb-4">My Maintenance Tracker</h2>
+          <h2 className="text-2xl font-semibold mb-4">Maintenance</h2>
           <p>Keep your vehicle at its best to maximize pleasure and resale value!</p>
           <div className="absolute top-4 right-4 bg-white p-2 rounded-lg shadow-md border border-gray-300 cursor-pointer" onClick={handleSumBoxClick}>
             <p className="text-xs text-gray-500">{sumType}</p>
