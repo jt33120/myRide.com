@@ -5,7 +5,6 @@ import Layout from '../components/Layout';
 import '../styles/globals.css';
 import '../styles/Navbar.css';
 import '../styles/Footer.css';
-import { Analytics } from '@vercel/analytics/react';
 
 function MyApp({ Component, pageProps }) {
   const router = useRouter();
