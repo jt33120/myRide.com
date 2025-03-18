@@ -10,9 +10,6 @@ import { useMediaQuery } from "react-responsive"; // Import useMediaQuery for re
 import styles from '../styles/Auth.module.css';
 import Resizer from "react-image-file-resizer"; // Import the image resizer library
 
-const usStates = [
-  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
-];
 
 const MyDatePicker = ({ selectedDate, setSelectedDate }) => {
   const isMobile = useMediaQuery({ maxWidth: 768 }); // Detect if the user is on mobile
@@ -57,8 +54,6 @@ export default function SignUp() {
   const [middleName, setMiddleName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [dob, setDob] = useState(null);
-  const [zipCode, setZipCode] = useState("");
-  const [state, setState] = useState("");
   const [image, setImage] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -175,18 +170,6 @@ export default function SignUp() {
       {/* Date of Birth */}
       <MyDatePicker selectedDate={dob} setSelectedDate={setDob} />
 
-      <input type="text" placeholder="Zip Code" value={zipCode} onChange={(e) => setZipCode(e.target.value)} required />
-      <select
-        value={state}
-        onChange={(e) => setState(e.target.value)}
-        className="border border-gray-300 p-2 rounded-md w-full mb-2 text-gray-500" // Styled to match other inputs
-        required
-      >
-        <option value="" disabled>Select your state</option> {/* Placeholder styled in gray */}
-        {usStates.map((state, index) => (
-          <option key={index} value={state}>{state}</option>
-        ))}
-      </select>
 
       <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
       <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
