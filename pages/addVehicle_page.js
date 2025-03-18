@@ -68,6 +68,7 @@ const handleSubmit = async (e, formData, setLoading, router) => {
       mileage: Number(formData.mileage), // Convert mileage to number
       boughtIn: Number(formData.boughtIn), // Convert  to number
       boughtAt: Number(formData.boughtAt), // Convert  to number
+      
     };
 
     // Filter out fields that are not relevant to the vehicle type
