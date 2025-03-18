@@ -23,7 +23,6 @@ export default function SignUp() {
   const [zipCode, setZipCode] = useState("");
   const [state, setState] = useState("");
   const [image, setImage] = useState(null);
-  const [croppedImage, setCroppedImage] = useState(null);
   const [error, setError] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
   const [cropper, setCropper] = useState(null);
