@@ -194,6 +194,10 @@ export default function SignUp() {
       <input type="text" placeholder="Invite Code" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} required />
 
       {/* Profile Image Upload */}
+      <label>Profile Picture</label>
+      <p className="text-gray-500 text-sm mb-2">
+        Please upload a clear profile picture. This will be used for your account.
+      </p>
       <input type="file" onChange={handleImageChange} accept="image/*" required />
 
       {/* Register Button */}
