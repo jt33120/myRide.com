@@ -68,7 +68,6 @@ const handleSubmit = async (e, formData, setLoading, router) => {
       mileage: Number(formData.mileage), // Convert mileage to number
       boughtIn: Number(formData.boughtIn), // Convert  to number
       boughtAt: Number(formData.boughtAt), // Convert  to number
-      
     };
 
     // Filter out fields that are not relevant to the vehicle type
@@ -190,31 +189,27 @@ const VehicleForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const fetchVehicleMakes = async () => {
-        const makesSnapshot = await getDocs(collection(db, 'vehicles', 'car', 'makes'));
-        const makesData = makesSnapshot.docs.map(doc => doc.vehicleId);
-        setVehicleMakes(makesData);
-      };
+    const fetchVehicleMakes = async () => {
+      const makesSnapshot = await getDocs(collection(db, 'vehicles', 'car', 'makes'));
+      const makesData = makesSnapshot.docs.map(doc => doc.vehicleId);
+      setVehicleMakes(makesData);
+    };
 
-      fetchVehicleMakes();
-    }
+    fetchVehicleMakes();
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const fetchVehicleModels = async () => {
-        if (formData.make) {
-          const modelsSnapshot = await getDocs(collection(db, 'vehicles', 'car', 'makes', formData.make.toUpperCase(), 'models'));
-          const modelsData = modelsSnapshot.docs.map(doc => doc.vehicleId);
-          setVehicleModels(modelsData);
-        } else {
-          setVehicleModels([]);
-        }
-      };
+    const fetchVehicleModels = async () => {
+      if (formData.make) {
+        const modelsSnapshot = await getDocs(collection(db, 'vehicles', 'car', 'makes', formData.make.toUpperCase(), 'models'));
+        const modelsData = modelsSnapshot.docs.map(doc => doc.vehicleId);
+        setVehicleModels(modelsData);
+      } else {
+        setVehicleModels([]);
+      }
+    };
 
-      fetchVehicleModels();
-    }
+    fetchVehicleModels();
   }, [formData.make]);
 
   const handleChange = (e) => {
