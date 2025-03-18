@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { auth } from '../lib/firebase';
-import NavBar from '../components/Navbar';
+import Layout from '../components/Layout';
 import '../styles/globals.css';
 import '../styles/Navbar.css';
 import '../styles/Footer.css';
@@ -47,13 +47,9 @@ function MyApp({ Component, pageProps }) {
   }
 
   return (
-    <div>
-      <NavBar /> {/* Navbar appears on all pages */}
-      <main>
-        <Component {...pageProps} /> {/* This ensures proper page routing */}
-      </main>
-      <Analytics />
-    </div>
+    <Layout>
+      <Component {...pageProps} />
+    </Layout>
   );
 }
 
