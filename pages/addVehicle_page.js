@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from "react";
 import { useRouter } from 'next/router';
 import { auth, db, storage } from '../lib/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
@@ -50,6 +50,64 @@ const AddVehiclePage = () => {
   const [uploading, setUploading] = useState(false);
   const router = useRouter();
 
+  const [makes, setMakes] = useState([]);
+  const [models, setModels] = useState([]);
+  const [years, setYears] = useState([]);
+  const [selectedMake, setSelectedMake] = useState("");
+  const [selectedYear, setSelectedYear] = useState("");
+  const [selectedModel, setSelectedModel] = useState("");
+
+  // Fetch makes based on vehicle type
+  useEffect(() => {
+    const fetchMakes = async () => {
+      if (!vehicleType) {
+        setMakes([]);
+        return;
+      }
+
+      const type = vehicleType === 'car' ? 'passenger car' : 'motorcycle';
+      const response = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/GetMakesForVehicleType/${type}?format=json`);
+      const data = await response.json();
+      setMakes(data.Results.map((make) => make.MakeName));
+    };
+
+    fetchMakes();
+  }, [vehicleType]);
+
+  // Fetch years dynamically (e.g., 1980 to current year)
+  useEffect(() => {
+    const currentYear = new Date().getFullYear();
+    const yearRange = Array.from({ length: currentYear - 1980 + 1 }, (_, i) => 1980 + i);
+    setYears(yearRange);
+  }, []);
+
+  // Fetch models when make and year are selected
+  useEffect(() => {
+    const fetchModels = async () => {
+      if (!selectedMake || !selectedYear) {
+        setModels([]);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMakeYear/make/${selectedMake}/modelyear/${selectedYear}?format=json`
+        );
+        const data = await response.json();
+
+        if (data.Results && data.Results.length > 0) {
+          setModels(data.Results.map((model) => model.Model_Name));
+        } else {
+          setModels([]); // No models found for the selected make and year
+        }
+      } catch (error) {
+        console.error("Error fetching models:", error);
+        setModels([]); // Handle errors gracefully
+      }
+    };
+
+    fetchModels();
+  }, [selectedMake, selectedYear]);
 
   const handleAddVehicle = async () => {
     setUploading(true);
@@ -158,7 +216,16 @@ const AddVehiclePage = () => {
       <div className="form-container">
         <div className="form-section">
           <label className="form-label">Vehicle Type *</label>
-          <select value={vehicleType} onChange={(e) => setVehicleType(e.target.value)} required>
+          <select
+            value={vehicleType}
+            onChange={(e) => {
+              setVehicleType(e.target.value);
+              setSelectedMake(''); // Reset make when vehicle type changes
+              setSelectedModel(''); // Reset model when vehicle type changes
+            }}
+            className="border border-gray-300 p-2 rounded-md w-full mb-2"
+            required
+          >
             <option value="">Select Vehicle Type</option>
             <option value="car">Car</option>
             <option value="motorcycle">Motorcycle</option>
@@ -166,15 +233,53 @@ const AddVehiclePage = () => {
         </div>
         <div className="form-section">
           <label className="form-label">Make *</label>
-          <input type="text" value={make} onChange={(e) => setMake(e.target.value)} required />
-        </div>
-        <div className="form-section">
-          <label className="form-label">Model *</label>
-          <input type="text" value={model} onChange={(e) => setModel(e.target.value)} required />
+          <select
+            value={selectedMake}
+            onChange={(e) => setSelectedMake(e.target.value)}
+            className="border border-gray-300 p-2 rounded-md w-full mb-2"
+            required
+            disabled={!vehicleType}
+          >
+            <option value="">Select Make</option>
+            {makes.map((make, index) => (
+              <option key={index} value={make}>
+                {make}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="form-section">
           <label className="form-label">Year *</label>
-          <input type="text" value={year} onChange={(e) => setYear(e.target.value)} required />
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(e.target.value)}
+            className="border border-gray-300 p-2 rounded-md w-full mb-2"
+            required
+          >
+            <option value="">Select Year</option>
+            {years.map((year, index) => (
+              <option key={index} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="form-section">
+          <label className="form-label">Model *</label>
+          <select
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+            className="border border-gray-300 p-2 rounded-md w-full mb-2"
+            required
+            disabled={!selectedMake || !selectedYear}
+          >
+            <option value="">Select Model</option>
+            {models.map((model, index) => (
+              <option key={index} value={model}>
+                {model}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="form-section">
           <label className="form-label">Bought in *</label>
