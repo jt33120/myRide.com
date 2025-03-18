@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { auth, db, storage } from "../lib/firebase";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { collection, query, where, getDocs, doc, setDoc } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { useRouter } from "next/router";
@@ -22,34 +22,31 @@ export default function SignUp() {
   const [state, setState] = useState("");
   const [image, setImage] = useState(null);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleRegister = async () => {
     if (!inviteCode) return setError("You need an invite code!");
     if (!image) return setError("You must upload a profile image!");
 
-    // Query the "members" collection to check if the invitation code exists
-    const membersQuery = query(collection(db, "members"), where("invitationcode", "==", inviteCode));
-    const querySnapshot = await getDocs(membersQuery);
-
-    if (querySnapshot.empty) return setError("Invalid invite code!");
+    setLoading(true);
 
     try {
-      // Check if the email is valid
-      if (!email || !email.includes("@")) {
-        return setError("Please provide a valid email!");
-      }
+      // Query the "members" collection to check if the invitation code exists
+      const membersQuery = query(collection(db, "members"), where("invitationcode", "==", inviteCode));
+      const querySnapshot = await getDocs(membersQuery);
 
-      // Check password length
-      if (password.length < 6) {
-        return setError("Password should be at least 6 characters!");
+      if (querySnapshot.empty) {
+        setLoading(false);
+        return setError("Invalid invite code!");
       }
 
       // Register the user with email and password
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
       // Generate the invite code with prefix and user's UID
-      const invitationCode = `MYRIDE-SP-${userCredential.user.uid}`;
+      const invitationCode = `MYRIDE-SP-${user.uid}`;
 
       // Fetch the inviter's UID from the invite code document
       const inviterUID = querySnapshot.docs[0].data().uid;
@@ -64,21 +61,27 @@ export default function SignUp() {
         0,
         async (resizedImage) => {
           // Upload the resized image to Firebase Storage
-          const storageRef = ref(storage, `members/${userCredential.user.uid}/profilepicture.png`);
+          const storageRef = ref(storage, `members/${user.uid}/profilepicture.png`);
           const uploadTask = uploadBytesResumable(storageRef, resizedImage);
 
-          // Wait for the image upload to complete
           uploadTask.on(
             "state_changed",
             () => {},
             (err) => {
               setError(err.message);
+              setLoading(false);
             },
             async () => {
               const imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
 
+              // Update the user's display name in Firebase Authentication
+              await updateProfile(user, {
+                displayName: `${firstName} ${lastName}`,
+                photoURL: imageUrl,
+              });
+
               // Save user information to Firestore
-              await setDoc(doc(db, "members", userCredential.user.uid), {
+              await setDoc(doc(db, "members", user.uid), {
                 email,
                 firstName,
                 lastName,
@@ -89,15 +92,17 @@ export default function SignUp() {
                 state,
                 inviter: inviterUID,
                 rating: 5,
-                uid: userCredential.user.uid,
+                uid: user.uid,
                 invitationcode: invitationCode,
                 profileImage: imageUrl, // Save the image URL
+                createdAt: new Date(),
               });
 
               // Mark the invite code as used (optional)
               await setDoc(doc(db, "members", querySnapshot.docs[0].id), { used: true }, { merge: true });
 
               // Redirect user to dashboard
+              setLoading(false);
               router.push("/myDashboard_page");
             }
           );
@@ -106,6 +111,7 @@ export default function SignUp() {
       );
     } catch (error) {
       setError(error.message); // Handle any errors from Firebase
+      setLoading(false);
     }
   };
 
@@ -201,7 +207,9 @@ export default function SignUp() {
       <input type="file" onChange={handleImageChange} accept="image/*" required />
 
       {/* Register Button */}
-      <button onClick={handleRegister}>Register</button>
+      <button onClick={handleRegister} disabled={loading}>
+        {loading ? "Registering..." : "Register"}
+      </button>
   
       <p className="text-sm mt-5 text-center text-gray-500">
         ID verification and phone confirmation will be required later. For each sponsored friend, you’ll get $10 offered on the app!
