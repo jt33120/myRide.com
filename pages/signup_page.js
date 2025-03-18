@@ -7,8 +7,7 @@ import { useRouter } from "next/router";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import styles from '../styles/Auth.module.css';
-import { Cropper as ReactCropper } from 'react-cropper'; // Import the cropper component with a unique name
-import Modal from 'react-modal'; // Import the Modal component
+import Resizer from "react-image-file-resizer"; // Import the image resizer library
 
 export default function SignUp() {
   const [email, setEmail] = useState("");
@@ -22,11 +21,7 @@ export default function SignUp() {
   const [zipCode, setZipCode] = useState("");
   const [state, setState] = useState("");
   const [image, setImage] = useState(null);
-  const [croppedImage, setCroppedImage] = useState(null);
   const [error, setError] = useState("");
-  const [previewUrl, setPreviewUrl] = useState("");
-  const [cropper, setCropper] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false); // Modal open state
   const router = useRouter();
 
   const handleRegister = async () => {
@@ -36,7 +31,7 @@ export default function SignUp() {
     // Query the "members" collection to check if the invitation code exists
     const membersQuery = query(collection(db, "members"), where("invitationcode", "==", inviteCode));
     const querySnapshot = await getDocs(membersQuery);
-  
+
     if (querySnapshot.empty) return setError("Invalid invite code!");
 
     try {
@@ -44,60 +39,71 @@ export default function SignUp() {
       if (!email || !email.includes("@")) {
         return setError("Please provide a valid email!");
       }
-  
+
       // Check password length
       if (password.length < 6) {
         return setError("Password should be at least 6 characters!");
       }
-  
+
       // Register the user with email and password
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-  
+
       // Generate the invite code with prefix and user's UID
       const invitationCode = `MYRIDE-SP-${userCredential.user.uid}`;
 
       // Fetch the inviter's UID from the invite code document
       const inviterUID = querySnapshot.docs[0].data().uid;
 
-      // Upload the image to Firebase Storage after cropping
-      const storageRef = ref(storage, `members/${userCredential.user.uid}/profilepicture.png`);
-      const uploadTask = uploadBytesResumable(storageRef, croppedImage);
+      // Resize the image to 1000x1000 pixels
+      Resizer.imageFileResizer(
+        image,
+        1000,
+        1000,
+        "PNG",
+        100,
+        0,
+        async (resizedImage) => {
+          // Upload the resized image to Firebase Storage
+          const storageRef = ref(storage, `members/${userCredential.user.uid}/profilepicture.png`);
+          const uploadTask = uploadBytesResumable(storageRef, resizedImage);
 
-      // Wait for the image upload to complete
-      uploadTask.on(
-        "state_changed",
-        () => {},
-        (err) => {
-          setError(err.message);
+          // Wait for the image upload to complete
+          uploadTask.on(
+            "state_changed",
+            () => {},
+            (err) => {
+              setError(err.message);
+            },
+            async () => {
+              const imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
+
+              // Save user information to Firestore
+              await setDoc(doc(db, "members", userCredential.user.uid), {
+                email,
+                firstName,
+                lastName,
+                middleName,
+                phoneNumber,
+                dob,
+                zipCode,
+                state,
+                inviter: inviterUID,
+                rating: 5,
+                uid: userCredential.user.uid,
+                invitationcode: invitationCode,
+                profileImage: imageUrl, // Save the image URL
+              });
+
+              // Mark the invite code as used (optional)
+              await setDoc(doc(db, "members", querySnapshot.docs[0].id), { used: true }, { merge: true });
+
+              // Redirect user to dashboard
+              router.push("/myDashboard_page");
+            }
+          );
         },
-        async () => {
-          const imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
-
-          // Save user information to Firestore
-          await setDoc(doc(db, "members", userCredential.user.uid), {
-            email,
-            firstName,
-            lastName,
-            middleName,
-            phoneNumber,
-            dob,
-            zipCode,
-            state,
-            inviter: inviterUID,
-            rating: 5,
-            uid: userCredential.user.uid,
-            invitationcode: invitationCode,
-            profileImage: imageUrl, // Save the image URL
-          });
-  
-          // Mark the invite code as used (optional)
-          await setDoc(doc(db, "members", querySnapshot.docs[0].id), { used: true }, { merge: true });
-  
-          // Redirect user to dashboard
-          router.push("/myDashboard_page");
-        }
+        "blob" // Output format
       );
-      
     } catch (error) {
       setError(error.message); // Handle any errors from Firebase
     }
@@ -107,19 +113,6 @@ export default function SignUp() {
     const file = e.target.files[0];
     if (file) {
       setImage(file);
-      const reader = new FileReader();
-      reader.onloadend = () => setPreviewUrl(reader.result);
-      reader.readAsDataURL(file);
-      setIsModalOpen(true); // Open modal when image is selected
-    }
-  };
-
-  const handleCrop = () => {
-    if (cropper) {
-      cropper.getCroppedCanvas().toBlob((blob) => {
-        setCroppedImage(blob);
-        setIsModalOpen(false); // Close modal after cropping
-      });
     }
   };
 
@@ -202,23 +195,6 @@ export default function SignUp() {
 
       {/* Profile Image Upload */}
       <input type="file" onChange={handleImageChange} accept="image/*" required />
-
-      {/* Modal for Image Cropper */}
-      <Modal isOpen={isModalOpen} onRequestClose={() => setIsModalOpen(false)} contentLabel="Crop Profile Image">
-        <div>
-        <ReactCropper
-          src={previewUrl}
-          style={{ height: 400, width: "100%" }}
-          aspectRatio={1}
-          guides={false}
-          ref={(cropper) => setCropper(cropper)}
-          className="cropper"
-        />
-          <button onClick={handleCrop}>Crop Image</button>
-        </div>
-
-        
-      </Modal>
 
       {/* Register Button */}
       <button onClick={handleRegister}>Register</button>
