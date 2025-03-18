@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { getFirestore, doc, setDoc, getDoc, collection, getDocs } from "firebase/firestore";
+import { getFirestore, doc, setDoc, getDoc
+ } from "firebase/firestore";
 import { getAuth } from "firebase/auth"; // Import Firebase Authentication
 import heic2any from 'heic2any';
 import { useRouter } from 'next/router';
