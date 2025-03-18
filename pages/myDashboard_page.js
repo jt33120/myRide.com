@@ -8,7 +8,6 @@ import PrivateRoute from '../components/PrivateRoute';
 
 const Dashboard = () => {
   const [firstName, setFirstName] = useState('');
-  const [profilePicture, setProfilePicture] = useState('/anonymous.png'); // Default image
   const router = useRouter();
 
   // Fetch user's first name and profile picture from Firestore and Firebase Storage
