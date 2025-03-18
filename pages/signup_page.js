@@ -122,8 +122,6 @@ export default function SignUp() {
                 middleName,
                 phoneNumber,
                 dob,
-                zipCode,
-                state,
                 inviter: inviterUID,
                 rating: 5,
                 uid: user.uid,
