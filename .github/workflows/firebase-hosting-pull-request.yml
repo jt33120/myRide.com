@@ -1,4 +1,4 @@
-name: Deploy to Firebase Hosting on PR
+name: Deploy to Firebase Hosting and Vercel on PR
 
 on:
   pull_request:
@@ -38,3 +38,11 @@ jobs:
         projectId: 'trustcycle-6cbf6'
         channelId: pr${{ github.event.number }}
         target: hosting
+
+    - name: Deploy to Vercel
+      uses: amondnet/vercel-action@v20
+      with:
+        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
