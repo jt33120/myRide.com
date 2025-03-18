@@ -9,9 +9,6 @@ const usStates = [
 
 const AddVehiclePage = () => {
   const [vehicleType, setVehicleType] = useState('');
-  const [make, setMake] = useState('');
-  const [model, setModel] = useState('');
-  const [year, setYear] = useState('');
   const [boughtIn, setBoughtIn] = useState('');
   const [boughtAt, setBoughtAt] = useState('');
   const [color, setColor] = useState('');
