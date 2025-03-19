@@ -625,82 +625,116 @@ const VehicleCardPage = () => {
 
       
       {/* Maintenance Section */}
-      {isOwner && (
-      <section id="maintenance-section" className="snap-start h-screen flex items-center justify-center">
-        <div className="max-w-lg mx-auto bg-gray-200 p-6 rounded-lg shadow-md border border-gray-300 relative">
-          <h2 className="text-2xl font-semibold mb-4">My Maintenance Tracker</h2>
-          <p>Keep your vehicle at its best to maximize pleasure and resale value!</p>
-          <div className="absolute top-4 right-4 bg-white p-2 rounded-lg shadow-md border border-gray-300 cursor-pointer" onClick={handleSumBoxClick}>
-            <p className="text-xs text-gray-500">{sumType}</p>
-            <p className="text-md">${Number(calculateSum(sumType)).toFixed(2)}</p>
-          </div>
-          {receipts.map((receipt) => (
-            <div key={receipt.id} className="mb-2 flex justify-between items-center">
-              {receipt.urls && receipt.urls.length > 0 && (
-                <a href={receipt.urls[0]} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                  {receipt.title} - {new Date(receipt.date.seconds * 1000).toLocaleDateString()} - ${receipt.price}
-                </a>
-              )}
-              <button
-                onClick={() => handleReceiptDelete(receipt.id, receipt.urls)}
-                className="text-red-600 hover:text-red-800"
-                title="Delete Receipt"
-              >
-                ✖
-              </button>
-            </div>
-          ))}
-          <button
-            onClick={() => setShowReceiptForm(true)}
-            className="bg-purple-700 text-white text-sm px-4 py-1 mt-2 rounded-full hover:bg-purple-800"
-          >
-            + Receipt
-          </button>
+{isOwner && (
+  <section id="maintenance-section" className="snap-start h-screen flex items-center justify-center">
+    <div className="max-w-lg mx-auto bg-gray-200 p-6 rounded-lg shadow-md border border-gray-300 relative">
+      <h2 className="text-2xl font-semibold mb-4">Maintenance</h2>
+      <p className="text-red-600 font-bold mb-4">Next Maintenance: Upcoming update</p>
+      <p>Keep your vehicle at its best to maximize pleasure and resale value!</p>
+      <div className="absolute top-4 right-4 bg-white p-2 rounded-lg shadow-md border border-gray-300 cursor-pointer" onClick={handleSumBoxClick}>
+        <p className="text-xs text-gray-500">{sumType}</p>
+        <p className="text-md">${Number(calculateSum(sumType)).toFixed(2)}</p>
+      </div>
 
-          {/* Document Handling Section */}
-          <div className="flex justify-around w-full px-6 mt-6">
-            {['title', 'registration', 'inspection'].map((docType) => (
-              <div key={docType} className="w-1/3 text-center relative">
-                <a href={existingDocuments[docType] || '#'} target="_blank" rel="noopener noreferrer">
-                  <Image
-                    src={`/${docType}_icon.png`}
-                    alt={`${docType} icon`}
-                    width={100}
-                    height={100}
-                    className={`cursor-pointer ${existingDocuments[docType] ? 'bg-green-500' : 'bg-red-500'}`}
-                    style={{ objectFit: "cover", filter: existingDocuments[docType] ? 'none' : 'grayscale(100%)' }}
-                  />
-                  {uploading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg">
-                      <div className="loader"></div>
-                    </div>
-                  )}
-                  {!uploading && existingDocuments[docType] && (
-                    <div className="absolute top-0 right-0 bg-green-500 text-white text-xs px-2 py-1 rounded-bl-lg">
-                      Click to view
-                    </div>
-                  )}
-                </a>
-                <input
-                  type="file"
-                  id={docType}
-                  onChange={(e) => handleDocumentChange(e, docType)}
-                  className="hidden"
-                />
-                <label
-                  htmlFor={docType}
-                  className="flex items-center mt-2 cursor-pointer"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-purple-700 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                  </svg>
-                  <span className="text-black">{existingDocuments[docType] ? 'Update' : 'Add'}</span>
-                </label>
-              </div>
-            ))}
+      {/* Receipt History */}
+      <h3 className="text-lg font-semibold mt-6 mb-2">Receipt History:</h3>
+      <div className="max-h-48 overflow-y-auto bg-gray-100 p-4 rounded-lg shadow-inner border border-gray-300">
+        {receipts.map((receipt) => (
+          <div key={receipt.id} className="mb-2 flex justify-between items-center bg-white p-2 rounded-md shadow-sm border border-gray-300">
+            {receipt.urls && receipt.urls.length > 0 && (
+              <a href={receipt.urls[0]} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                {receipt.title} - {new Date(receipt.date.seconds * 1000).toLocaleDateString()} - ${receipt.price}
+              </a>
+            )}
+            <button
+              onClick={() => handleReceiptDelete(receipt.id, receipt.urls)}
+              className="text-red-600 hover:text-red-800"
+              title="Delete Receipt"
+            >
+              ✖
+            </button>
           </div>
-        </div>
-      </section>
+        ))}
+      </div>
+      <button
+        onClick={() => setShowReceiptForm(true)}
+        className="bg-purple-700 text-white text-sm px-4 py-1 mt-2 rounded-full hover:bg-purple-800"
+      >
+        + Receipt
+      </button>
+
+      {/* Document Handling Section */}
+      <div className="flex justify-around w-full px-6 mt-6">
+        {['title', 'registration', 'inspection'].map((docType) => (
+          <div key={docType} className="w-1/3 text-center relative">
+            {/* Document Title */}
+            <p className="text-xs text-gray-500 mb-1">{docType.charAt(0).toUpperCase() + docType.slice(1)}</p>
+            <a
+              href={existingDocuments[docType] || '#'}
+              target={existingDocuments[docType] ? "_blank" : "_self"}
+              rel="noopener noreferrer"
+              onClick={(e) => {
+                if (!existingDocuments[docType]) {
+                  e.preventDefault();
+                  document.getElementById(docType).click(); // Trigger file input click
+                }
+              }}
+              className="relative inline-block"
+            >
+              {/* Image */}
+              <Image
+                src={`/${docType}_icon.png`}
+                alt={`${docType} icon`}
+                width={100}
+                height={100}
+                className={`cursor-pointer rounded-full border-2 ${
+                  existingDocuments[docType] ? 'border-green-500' : 'border-red-500'
+                }`}
+                style={{
+                  objectFit: "cover",
+                  filter: existingDocuments[docType] ? 'none' : 'grayscale(100%)',
+                }}
+              />
+
+              {/* Loader Overlay (if uploading) */}
+              {uploading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full">
+                  <div className="loader"></div>
+                </div>
+              )}
+
+              {/* "Click to view" Overlay (only when document exists & not uploading) */}
+              {!uploading && existingDocuments[docType] && (
+                <div className="absolute inset-0 flex items-center justify-center bg-green-500 bg-opacity-80 text-white text-xs rounded-full">
+                  Click to view
+                </div>
+              )}
+            </a>
+
+            {/* File Input (Hidden) */}
+            <input
+              type="file"
+              id={docType}
+              onChange={(e) => handleDocumentChange(e, docType)}
+              className="hidden"
+            />
+
+            {/* Upload Button */}
+            <label
+              htmlFor={docType}
+              className="flex items-center mt-2 cursor-pointer"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-purple-700 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+              <span className="text-black">{existingDocuments[docType] ? 'Update' : 'Add'}</span>
+            </label>
+          </div>
+        ))}
+      </div>
+
+          </div>
+        </section>
       )}
 
       {/* Dollar Section */}
