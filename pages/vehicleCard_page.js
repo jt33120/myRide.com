@@ -135,7 +135,6 @@ const VehicleCardPage = () => {
   const user = auth.currentUser;
   const [conversationId, setConversationId] = useState(null);
   const [ownerName, setOwnerName] = useState('');
-  const [, setTotalAmountSpent] = useState(0);
   const [sumType, setSumType] = useState('Total Spent'); // State to track the current sum type
 
   const calculateSum = (type) => {
@@ -156,6 +155,7 @@ const VehicleCardPage = () => {
     }
   };
 
+  
   const handleSumBoxClick = () => {
     const sumTypes = ['Total Spent', 'Without Purchase Price', 'Repair', 'Scheduled Maintenance', 'Cosmetic Mods', 'Performance Mods'];
     const currentIndex = sumTypes.indexOf(sumType);
@@ -290,9 +290,6 @@ const VehicleCardPage = () => {
             .sort((a, b) => b.date.seconds - a.date.seconds); // Sort by date, most recent first
           setReceipts(sortedReceipts);
   
-          const totalSpent = sortedReceipts.reduce((sum, receipt) => sum + (receipt.price || 0), 0);
-          setTotalAmountSpent(totalSpent);
-  
           const folderRef = ref(storage, `listing/${id}/photos/`);
           const result = await listAll(folderRef);
           const urls = await Promise.all(result.items.map(fileRef => getDownloadURL(fileRef)));
@@ -330,13 +327,13 @@ const VehicleCardPage = () => {
           const heic2any = (await import('heic2any')).default;
           const convertedBlob = await heic2any({ blob: file, toType: 'image/jpeg' });
           const convertedFile = new File([convertedBlob], file.name.replace(/\.[^/.]+$/, ".jpg"), { type: 'image/jpeg' });
-          setDocuments((prev) => ({ ...prev, [documentType]: convertedFile }));
+          setDocuments(prev => ({ ...prev, [documentType]: convertedFile }));
           await handleDocumentUpload(documentType, convertedFile);
         } catch (error) {
           console.error("Error converting HEIC image:", error);
         }
       } else {
-        setDocuments((prev) => ({ ...prev, [documentType]: file }));
+        setDocuments(prev => ({ ...prev, [documentType]: file }));
         await handleDocumentUpload(documentType, file);
       }
     }
@@ -469,7 +466,7 @@ const VehicleCardPage = () => {
       setReceiptFiles([]);
       setShowReceiptForm(false);
       console.log('Receipt uploaded successfully.');
-      router.replace(`/VehicleCard_page?id=${id}#maintenance-section`); // Refresh the page and scroll to the maintenance section
+      router.replace(`/VehicleCard_page?id=${id}`); // Refresh the page and scroll to the maintenance section
     } catch (error) {
       console.error("Error uploading receipt files:", error);
       setUploading(false);
@@ -520,57 +517,39 @@ const VehicleCardPage = () => {
     if (!file) return;
   
     setUploading(true);
+    const storageRef = ref(storage, `listing/${id}/docs/${documentType}-${Date.now()}`);
   
-    try {
-      // Generate a unique file name using the document type, vehicle ID, and timestamp
-      const timestamp = Date.now();
-      const fileExtension = file.name.split('.').pop(); // Extract the file extension
-      const fileName = `${documentType}-${id}-${timestamp}.${fileExtension}`;
+    const uploadTask = uploadBytesResumable(storageRef, file);
   
-      // Define the storage path
-      const storageRef = ref(storage, `listing/${id}/docs/${fileName}`);
-  
-      // Upload the file
-      const uploadTask = uploadBytesResumable(storageRef, file);
-  
-      uploadTask.on(
-        'state_changed',
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          console.log(`${documentType} upload is ${progress}% done`);
-        },
-        (error) => {
-          console.error("Error uploading document:", error);
+    uploadTask.on(
+      'state_changed',
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        console.log(`${documentType} upload is ${progress}% done`);
+      },
+      (error) => {
+        console.error("Error uploading document:", error);
+        setUploading(false);
+      },
+      async () => {
+        try {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          const documentRef = collection(db, `listing/${id}/docs`);
+          await setDoc(doc(documentRef, documentType), {
+            title: documentType,
+            url: downloadURL,
+            date: new Date(),
+            isPublic: true,
+          });
+          setExistingDocuments(prev => ({ ...prev, [documentType]: downloadURL }));
           setUploading(false);
-        },
-        async () => {
-          try {
-            // Get the download URL
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-  
-            // Save the document metadata in Firestore
-            const documentRef = collection(db, `listing/${id}/docs`);
-            await setDoc(doc(documentRef, documentType), {
-              title: documentType,
-              url: downloadURL,
-              date: new Date(),
-              isPublic: true,
-            });
-  
-            // Update the local state
-            setExistingDocuments((prev) => ({ ...prev, [documentType]: downloadURL }));
-            console.log(`${documentType} uploaded successfully.`);
-          } catch (error) {
-            console.error("Error retrieving download URL:", error);
-          } finally {
-            setUploading(false);
-          }
+          console.log(`${documentType} uploaded successfully.`);
+        } catch (error) {
+          console.error("Error retrieving download URL:", error);
+          setUploading(false);
         }
-      );
-    } catch (error) {
-      console.error("Error during document upload:", error);
-      setUploading(false);
-    }
+      }
+    );
   };
 
   if (loading) return <p>Loading vehicle details...</p>;
@@ -643,47 +622,39 @@ const VehicleCardPage = () => {
 
       
       {/* Maintenance Section */}
-{isOwner && (
-  <section id="maintenance-section" className="snap-start h-screen flex items-center justify-center">
-    <div className="max-w-lg mx-auto bg-gray-200 p-6 rounded-lg shadow-md border border-gray-300 relative">
-      <h2 className="text-2xl font-semibold mb-4">Maintenance</h2>
-      <p className="text-red-600 font-bold mb-4">Next Maintenance: Upcoming update</p>
-      <p>Keep your vehicle at its best to maximize pleasure and resale value!</p>
-      <div className="absolute top-4 right-4 bg-white p-2 rounded-lg shadow-md border border-gray-300 cursor-pointer" onClick={handleSumBoxClick}>
-        <p className="text-xs text-gray-500">{sumType}</p>
-        <p className="text-md">${Number(calculateSum(sumType)).toFixed(2)}</p>
-      </div>
-
-      {/* Receipt History */}
-      <h3 className="text-lg font-semibold mt-6 mb-2">Receipt History:</h3>
-      <div className="max-h-48 overflow-y-auto bg-gray-100 p-4 rounded-lg shadow-inner border border-gray-300">
-        {receipts.map((receipt) => (
-          <div key={receipt.id} className="mb-2 flex justify-between items-center bg-white p-2 rounded-md shadow-sm border border-gray-300">
-            {receipt.urls && receipt.urls.length > 0 && (
-              <a href={receipt.urls[0]} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                {receipt.title} - {new Date(receipt.date.seconds * 1000).toLocaleDateString()} - ${receipt.price}
-              </a>
-            )}
-            <button
-              onClick={() => handleReceiptDelete(receipt.id, receipt.urls)}
-              className="text-red-600 hover:text-red-800"
-              title="Delete Receipt"
-            >
-              ✖
-            </button>
+      {isOwner && (
+      <section id="maintenance-section" className="snap-start h-screen flex items-center justify-center">
+        <div className="max-w-lg mx-auto bg-gray-200 p-6 rounded-lg shadow-md border border-gray-300 relative">
+          <h2 className="text-2xl font-semibold mb-4">Maintenance</h2>
+          <p>Keep your vehicle at its best to maximize pleasure and resale value!</p>
+          <div className="absolute top-4 right-4 bg-white p-2 rounded-lg shadow-md border border-gray-300 cursor-pointer" onClick={handleSumBoxClick}>
+            <p className="text-xs text-gray-500">{sumType}</p>
+            <p className="text-md">${Number(calculateSum(sumType)).toFixed(2)}</p>
           </div>
-        ))}
-      </div>
-      <div className="flex justify-between mt-2">
-        <button
-          onClick={() => setShowReceiptForm(true)}
-          className="bg-purple-700 text-white text-sm px-4 py-1 rounded-full hover:bg-blue-700"
-        >
-          + Receipt
-        </button>
-      </div>
+          {receipts.map((receipt) => (
+            <div key={receipt.id} className="mb-2 flex justify-between items-center">
+              {receipt.urls && receipt.urls.length > 0 && (
+                <a href={receipt.urls[0]} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                  {receipt.title} - {new Date(receipt.date.seconds * 1000).toLocaleDateString()} - ${receipt.price}
+                </a>
+              )}
+              <button
+                onClick={() => handleReceiptDelete(receipt.id, receipt.urls)}
+                className="text-red-600 hover:text-red-800"
+                title="Delete Receipt"
+              >
+                ✖
+              </button>
+            </div>
+          ))}
+          <button
+            onClick={() => setShowReceiptForm(true)}
+            className="bg-purple-700 text-white text-sm px-4 py-1 mt-2 rounded-full hover:bg-purple-800"
+          >
+            + Receipt
+          </button>
 
-      {/* Document Handling Section */}
+          {/* Document Handling Section */}
       <div className="flex justify-around w-full px-6 mt-6">
         {['title', 'registration', 'inspection'].map((docType) => (
           <div key={docType} className="w-1/3 text-center relative">
@@ -753,8 +724,9 @@ const VehicleCardPage = () => {
         ))}
       </div>
 
-          </div>
-        </section>
+
+        </div>
+      </section>
       )}
 
       {/* Dollar Section */}
@@ -795,6 +767,30 @@ const VehicleCardPage = () => {
           </div>
         </div>
       </section>
+      <div>
+          <p>Here, we gonna add classic marketplace options, but also AI guidelines and estimation of your vehicle value, based on the information and maintenance provided!</p>
+        </div>
+
+      {showReceiptForm && (
+        <ReceiptForm
+          onClose={() => setShowReceiptForm(false)}
+          onSave={handleReceiptUpload}
+          receiptTitle={receiptTitle}
+          setReceiptTitle={setReceiptTitle}
+          receiptDate={receiptDate}
+          setReceiptDate={setReceiptDate}
+          receiptCategory={receiptCategory}
+          setReceiptCategory={setReceiptCategory}
+          receiptMileage={receiptMileage}
+          setReceiptMileage={setReceiptMileage}
+          receiptPrice={receiptPrice}
+          setReceiptPrice={setReceiptPrice}
+          setReceiptFiles={setReceiptFiles}
+          uploading={uploading}
+        />
+      )}
+
+      
     </div>
   );
 };
