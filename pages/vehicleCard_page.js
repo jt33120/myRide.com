@@ -9,8 +9,6 @@ import 'slick-carousel/slick/slick-theme.css';
 import Image from "next/image";
 import { Line } from 'react-chartjs-2';
 import 'chart.js/auto';
-import jsPDF from "jspdf"; // Import jsPDF for PDF generation
-import "jspdf-autotable"; // Optional: For table formatting
 
 const ImageCarousel = ({ imageUrls }) => {
   const settings = {
@@ -575,69 +573,6 @@ const VehicleCardPage = () => {
     }
   };
 
-  const generateReceiptBook = async () => {
-    const doc = new jsPDF();
-  
-    // Title for the PDF
-    doc.setFontSize(18);
-    doc.text("Receipt Book", 10, 10);
-  
-    // Add each receipt to the PDF
-    for (const receipt of receipts) {
-      const { title, date, price, urls } = receipt;
-  
-      // Add receipt details
-      doc.setFontSize(12);
-      doc.text(`Title: ${title}`, 10, doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : 20);
-      doc.text(`Date: ${new Date(date.seconds * 1000).toLocaleDateString()}`, 10, doc.lastAutoTable ? doc.lastAutoTable.finalY + 20 : 30);
-      doc.text(`Price: $${price}`, 10, doc.lastAutoTable ? doc.lastAutoTable.finalY + 30 : 40);
-  
-      // Add receipt images
-      if (urls && urls.length > 0) {
-        for (const url of urls) {
-          try {
-            console.log(`Fetching image from URL: ${url}`);
-            const response = await fetch(url);
-  
-            if (!response.ok) {
-              throw new Error(`Failed to fetch image: ${response.statusText}`);
-            }
-  
-            const img = await response.blob();
-            const imgData = await new Promise((resolve) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve(reader.result);
-              reader.readAsDataURL(img);
-            });
-  
-            // Add image to the PDF
-            const pageHeight = doc.internal.pageSize.height;
-            const currentY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 50 : 60;
-  
-            // Check if the image fits on the current page, otherwise add a new page
-            if (currentY + 100 > pageHeight) {
-              doc.addPage();
-              doc.addImage(imgData, "JPEG", 10, 20, 180, 100);
-            } else {
-              doc.addImage(imgData, "JPEG", 10, currentY, 180, 100);
-            }
-          } catch (error) {
-            console.error(`Error fetching or adding image from URL: ${url}`, error);
-            // Skip this image and continue with the next one
-          }
-        }
-      }
-  
-      // Add a page break if not the last receipt
-      if (receipt !== receipts[receipts.length - 1]) {
-        doc.addPage();
-      }
-    }
-  
-    // Save the PDF
-    doc.save("Receipt_Book.pdf");
-  };
-
   if (loading) return <p>Loading vehicle details...</p>;
 
   if (!vehicleData) return <p>Vehicle not found.</p>;
@@ -745,12 +680,6 @@ const VehicleCardPage = () => {
           className="bg-purple-700 text-white text-sm px-4 py-1 rounded-full hover:bg-blue-700"
         >
           + Receipt
-        </button>
-        <button
-          onClick={generateReceiptBook}
-          className="bg-purple-700 text-white text-sm px-4 py-1 rounded-full hover:bg-blue-700"
-        >
-          Download Receipt Book
         </button>
       </div>
 
@@ -866,30 +795,6 @@ const VehicleCardPage = () => {
           </div>
         </div>
       </section>
-      <div>
-          <p>Here, we gonna add classic marketplace options, but also AI guidelines and estimation of your vehicle value, based on the information and maintenance provided!</p>
-        </div>
-
-      {showReceiptForm && (
-        <ReceiptForm
-          onClose={() => setShowReceiptForm(false)}
-          onSave={handleReceiptUpload}
-          receiptTitle={receiptTitle}
-          setReceiptTitle={setReceiptTitle}
-          receiptDate={receiptDate}
-          setReceiptDate={setReceiptDate}
-          receiptCategory={receiptCategory}
-          setReceiptCategory={setReceiptCategory}
-          receiptMileage={receiptMileage}
-          setReceiptMileage={setReceiptMileage}
-          receiptPrice={receiptPrice}
-          setReceiptPrice={setReceiptPrice}
-          setReceiptFiles={setReceiptFiles}
-          uploading={uploading}
-        />
-      )}
-
-      
     </div>
   );
 };
