@@ -119,7 +119,7 @@ const VehicleCardPage = () => {
   const [vehicleData, setVehicleData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
-  const [documents, setDocuments] = useState({ title: '', inspection: '', registration: '' });
+  const [, setDocuments] = useState({ title: '', inspection: '', registration: '' });
   const [uploading, setUploading] = useState(false);
   const [receipts, setReceipts] = useState([]);
   const [showReceiptForm, setShowReceiptForm] = useState(false);
