@@ -9,6 +9,8 @@ import 'slick-carousel/slick/slick-theme.css';
 import Image from "next/image";
 import { Line } from 'react-chartjs-2';
 import 'chart.js/auto';
+import jsPDF from "jspdf"; // Import jsPDF for PDF generation
+import "jspdf-autotable"; // Optional: For table formatting
 
 const ImageCarousel = ({ imageUrls }) => {
   const settings = {
@@ -117,7 +119,7 @@ const VehicleCardPage = () => {
   const [vehicleData, setVehicleData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
-  const [setDocuments] = useState({ title: '', inspection: '', registration: '' });
+  const [documents, setDocuments] = useState({ title: '', inspection: '', registration: '' });
   const [uploading, setUploading] = useState(false);
   const [receipts, setReceipts] = useState([]);
   const [showReceiptForm, setShowReceiptForm] = useState(false);
@@ -330,13 +332,13 @@ const VehicleCardPage = () => {
           const heic2any = (await import('heic2any')).default;
           const convertedBlob = await heic2any({ blob: file, toType: 'image/jpeg' });
           const convertedFile = new File([convertedBlob], file.name.replace(/\.[^/.]+$/, ".jpg"), { type: 'image/jpeg' });
-          setDocuments(prev => ({ ...prev, [documentType]: convertedFile }));
+          setDocuments((prev) => ({ ...prev, [documentType]: convertedFile }));
           await handleDocumentUpload(documentType, convertedFile);
         } catch (error) {
           console.error("Error converting HEIC image:", error);
         }
       } else {
-        setDocuments(prev => ({ ...prev, [documentType]: file }));
+        setDocuments((prev) => ({ ...prev, [documentType]: file }));
         await handleDocumentUpload(documentType, file);
       }
     }
@@ -520,39 +522,120 @@ const VehicleCardPage = () => {
     if (!file) return;
   
     setUploading(true);
-    const storageRef = ref(storage, `listing/${id}/docs/${documentType}-${Date.now()}`);
   
-    const uploadTask = uploadBytesResumable(storageRef, file);
+    try {
+      // Generate a unique file name using the document type, vehicle ID, and timestamp
+      const timestamp = Date.now();
+      const fileExtension = file.name.split('.').pop(); // Extract the file extension
+      const fileName = `${documentType}-${id}-${timestamp}.${fileExtension}`;
   
-    uploadTask.on(
-      'state_changed',
-      (snapshot) => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        console.log(`${documentType} upload is ${progress}% done`);
-      },
-      (error) => {
-        console.error("Error uploading document:", error);
-        setUploading(false);
-      },
-      async () => {
-        try {
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          const documentRef = collection(db, `listing/${id}/docs`);
-          await setDoc(doc(documentRef, documentType), {
-            title: documentType,
-            url: downloadURL,
-            date: new Date(),
-            isPublic: true,
-          });
-          setExistingDocuments(prev => ({ ...prev, [documentType]: downloadURL }));
+      // Define the storage path
+      const storageRef = ref(storage, `listing/${id}/docs/${fileName}`);
+  
+      // Upload the file
+      const uploadTask = uploadBytesResumable(storageRef, file);
+  
+      uploadTask.on(
+        'state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          console.log(`${documentType} upload is ${progress}% done`);
+        },
+        (error) => {
+          console.error("Error uploading document:", error);
           setUploading(false);
-          console.log(`${documentType} uploaded successfully.`);
-        } catch (error) {
-          console.error("Error retrieving download URL:", error);
-          setUploading(false);
+        },
+        async () => {
+          try {
+            // Get the download URL
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+  
+            // Save the document metadata in Firestore
+            const documentRef = collection(db, `listing/${id}/docs`);
+            await setDoc(doc(documentRef, documentType), {
+              title: documentType,
+              url: downloadURL,
+              date: new Date(),
+              isPublic: true,
+            });
+  
+            // Update the local state
+            setExistingDocuments((prev) => ({ ...prev, [documentType]: downloadURL }));
+            console.log(`${documentType} uploaded successfully.`);
+          } catch (error) {
+            console.error("Error retrieving download URL:", error);
+          } finally {
+            setUploading(false);
+          }
+        }
+      );
+    } catch (error) {
+      console.error("Error during document upload:", error);
+      setUploading(false);
+    }
+  };
+
+  const generateReceiptBook = async () => {
+    const doc = new jsPDF();
+  
+    // Title for the PDF
+    doc.setFontSize(18);
+    doc.text("Receipt Book", 10, 10);
+  
+    // Add each receipt to the PDF
+    for (const receipt of receipts) {
+      const { title, date, price, urls } = receipt;
+  
+      // Add receipt details
+      doc.setFontSize(12);
+      doc.text(`Title: ${title}`, 10, doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : 20);
+      doc.text(`Date: ${new Date(date.seconds * 1000).toLocaleDateString()}`, 10, doc.lastAutoTable ? doc.lastAutoTable.finalY + 20 : 30);
+      doc.text(`Price: $${price}`, 10, doc.lastAutoTable ? doc.lastAutoTable.finalY + 30 : 40);
+  
+      // Add receipt images
+      if (urls && urls.length > 0) {
+        for (const url of urls) {
+          try {
+            console.log(`Fetching image from URL: ${url}`);
+            const response = await fetch(url);
+  
+            if (!response.ok) {
+              throw new Error(`Failed to fetch image: ${response.statusText}`);
+            }
+  
+            const img = await response.blob();
+            const imgData = await new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.readAsDataURL(img);
+            });
+  
+            // Add image to the PDF
+            const pageHeight = doc.internal.pageSize.height;
+            const currentY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 50 : 60;
+  
+            // Check if the image fits on the current page, otherwise add a new page
+            if (currentY + 100 > pageHeight) {
+              doc.addPage();
+              doc.addImage(imgData, "JPEG", 10, 20, 180, 100);
+            } else {
+              doc.addImage(imgData, "JPEG", 10, currentY, 180, 100);
+            }
+          } catch (error) {
+            console.error(`Error fetching or adding image from URL: ${url}`, error);
+            // Skip this image and continue with the next one
+          }
         }
       }
-    );
+  
+      // Add a page break if not the last receipt
+      if (receipt !== receipts[receipts.length - 1]) {
+        doc.addPage();
+      }
+    }
+  
+    // Save the PDF
+    doc.save("Receipt_Book.pdf");
   };
 
   if (loading) return <p>Loading vehicle details...</p>;
@@ -656,12 +739,20 @@ const VehicleCardPage = () => {
           </div>
         ))}
       </div>
-      <button
-        onClick={() => setShowReceiptForm(true)}
-        className="bg-purple-700 text-white text-sm px-4 py-1 mt-2 rounded-full hover:bg-purple-800"
-      >
-        + Receipt
-      </button>
+      <div className="flex justify-between mt-2">
+        <button
+          onClick={() => setShowReceiptForm(true)}
+          className="bg-purple-700 text-white text-sm px-4 py-1 rounded-full hover:bg-blue-700"
+        >
+          + Receipt
+        </button>
+        <button
+          onClick={generateReceiptBook}
+          className="bg-purple-700 text-white text-sm px-4 py-1 rounded-full hover:bg-blue-700"
+        >
+          Download Receipt Book
+        </button>
+      </div>
 
       {/* Document Handling Section */}
       <div className="flex justify-around w-full px-6 mt-6">
