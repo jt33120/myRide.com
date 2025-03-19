@@ -466,7 +466,7 @@ const VehicleCardPage = () => {
       setReceiptFiles([]);
       setShowReceiptForm(false);
       console.log('Receipt uploaded successfully.');
-      router.replace(`/VehicleCard_page?id=${id}`); // Refresh the page and scroll to the maintenance section
+      router.push(`/VehicleCard_page?id=${id}`); 
     } catch (error) {
       console.error("Error uploading receipt files:", error);
       setUploading(false);
