@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from 'next/router';
 import { auth, db, storage } from '../lib/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { doc, setDoc } from 'firebase/firestore'; // Import setDoc and doc from Firestore
 
 const usStates = [
   "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
@@ -108,48 +109,72 @@ const AddVehiclePage = () => {
 
   const handleAddVehicle = async () => {
     setUploading(true);
-    const user = auth.currentUser;
-    if (!user) {
-      alert('You must be logged in to add a vehicle.');
+
+    // Validate required fields
+    if (!vehicleType || !selectedMake || !selectedModel || !selectedYear) {
+      alert("Please fill in all required fields!");
       setUploading(false);
       return;
     }
-  
+
+    const user = auth.currentUser;
+    if (!user) {
+      alert("You must be logged in to add a vehicle.");
+      setUploading(false);
+      return;
+    }
+
     try {
+      // Prepare vehicle data
       const vehicleData = {
         vehicleType,
-        make,
-        model,
-        year,
+        make: selectedMake,
+        model: selectedModel,
+        year: selectedYear,
         boughtIn,
         boughtAt,
-        color,
+        color: color.toUpperCase(), // Convert color to uppercase
         vin,
         title,
         mileage,
         zip,
         state,
-        city,
-        interiorColor,
-        awd,
+        city: city.toUpperCase(), // Convert city to uppercase
         tracked,
         garageKept,
-        packageLine,
-        options,
-        cc,
-        dropped,
         description,
         cosmeticDefaults,
         aftermarketMods,
         uid: user.uid,
         createdAt: new Date(),
       };
-  
-      const timestamp = new Date().toLocaleString('en-US', { timeZone: 'UTC', hour12: false }).replace(/[/,: ]/g, '-');
+
+      // Add fields specific to cars
+      if (vehicleType === "car") {
+        vehicleData.interiorColor = interiorColor;
+        vehicleData.awd = awd;
+        vehicleData.packageLine = packageLine;
+        vehicleData.options = options;
+      }
+
+      // Add fields specific to motorcycles
+      if (vehicleType === "motorcycle") {
+        vehicleData.cc = cc;
+        vehicleData.dropped = dropped;
+      }
+
+      // Generate a unique vehicle ID
+      const timestamp = new Date()
+        .toLocaleString("en-US", { timeZone: "UTC", hour12: false })
+        .replace(/[/,: ]/g, "-");
       const vehicleId = `${vehicleType.toUpperCase()}-${user.uid}-${timestamp}`;
-  
-      await setDoc(doc(db, 'listing', vehicleId), vehicleData);
-  
+
+      // Write vehicle data to Firestore
+      console.log("Writing vehicle data to Firestore...");
+      await setDoc(doc(db, "listing", vehicleId), vehicleData);
+
+      // Upload images to Firebase Storage
+      console.log("Uploading images...");
       const uploadPromises = [
         frontImage && uploadFile(frontImage, `listing/${vehicleId}/photos/frontImage`),
         leftImage && uploadFile(leftImage, `listing/${vehicleId}/photos/leftImage`),
@@ -167,17 +192,19 @@ const AddVehiclePage = () => {
         vehicleVideo && uploadFile(vehicleVideo, `listing/${vehicleId}/photos/vehicleVideo`),
         otherImage && uploadFile(otherImage, `listing/${vehicleId}/photos/otherImage`),
       ].filter(Boolean);
-  
+
       await Promise.all(uploadPromises);
-  
+
+      // Redirect to the vehicle card page
+      console.log("Vehicle added successfully. Redirecting...");
       setUploading(false);
       router.push(`/vehicleCard_page?id=${vehicleId}`);
     } catch (error) {
       console.error("Error adding vehicle:", error);
+      alert("An error occurred while adding the vehicle. Please try again.");
       setUploading(false);
     }
   };
-  
 
   const uploadFile = async (file, path) => {
     const storageRef = ref(storage, path);
