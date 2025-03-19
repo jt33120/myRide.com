@@ -135,7 +135,7 @@ const VehicleCardPage = () => {
   const user = auth.currentUser;
   const [conversationId, setConversationId] = useState(null);
   const [ownerName, setOwnerName] = useState('');
-  const [totalAmountSpent, setTotalAmountSpent] = useState(0);
+  const [, setTotalAmountSpent] = useState(0);
   const [sumType, setSumType] = useState('Total Spent'); // State to track the current sum type
 
   const calculateSum = (type) => {
@@ -571,7 +571,7 @@ const VehicleCardPage = () => {
 
       <ImageCarousel imageUrls={imageUrls} />
 
-      <h1 className="text-3xl font-bold mb-6 text-center">{ownerName}'s {vehicleData.year} {vehicleData.model}</h1>
+      <h1 className="text-3xl font-bold mb-6 text-center">{ownerName}&apos;s {vehicleData.year} {vehicleData.model}</h1>
 
       <div className="flex justify-around w-full px-6 mb-6">
         <button onClick={() => document.getElementById('info-section').scrollIntoView({ behavior: 'smooth' })}>
