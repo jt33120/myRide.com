@@ -130,13 +130,13 @@ const AddVehiclePage = () => {
         vehicleType,
         make: selectedMake,
         model: selectedModel,
-        year: selectedYear,
-        boughtIn,
-        boughtAt,
+        year: Number(selectedYear), // Convert year to a number
+        boughtIn: Number(boughtIn), // Convert boughtIn to a number
+        boughtAt: Number(boughtAt), // Convert boughtAt to a number
         color: color.toUpperCase(), // Convert color to uppercase
         vin,
         title,
-        mileage,
+        mileage: Number(mileage), // Convert mileage to a number
         zip,
         state,
         city: city.toUpperCase(), // Convert city to uppercase

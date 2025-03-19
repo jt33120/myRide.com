@@ -69,8 +69,6 @@ const ReceiptForm = ({ onClose, onSave, receiptTitle, setReceiptTitle, receiptDa
           value={receiptDate}
           onChange={(e) => setReceiptDate(e.target.value)}
           className="border border-gray-300 p-2 rounded-md w-full mb-2"
-          title="Date" // Added title
-          placeholder="MM/DD/YYYY" // Added placeholder
         />
         <select
           value={receiptCategory}
@@ -137,6 +135,7 @@ const VehicleCardPage = () => {
   const user = auth.currentUser;
   const [conversationId, setConversationId] = useState(null);
   const [ownerName, setOwnerName] = useState('');
+  const [totalAmountSpent, setTotalAmountSpent] = useState(0);
   const [sumType, setSumType] = useState('Total Spent'); // State to track the current sum type
 
   const calculateSum = (type) => {
@@ -291,6 +290,9 @@ const VehicleCardPage = () => {
             .sort((a, b) => b.date.seconds - a.date.seconds); // Sort by date, most recent first
           setReceipts(sortedReceipts);
   
+          const totalSpent = sortedReceipts.reduce((sum, receipt) => sum + (receipt.price || 0), 0);
+          setTotalAmountSpent(totalSpent);
+  
           const folderRef = ref(storage, `listing/${id}/photos/`);
           const result = await listAll(folderRef);
           const urls = await Promise.all(result.items.map(fileRef => getDownloadURL(fileRef)));
@@ -341,22 +343,12 @@ const VehicleCardPage = () => {
   };
 
   const handleSellVehicle = async (id) => {
-    const price = prompt("Enter the price for your vehicle:");
-    
-    // Validate the price input
-    if (!price || isNaN(price) || parseFloat(price) <= 0) {
-      alert("Please enter a valid price.");
-      return;
-    }
-  
     try {
       await setDoc(doc(db, "on_marketplace", id), {
         listedAt: new Date(),
         status: "listed",
-        price: parseFloat(price), // Save the price as a number
       });
       alert("Vehicle listed for sale!");
-      setIsListed(true); // Update the state to reflect the listing
     } catch (error) {
       console.error("Error listing vehicle:", error);
       alert("Failed to list vehicle.");
@@ -477,7 +469,7 @@ const VehicleCardPage = () => {
       setReceiptFiles([]);
       setShowReceiptForm(false);
       console.log('Receipt uploaded successfully.');
-      router.replace(`/VehicleCard_page?id=${id}`); // Refresh the page and scroll to the maintenance section
+      router.replace(`/VehicleCard_page?id=${id}#maintenance-section`); // Refresh the page and scroll to the maintenance section
     } catch (error) {
       console.error("Error uploading receipt files:", error);
       setUploading(false);
@@ -579,7 +571,7 @@ const VehicleCardPage = () => {
 
       <ImageCarousel imageUrls={imageUrls} />
 
-      <h1 className="text-3xl font-bold mb-6 text-center">{ownerName}&apos;s {vehicleData.year} {vehicleData.model}</h1>
+      <h1 className="text-3xl font-bold mb-6 text-center">{ownerName}'s {vehicleData.year} {vehicleData.model}</h1>
 
       <div className="flex justify-around w-full px-6 mb-6">
         <button onClick={() => document.getElementById('info-section').scrollIntoView({ behavior: 'smooth' })}>
@@ -636,7 +628,7 @@ const VehicleCardPage = () => {
       {isOwner && (
       <section id="maintenance-section" className="snap-start h-screen flex items-center justify-center">
         <div className="max-w-lg mx-auto bg-gray-200 p-6 rounded-lg shadow-md border border-gray-300 relative">
-          <h2 className="text-2xl font-semibold mb-4">Maintenance</h2>
+          <h2 className="text-2xl font-semibold mb-4">My Maintenance Tracker</h2>
           <p>Keep your vehicle at its best to maximize pleasure and resale value!</p>
           <div className="absolute top-4 right-4 bg-white p-2 rounded-lg shadow-md border border-gray-300 cursor-pointer" onClick={handleSumBoxClick}>
             <p className="text-xs text-gray-500">{sumType}</p>
