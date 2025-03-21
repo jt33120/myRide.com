@@ -202,6 +202,7 @@ const VehicleCardPage = () => {
   const [refreshing, setRefreshing] = useState(false); // State for refresh button
   const [aiRecommendation, setAIRecommendation] = useState(null); // State for AI recommendation
   const [, setOwnerManualUrl] = useState(null); // State for owner manual URL
+  const [aiEstimation, setAiEstimation] = useState(null); // State for AI estimation
 
   const calculateSum = (type) => {
     switch (type) {
@@ -791,6 +792,53 @@ const VehicleCardPage = () => {
     }
   };
 
+  // Fetch AI estimation for the vehicle's current market value
+  const fetchAiEstimation = async () => {
+    if (!vehicleData) return;
+
+    setRefreshing(true); // Show loading state for the reload button
+    try {
+      const response = await fetch('/api/aiEstimator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          make: vehicleData.make,
+          model: vehicleData.model,
+          year: vehicleData.year,
+          mileage: vehicleData.mileage || 'Unknown',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        const estimation = data.estimation || 'No estimation available.';
+        setAiEstimation(estimation);
+
+        // Save the AI estimation to Firebase
+        const vehicleRef = doc(db, 'listing', id);
+        const numericEstimation = parseFloat(estimation.replace(/[^0-9.]/g, '')); // Extract numeric value
+        if (!isNaN(numericEstimation)) {
+          await setDoc(vehicleRef, { ai_estimated_price: numericEstimation }, { merge: true });
+        }
+      } else {
+        console.error('Error fetching AI estimation:', data.error);
+        setAiEstimation('Failed to fetch AI estimation.');
+      }
+    } catch (error) {
+      console.error('Error fetching AI estimation:', error);
+      setAiEstimation('Failed to fetch AI estimation.');
+    } finally {
+      setRefreshing(false); // Hide loading state for the reload button
+    }
+  };
+
+  useEffect(() => {
+    if (vehicleData) {
+      fetchAiEstimation();
+    }
+  }, [vehicleData]);
+
   if (loading) return <p>Loading vehicle details...</p>;
 
   if (!vehicleData) return <p>Vehicle not found.</p>;
@@ -1059,9 +1107,27 @@ const VehicleCardPage = () => {
           )}
           <div className="mt-4 p-4 bg-white rounded-lg shadow-md border border-gray-300">
             <h3 className="text-lg font-semibold mb-2">Estimated Resale Value</h3>
+            <p className="text-xs text-gray-500 mt-2">Disclaimer: These are rough estimations. We are working very hard to make them as accurate as possible.</p>
             <p>Based on straight-line depreciation: ${resaleValue.straightLineValue}</p>
             <p>Based on exponential depreciation: ${resaleValue.exponentialValue}</p>
-            <p className="text-xs text-gray-500 mt-2">Disclaimer: This is a very rough estimation and should not be used as a reference.</p>
+            
+            <div className="flex items-center mt-0">
+              <p>{aiEstimation || 'Fetching AI estimation...'}</p>
+              <button
+                onClick={fetchAiEstimation}
+                className="bg-gray-200 p-0.5 rounded-full shadow-md hover:bg-gray-300"
+                disabled={refreshing}
+                title="Reload AI Estimation"
+              >
+                <Image
+                  src="/reload-icon.png" // Ensure this path is correct
+                  alt="Reload"
+                  width={16}
+                  height={16}
+                  className={`cursor-pointer ${refreshing ? 'animate-spin' : ''}`}
+                />
+              </button>
+            </div>
           </div>
           <div className="mt-4 p-4 bg-white rounded-lg shadow-md border border-gray-300">
             <h3 className="text-lg font-semibold mb-2">Depreciation Curve</h3>

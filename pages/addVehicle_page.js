@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from 'next/router';
 import { auth, db, storage } from '../lib/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { doc, setDoc } from 'firebase/firestore'; // Import setDoc and doc from Firestore
+import { doc, setDoc, arrayUnion, updateDoc } from 'firebase/firestore'; // Import setDoc, doc, arrayUnion, and updateDoc from Firestore
 
 const usStates = [
   "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
@@ -172,6 +172,13 @@ const AddVehiclePage = () => {
       // Write vehicle data to Firestore
       console.log("Writing vehicle data to Firestore...");
       await setDoc(doc(db, "listing", vehicleId), vehicleData);
+
+      // Update the user's vehicles array in the /members collection
+      console.log("Updating user's vehicles array...");
+      const userDocRef = doc(db, "members", user.uid);
+      await updateDoc(userDocRef, {
+        vehicles: arrayUnion(vehicleId), // Add the new vehicle ID to the array
+      });
 
       // Upload images to Firebase Storage
       console.log("Uploading images...");

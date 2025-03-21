@@ -11,10 +11,6 @@ export default function Login() {
   const router = useRouter();
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      setError('Credentials are incorrect. Please provide both email and password.');
-      return;
-    }
     try {
       await signInWithEmailAndPassword(auth, email, password);
       // If authentication is successful, redirect to the dashboard

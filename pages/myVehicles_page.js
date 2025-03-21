@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { auth, db } from '../lib/firebase';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { getStorage, ref, listAll, getDownloadURL } from 'firebase/storage';
 import Image from 'next/image';
 
@@ -9,21 +9,26 @@ const MyGarage = () => {
   const [firstName, setFirstName] = useState('');
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [sumType, setSumType] = useState('Current Value'); // Default to "Current Value"
+  const [, setGarageReceipts] = useState([]); // Store all receipts across vehicles
   const router = useRouter();
 
   // Firebase storage instance
   const storage = getStorage();
 
-  // Fetch user's first name from Firestore
+  // Fetch user's first name and vehicle IDs from Firestore
   useEffect(() => {
     const fetchUserData = async () => {
       const user = auth.currentUser;
       if (user) {
         const userDocRef = doc(db, 'members', user.uid);
         const userDoc = await getDoc(userDocRef);
-        
+
         if (userDoc.exists()) {
-          setFirstName(userDoc.data().firstName); // Set the first name from Firestore
+          const userData = userDoc.data();
+          setFirstName(userData.firstName); // Set the first name from Firestore
+          const vehicleIds = userData.vehicles || []; // Get vehicle IDs from the `vehicles` array
+          fetchVehicles(vehicleIds); // Fetch vehicle details
         } else {
           console.log("No such document!");
         }
@@ -50,48 +55,114 @@ const MyGarage = () => {
     return imageUrls;
   }, [storage]);
 
-  // Fetch vehicles once user data is available
-  useEffect(() => {
-    if (!firstName) return; // Wait for firstName to be fetched
+  const fetchVehicles = async (vehicleIds) => {
+    setLoading(true);
+    try {
+      const allReceipts = []; // Collect all receipts across vehicles
 
-    const fetchVehicles = async () => {
-      setLoading(true);
-      try {
-        const user = auth.currentUser;
-        if (!user) return;
+      const vehicleList = await Promise.all(
+        vehicleIds.map(async (vehicleId) => {
+          const vehicleDocRef = doc(db, 'listing', vehicleId);
+          const vehicleDoc = await getDoc(vehicleDocRef);
 
-        const vehiclesQuery = query(
-          collection(db, 'listing'),
-          where('uid', '==', user.uid)
-        );
-        const vehiclesSnapshot = await getDocs(vehiclesQuery);
+          if (vehicleDoc.exists()) {
+            const vehicleData = vehicleDoc.data();
+            const images = await fetchVehicleImages(vehicleId);
 
-        console.log("Fetched vehicles:", vehiclesSnapshot.docs.map(doc => doc.data())); // Log fetched vehicles
-
-        const vehicleList = await Promise.all(
-          vehiclesSnapshot.docs.map(async (doc) => {
-            const vehicleData = doc.data();
-            const images = await fetchVehicleImages(doc.id);
-            return {
+            // Fetch receipts for the vehicle
+            const receiptsQuery = collection(db, `listing/${vehicleId}/receipts`);
+            const receiptsSnapshot = await getDocs(receiptsQuery);
+            const receipts = receiptsSnapshot.docs.map((doc) => ({
               id: doc.id,
+              ...doc.data(),
+            }));
+
+            // Add receipts to the global list
+            allReceipts.push(...receipts);
+
+            return {
+              id: vehicleId,
               make: vehicleData.make,
               model: vehicleData.model,
               year: vehicleData.year,
               images: images,
+              boughtAt: vehicleData.boughtAt || 0, // Ensure default value
+              ai_estimated_price: vehicleData.ai_estimated_price || 0, // Ensure default value
+              receipts,
             };
-          })
-        );
+          } else {
+            console.log(`Vehicle with ID ${vehicleId} does not exist.`);
+            return null;
+          }
+        })
+      );
 
-        setVehicles(vehicleList);
-      } catch (error) {
-        console.error("Error fetching vehicles:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+      setVehicles(vehicleList.filter(Boolean)); // Filter out null values
+      setGarageReceipts(allReceipts); // Store all receipts
+    } catch (error) {
+      console.error("Error fetching vehicles:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchVehicles();
-  }, [firstName, fetchVehicleImages]);
+  const calculateGarageSum = (type) => {
+    switch (type) {
+      case 'Current Value':
+        // Sum of AI-estimated prices across all vehicles
+        return vehicles.reduce((sum, vehicle) => sum + (vehicle.ai_estimated_price || 0), 0);
+      case 'Total Spent':
+        // Sum of purchase price (boughtAt) and all receipts across all vehicles
+        return vehicles.reduce((sum, vehicle) => {
+          const vehicleReceiptsTotal = vehicle.receipts.reduce((rSum, receipt) => rSum + (receipt.price || 0), 0);
+          return sum + vehicle.boughtAt + vehicleReceiptsTotal;
+        }, 0);
+      case 'Only Purchase Price':
+        // Sum of purchase price (boughtAt) across all vehicles
+        return vehicles.reduce((sum, vehicle) => sum + vehicle.boughtAt, 0);
+      case 'Repair':
+        // Sum of purchase price and all receipts in the "Repair" category across all vehicles
+        return vehicles.reduce((sum, vehicle) => {
+          const repairReceiptsTotal = vehicle.receipts
+            .filter(receipt => receipt.category === 'Repair')
+            .reduce((rSum, receipt) => rSum + (receipt.price || 0), 0);
+          return sum + vehicle.boughtAt + repairReceiptsTotal;
+        }, 0);
+      case 'Scheduled Maintenance':
+        // Sum of purchase price and all receipts in the "Scheduled Maintenance" category across all vehicles
+        return vehicles.reduce((sum, vehicle) => {
+          const maintenanceReceiptsTotal = vehicle.receipts
+            .filter(receipt => receipt.category === 'Scheduled Maintenance')
+            .reduce((rSum, receipt) => rSum + (receipt.price || 0), 0);
+          return sum + vehicle.boughtAt + maintenanceReceiptsTotal;
+        }, 0);
+      case 'Cosmetic Mods':
+        // Sum of purchase price and all receipts in the "Cosmetic Mods" category across all vehicles
+        return vehicles.reduce((sum, vehicle) => {
+          const cosmeticReceiptsTotal = vehicle.receipts
+            .filter(receipt => receipt.category === 'Cosmetic Mods')
+            .reduce((rSum, receipt) => rSum + (receipt.price || 0), 0);
+          return sum + vehicle.boughtAt + cosmeticReceiptsTotal;
+        }, 0);
+      case 'Performance Mods':
+        // Sum of purchase price and all receipts in the "Performance Mods" category across all vehicles
+        return vehicles.reduce((sum, vehicle) => {
+          const performanceReceiptsTotal = vehicle.receipts
+            .filter(receipt => receipt.category === 'Performance Mods')
+            .reduce((rSum, receipt) => rSum + (receipt.price || 0), 0);
+          return sum + vehicle.boughtAt + performanceReceiptsTotal;
+        }, 0);
+      default:
+        return 0;
+    }
+  };
+
+  const handleSumBoxClick = () => {
+    const sumTypes = ['Current Value', 'Total Spent', 'Only Purchase Price', 'Repair', 'Scheduled Maintenance', 'Cosmetic Mods', 'Performance Mods'];
+    const currentIndex = sumTypes.indexOf(sumType);
+    const nextIndex = (currentIndex + 1) % sumTypes.length;
+    setSumType(sumTypes[nextIndex]);
+  };
 
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -112,7 +183,16 @@ const MyGarage = () => {
         ⏎
       </button>
 
-      <h1 className="text-3xl font-bold mb-6 text-center">{firstName ? `${firstName}'s Garage` : "Loading..."}</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">{firstName ? `${firstName}'s Garage` : "Loading..."}</h1>
+        <div
+          className="absolute top-4 right-4 bg-white p-2 rounded-lg shadow-md border border-gray-300 cursor-pointer"
+          onClick={handleSumBoxClick}
+        >
+          <p className="text-xs text-gray-500">{sumType}</p>
+          <p className="text-md">${Number(calculateGarageSum(sumType)).toFixed(2)}</p>
+        </div>
+      </div>
 
       {vehicles.length === 0 ? (
         <div className="text-center">
@@ -123,11 +203,11 @@ const MyGarage = () => {
           {vehicles.map((vehicle) => (
             <div
               key={vehicle.id}
-              className="bg-white p-4 rounded-lg shadow-md cursor-pointer hover:shadow-lg flex items-center"
+              className="bg-white p-4 rounded-lg shadow-md cursor-pointer hover:shadow-lg flex flex-col items-center"
               onClick={() => router.push(`/vehicleCard_page?id=${vehicle.id}`)}
             >
-              {/* Carousel on the left */}
-              <div className="carousel-container relative mr-4 w-48 h-48">
+              {/* Carousel */}
+              <div className="carousel-container relative mb-4 w-48 h-48">
                 <div className="carousel-images overflow-hidden w-full h-full">
                   {vehicle.images.length > 0 && (
                     <Image
@@ -152,10 +232,10 @@ const MyGarage = () => {
                 </div>
               </div>
 
-              {/* Vehicle info on the right */}
-              <div className="ml-4">
+              {/* Vehicle info */}
+              <div className="text-center">
                 <h2 className="text-xl font-semibold">
-                  {vehicle.make} {vehicle.model} {vehicle.year}
+                {vehicle.year} {vehicle.make} {vehicle.model} 
                 </h2>
               </div>
             </div>
