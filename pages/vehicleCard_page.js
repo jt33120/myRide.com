@@ -46,7 +46,7 @@ const ImageCarousel = ({ imageUrls }) => {
   );
 };
 
-const ReceiptForm = ({ onClose, onSave, receiptTitle, setReceiptTitle, receiptDate, setReceiptDate, receiptCategory, setReceiptCategory, receiptMileage, setReceiptMileage, setReceiptFiles, receiptPrice, setReceiptPrice, uploading }) => {
+const ReceiptForm = ({ onClose, onSave, receiptTitle, setReceiptTitle, receiptDate, setReceiptDate, receiptCategory, setReceiptCategory, receiptMileage, setReceiptMileage, setReceiptFiles, receiptPrice, setReceiptPrice, uploading, isEditing = false }) => {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
       <div className="bg-white p-6 rounded-lg shadow-lg w-96 relative">
@@ -56,7 +56,7 @@ const ReceiptForm = ({ onClose, onSave, receiptTitle, setReceiptTitle, receiptDa
         >
           ✖
         </button>
-        <h2 className="text-2xl font-semibold mb-4">Add Receipt</h2>
+        <h2 className="text-2xl font-semibold mb-4">{isEditing ? 'Edit Receipt' : 'Add Receipt'}</h2>
         <input
           type="text"
           placeholder="Receipt title"
@@ -106,7 +106,66 @@ const ReceiptForm = ({ onClose, onSave, receiptTitle, setReceiptTitle, receiptDa
           className="bg-purple-700 text-white px-6 py-2 rounded-full w-full hover:bg-purple-800"
           disabled={uploading}
         >
-          {uploading ? <div className="loader"></div> : 'Save'}
+          {uploading ? <div className="loader"></div> : isEditing ? 'Update' : 'Save'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const OwnerManualModal = ({ onClose, vehicleId }) => {
+  const [manualUrl, setManualUrl] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSaveOwnerManual = async () => {
+    if (!manualUrl) {
+      setError('Please provide a URL for the owner manual.');
+      return;
+    }
+
+    setUploading(true);
+    setError('');
+
+    try {
+      const vehicleRef = doc(db, 'listing', vehicleId);
+      await setDoc(vehicleRef, { ownerManual: manualUrl }, { merge: true });
+
+      alert('Owner manual URL saved successfully!');
+      setOwnerManualUrl(manualUrl); // Update state with new URL
+      onClose(); // Close the modal
+    } catch (error) {
+      console.error('Error saving owner manual URL:', error);
+      setError('Failed to save the owner manual URL.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+      <div className="bg-white p-6 rounded-lg shadow-lg w-96 relative">
+        <button
+          onClick={onClose}
+          className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
+        >
+          ✖
+        </button>
+        <h2 className="text-2xl font-semibold mb-4">Sync Owner Manual</h2>
+        <input
+          type="text"
+          placeholder="Enter the URL of the owner manual PDF"
+          value={manualUrl}
+          onChange={(e) => setManualUrl(e.target.value)}
+          className="border border-gray-300 p-2 rounded-md w-full mb-4"
+        />
+        {error && <p className="text-red-500 mb-4">{error}</p>}
+        <button
+          onClick={handleSaveOwnerManual}
+          className="bg-purple-700 text-white px-6 py-2 rounded-full w-full hover:bg-purple-800"
+          disabled={uploading}
+        >
+          {uploading ? 'Saving...' : 'Save'}
         </button>
       </div>
     </div>
@@ -136,6 +195,13 @@ const VehicleCardPage = () => {
   const [conversationId, setConversationId] = useState(null);
   const [ownerName, setOwnerName] = useState('');
   const [sumType, setSumType] = useState('Total Spent'); // State to track the current sum type
+  const [showOwnerManualModal, setShowOwnerManualModal] = useState(false);
+  const [currentMileage, setCurrentMileage] = useState(null); // State for current mileage
+  const [showEditReceiptForm, setShowEditReceiptForm] = useState(false);
+  const [editingReceipt, setEditingReceipt] = useState(null); // State for editing receipt
+  const [refreshing, setRefreshing] = useState(false); // State for refresh button
+  const [aiRecommendation, setAIRecommendation] = useState(null); // State for AI recommendation
+  const [, setOwnerManualUrl] = useState(null); // State for owner manual URL
 
   const calculateSum = (type) => {
     switch (type) {
@@ -155,7 +221,66 @@ const VehicleCardPage = () => {
     }
   };
 
-  
+  useEffect(() => {
+    if (!id) return;
+
+    const fetchRecommendations = async () => {
+      setLoading(true);
+      try {
+        // Fetch vehicle data
+        const vehicleRef = doc(db, 'listing', id);
+        const vehicleDoc = await getDoc(vehicleRef);
+
+        if (!vehicleDoc.exists()) {
+          throw new Error('Vehicle not found.');
+        }
+
+        const vehicleData = vehicleDoc.data();
+        const ownerManual = vehicleData.ownerManual;
+        if (!ownerManual) {
+          throw new Error('Owner manual URL not available.');
+        }
+        setOwnerManualUrl(ownerManual);
+
+        // Fetch receipts
+        const receiptsRef = collection(db, `listing/${id}/receipts`);
+        const receiptsSnapshot = await getDocs(receiptsRef);
+        const receiptsData = receiptsSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setReceipts(receiptsData);
+
+        // Call the analyzeManual API
+        const analyzeResponse = await fetch('/api/analyzeManual', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: ownerManual,
+            receipts: receiptsData.map((r) => ({
+              title: r.title,
+              mileage: r.mileage || 'Unknown',
+            })),
+          }),
+        });
+
+        const analyzeData = await analyzeResponse.json();
+
+        if (!analyzeResponse.ok) {
+          throw new Error(analyzeData.error || 'Failed to fetch AI recommendations.');
+        }
+
+        setAIRecommendation(analyzeData.recommendations || 'No recommendations available.');
+      } catch (error) {
+        console.error('Error fetching recommendations:', error);
+        setAIRecommendation('Failed to fetch recommendations.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRecommendations();
+  }, [id]);
   const handleSumBoxClick = () => {
     const sumTypes = ['Total Spent', 'Without Purchase Price', 'Repair', 'Scheduled Maintenance', 'Cosmetic Mods', 'Performance Mods'];
     const currentIndex = sumTypes.indexOf(sumType);
@@ -306,6 +431,13 @@ const VehicleCardPage = () => {
             inspection: inspectionDoc ? inspectionDoc.url : null,
             registration: registrationDoc ? registrationDoc.url : null,
           });
+
+
+          // Generate upcoming maintenance if ownerManual exists
+
+
+          // Set current mileage from Firestore
+          setCurrentMileage(vehicle.mileage || 'N/A');
         } else {
           console.log("No such document!");
         }
@@ -379,6 +511,7 @@ const VehicleCardPage = () => {
     }
   }, [id]);
 
+
   const handleReceiptUpload = async () => {
     console.log('handleReceiptUpload called');
     if (!receiptFiles.length || !receiptTitle || !receiptDate || !receiptCategory || !receiptMileage || !receiptPrice) return;
@@ -402,7 +535,7 @@ const VehicleCardPage = () => {
     }
   
     // Parse the mileage as a number if it's not 'Unknown'
-    const parsedMileage = receiptMileage === 'Unknown' ? receiptMileage : parseFloat(receiptMileage);
+    const parsedMileage = receiptMileage === 'Unknown' ? null : parseFloat(receiptMileage);
   
     setUploading(true);
     const receiptId = receiptTitle.replace(/\s+/g, '-').toLowerCase(); // Use the receipt title as the document ID
@@ -449,14 +582,31 @@ const VehicleCardPage = () => {
     try {
       const downloadURLs = await Promise.all(uploadPromises);
       const receiptRef = doc(db, `listing/${id}/receipts`, receiptId); // Use the receipt title as the document ID
+      const receiptDateObj = new Date(receiptDate);
+      if (isNaN(receiptDateObj.getTime())) {
+        alert('Invalid receipt date.');
+        return;
+      }
       await setDoc(receiptRef, {
         title: receiptTitle,
-        date: new Date(receiptDate),
+        date: receiptDateObj, // Use parsed date object
         category: receiptCategory,
         mileage: parsedMileage, // Save mileage as a number if it's not 'Unknown'
         price: parsedPrice, // Save price as a number
         urls: downloadURLs,
       });
+  
+      // Update the mileage in the listing collection
+      if (parsedMileage !== null) {
+        const listingRef = doc(db, 'listing', id);
+        const listingDoc = await getDoc(listingRef);
+        if (listingDoc.exists()) {
+          const currentMileage = listingDoc.data().mileage || 0;
+          const updatedMileage = Math.max(currentMileage, parsedMileage);
+          await setDoc(listingRef, { mileage: updatedMileage }, { merge: true });
+        }
+      }
+  
       setUploading(false);
       setReceiptTitle('');
       setReceiptDate('');
@@ -467,6 +617,17 @@ const VehicleCardPage = () => {
       setShowReceiptForm(false);
       console.log('Receipt uploaded successfully.');
       router.push(`/VehicleCard_page?id=${id}`); 
+
+      // After uploading the receipt, regenerate the upcoming maintenance
+      if (vehicleData?.ownerManual) {
+        await generateUpcomingMaintenance(vehicleData.ownerManual, [...receipts, {
+          title: receiptTitle,
+          mileage: receiptMileage,
+        }]);
+      }
+
+      // Refresh the page automatically
+      router.reload();
     } catch (error) {
       console.error("Error uploading receipt files:", error);
       setUploading(false);
@@ -517,7 +678,7 @@ const VehicleCardPage = () => {
     if (!file) return;
   
     setUploading(true);
-    const storageRef = ref(storage, `listing/${id}/docs/${documentType}-${Date.now()}`);
+    const storageRef = ref(storage, `listing/${id}/docs/${documentType}`);
   
     const uploadTask = uploadBytesResumable(storageRef, file);
   
@@ -550,6 +711,84 @@ const VehicleCardPage = () => {
         }
       }
     );
+  };
+
+  const handleEditReceipt = (receipt) => {
+    setEditingReceipt({
+      ...receipt,
+      date: receipt.date.seconds ? new Date(receipt.date.seconds * 1000).toISOString().split('T')[0] : '',
+    });
+    setShowEditReceiptForm(true);
+  };
+
+  const handleUpdateReceipt = async () => {
+    console.log('handleUpdateReceipt called');
+    if (!editingReceipt) return;
+
+    const { id: receiptId, ...updatedData } = editingReceipt;
+
+    // Parse date if provided
+    if (updatedData.date) {
+      const receiptDateObj = new Date(updatedData.date);
+      if (isNaN(receiptDateObj.getTime())) {
+        alert('Invalid receipt date.');
+        return;
+      }
+      updatedData.date = receiptDateObj;
+    }
+
+    try {
+      const receiptRef = doc(db, `listing/${id}/receipts`, receiptId);
+      await setDoc(receiptRef, updatedData, { merge: true });
+
+      // Refresh the page automatically
+      router.reload();
+    } catch (error) {
+      console.error('Error updating receipt:', error);
+    } finally {
+      setShowEditReceiptForm(false);
+    }
+  };
+
+  const handleRefreshRecommendation = async () => {
+    if (!vehicleData?.ownerManual || !receipts) return;
+
+    setRefreshing(true);
+    try {
+      await generateUpcomingMaintenance(vehicleData.ownerManual, receipts);
+    } catch (error) {
+      console.error('Error refreshing AI recommendation:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Add missing function to generate upcoming maintenance
+  const generateUpcomingMaintenance = async (ownerManualUrl, receipts) => {
+    try {
+      const response = await fetch('/api/analyzeManual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: ownerManualUrl,
+          receipts: receipts.map((r) => ({
+            title: r.title,
+            mileage: r.mileage || 'Unknown',
+          })),
+        }),
+      });
+  
+      const data = await response.json();
+  
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate upcoming maintenance.');
+      }
+  
+      setAIRecommendation(data.recommendations || 'No recommendations available.');
+    } catch (error) {
+      console.error('Error generating upcoming maintenance:', error);
+      setAIRecommendation('Failed to generate recommendations.');
+    }
   };
 
   if (loading) return <p>Loading vehicle details...</p>;
@@ -621,38 +860,101 @@ const VehicleCardPage = () => {
 
 
       
-      {/* Maintenance Section */}
-      {isOwner && (
-      <section id="maintenance-section" className="snap-start h-screen flex items-center justify-center">
-        <div className="max-w-lg mx-auto bg-gray-200 p-6 rounded-lg shadow-md border border-gray-300 relative">
-          <h2 className="text-2xl font-semibold mb-4">Maintenance</h2>
-          <p>Keep your vehicle at its best to maximize pleasure and resale value!</p>
-          <div className="absolute top-4 right-4 bg-white p-2 rounded-lg shadow-md border border-gray-300 cursor-pointer" onClick={handleSumBoxClick}>
-            <p className="text-xs text-gray-500">{sumType}</p>
-            <p className="text-md">${Number(calculateSum(sumType)).toFixed(2)}</p>
-          </div>
-          {receipts.map((receipt) => (
-            <div key={receipt.id} className="mb-2 flex justify-between items-center">
-              {receipt.urls && receipt.urls.length > 0 && (
-                <a href={receipt.urls[0]} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                  {receipt.title} - {new Date(receipt.date.seconds * 1000).toLocaleDateString()} - ${receipt.price}
-                </a>
-              )}
-              <button
-                onClick={() => handleReceiptDelete(receipt.id, receipt.urls)}
-                className="text-red-600 hover:text-red-800"
-                title="Delete Receipt"
-              >
-                ✖
-              </button>
-            </div>
-          ))}
-          <button
+    {/* Maintenance Section */}
+{isOwner && (
+  <section id="maintenance-section" className="snap-start h-screen flex items-center justify-center">
+    <div className="max-w-lg mx-auto bg-gray-200 p-6 rounded-lg shadow-md border border-gray-300 relative">
+      <h2 className="text-2xl font-semibold mb-4">Maintenance</h2>
+      <p>Keep your vehicle at its best to maximize pleasure and resale value!</p>
+      <div className="absolute top-4 right-4 bg-white p-2 rounded-lg shadow-md border border-gray-300 cursor-pointer" onClick={handleSumBoxClick}>
+        <p className="text-xs text-gray-500">{sumType}</p>
+        <p className="text-md">${Number(calculateSum(sumType)).toFixed(2)}</p>
+      </div>
+
+      {/* AI Upcoming Maintenance Header with Sync Button */}
+      <div className="mt-6 flex justify-between items-center">
+        <h3 className="text-md font-bold text-red-500">
+          Maintenance Recommendation
+        </h3>
+        <p className="text-xs text-gray-500">(Current Mileage: {currentMileage})</p>
+        <button
+          onClick={() => setShowOwnerManualModal(true)}
+          className="bg-purple-500 text-sm text-white px- py-1 rounded-md hover:bg-blue-600"
+        >
+          Sync Owner Manual
+        </button>
+      </div>
+
+      {/* AI Recommendation Box */}
+      <div className="mt-4 bg-gray-100 p-4 rounded-lg border border-gray-300 text-sm overflow-auto relative">
+        <button
+          onClick={handleRefreshRecommendation}
+          className="absolute top-2 right-2 bg-white p-1 rounded-full shadow-md"
+          disabled={refreshing}
+          title="Refresh AI Recommendation"
+        >
+          <Image
+            src="/reload-icon.png" // Ensure this path is correct
+            alt=""
+            width={10}
+            height={10}
+            className={`cursor-pointer ${refreshing ? 'animate-spin' : ''}`}
+          />
+        </button>
+        <pre className="whitespace-pre-wrap">
+          {aiRecommendation
+            ? typeof aiRecommendation === 'string'
+              ? aiRecommendation
+              : JSON.stringify(aiRecommendation, null, 2)
+            : "No AI recommendation available."}
+        </pre>
+      </div>
+
+
+
+
+      {/* Receipt History Section */}
+      <div className="mt-6">
+        <h3 className="text-lg font-semibold mb-2">History</h3>
+
+        <div className="max-h-48 overflow-y-auto bg-gray-100 p-4 rounded-lg shadow-inner border border-gray-300">
+          {receipts.length > 0 ? (
+            receipts.map((receipt) => (
+              <div key={receipt.id} className="mb-2 flex justify-between items-center bg-white p-2 rounded-md shadow-sm border border-gray-300">
+                {receipt.urls && receipt.urls.length > 0 && (
+                  <a href={receipt.urls[0]} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    {receipt.title} - {new Date(receipt.date.seconds * 1000).toLocaleDateString()} - ${receipt.price}
+                  </a>
+                )}
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handleEditReceipt(receipt)}
+                    className="text-green-600 hover:text-green-800"
+                    title="Edit Receipt"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    onClick={() => handleReceiptDelete(receipt.id, receipt.urls)}
+                    className="text-red-600 hover:text-red-800"
+                    title="Delete Receipt"
+                  >
+                    ✖
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-gray-500">No receipts available.</p>
+          )}
+        </div>
+        <button
             onClick={() => setShowReceiptForm(true)}
             className="bg-purple-700 text-white text-sm px-4 py-1 mt-2 rounded-full hover:bg-purple-800"
           >
             + Receipt
           </button>
+      </div>
 
           {/* Document Handling Section */}
       <div className="flex justify-around w-full px-6 mt-6">
@@ -790,6 +1092,32 @@ const VehicleCardPage = () => {
         />
       )}
 
+      {showEditReceiptForm && (
+        <ReceiptForm
+          onClose={() => setShowEditReceiptForm(false)}
+          onSave={handleUpdateReceipt}
+          receiptTitle={editingReceipt?.title || ''}
+          setReceiptTitle={(value) => setEditingReceipt((prev) => ({ ...prev, title: value }))}
+          receiptDate={editingReceipt?.date || ''}
+          setReceiptDate={(value) => setEditingReceipt((prev) => ({ ...prev, date: value }))}
+          receiptCategory={editingReceipt?.category || ''}
+          setReceiptCategory={(value) => setEditingReceipt((prev) => ({ ...prev, category: value }))}
+          receiptMileage={editingReceipt?.mileage || ''}
+          setReceiptMileage={(value) => setEditingReceipt((prev) => ({ ...prev, mileage: value }))}
+          receiptPrice={editingReceipt?.price || ''}
+          setReceiptPrice={(value) => setEditingReceipt((prev) => ({ ...prev, price: value }))}
+          setReceiptFiles={(files) => setEditingReceipt((prev) => ({ ...prev, files }))}
+          uploading={uploading}
+          isEditing={true}
+        />
+      )}
+
+      {showOwnerManualModal && (
+        <OwnerManualModal
+          onClose={() => setShowOwnerManualModal(false)}
+          vehicleId={id}
+        />
+      )}
       
     </div>
   );
