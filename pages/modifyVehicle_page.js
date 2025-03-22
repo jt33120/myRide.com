@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from 'next/router';
 import { db, storage } from '../lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { ref, listAll, getDownloadURL, deleteObject } from 'firebase/storage';
+import { ref, listAll, getDownloadURL, deleteObject, uploadBytesResumable } from 'firebase/storage';
 
 const ModifyVehiclePage = () => {
   const router = useRouter();
@@ -152,38 +152,13 @@ const ModifyVehiclePage = () => {
         Object.assign(updatedData, motorcycleFields);
       }
 
-      const updatedImages = {};
+      // Write updated data to Firestore
+      await updateDoc(doc(db, "listing", id), updatedData);
 
-      // Upload new images to Firebase Storage
+      // Upload images to Firebase Storage
       const uploadFile = async (file, path) => {
-        let fileToUpload = file;
-
-        // Convert image to PNG if necessary
-        if (file.type !== 'image/png') {
-          try {
-            const canvas = document.createElement('canvas');
-            const img = document.createElement('img');
-            img.src = URL.createObjectURL(file);
-
-            await new Promise((resolve) => {
-              img.onload = () => {
-                canvas.width = img.width;
-                canvas.height = img.height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-                canvas.toBlob((blob) => {
-                  fileToUpload = new File([blob], file.name.replace(/\.[^/.]+$/, ".png"), { type: 'image/png' });
-                  resolve();
-                }, 'image/png');
-              };
-            });
-          } catch (error) {
-            console.error("Error converting image to PNG:", error);
-          }
-        }
-
         const storageRef = ref(storage, path);
-        const uploadTask = uploadBytesResumable(storageRef, fileToUpload);
+        const uploadTask = uploadBytesResumable(storageRef, file);
 
         return new Promise((resolve, reject) => {
           uploadTask.on(
@@ -198,14 +173,15 @@ const ModifyVehiclePage = () => {
         });
       };
 
-      for (const [key, file] of Object.entries(images)) {
-        if (file && typeof file !== 'string') {
-          updatedImages[key] = await uploadFile(file, `listing/${id}/photos/${key}`);
+      const uploadPromises = Object.entries(images).map(async ([key, fileData]) => {
+        if (fileData && fileData.file instanceof File) {
+          const filePath = `listing/${id}/photos/${key}`;
+          await uploadFile(fileData.file, filePath);
         }
-      }
+      });
 
-      // Update Firestore with new data and images
-      await updateDoc(doc(db, "listing", id), { ...updatedData, ...updatedImages });
+      await Promise.all(uploadPromises);
+
       alert("Vehicle details and images updated successfully!");
       router.push(`/vehicleCard_page?id=${id}`);
     } catch (error) {
