@@ -8,8 +8,13 @@ const ModifyVehiclePage = () => {
   const router = useRouter();
   const { id } = router.query;
 
-  const [step, setStep] = useState(1); // Step 1: Fields, Step 2: Images
+  // State to manage the current step (1: Fields, 2: Images)
+  const [step, setStep] = useState(1);
+
+  // State to manage vehicle type (car or motorcycle)
   const [vehicleType, setVehicleType] = useState('');
+
+  // State to manage common fields for all vehicles
   const [commonFields, setCommonFields] = useState({
     make: '',
     model: '',
@@ -29,25 +34,35 @@ const ModifyVehiclePage = () => {
     cosmeticDefaults: '',
     aftermarketMods: '',
   });
+
+  // State to manage fields specific to cars
   const [carFields, setCarFields] = useState({
     interiorColor: '',
     awd: false,
-    packageLine: '',
+    package: '',
     options: '',
   });
+
+  // State to manage fields specific to motorcycles
   const [motorcycleFields, setMotorcycleFields] = useState({
     cc: '',
     dropped: false,
   });
+
+  // State to manage vehicle images
   const [images, setImages] = useState({});
+
+  // State to manage loading and uploading status
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
 
+  // Fetch vehicle data and images when the page loads or the `id` changes
   useEffect(() => {
     if (!id) return;
 
     const fetchVehicleData = async () => {
       try {
+        // Fetch vehicle data from Firestore
         const docRef = doc(db, "listing", id);
         const docSnap = await getDoc(docRef);
 
@@ -74,11 +89,12 @@ const ModifyVehiclePage = () => {
             aftermarketMods: data.aftermarketMods || '',
           });
 
+          // Set specific fields based on vehicle type
           if (data.vehicleType === 'car') {
             setCarFields({
               interiorColor: data.interiorColor || '',
               awd: data.awd || false,
-              packageLine: data.packageLine || '',
+              package: data.package || '',
               options: data.options || '',
             });
           } else if (data.vehicleType === 'motorcycle') {
@@ -94,15 +110,11 @@ const ModifyVehiclePage = () => {
         const photosList = await listAll(photosRef);
         const imageUrls = {};
 
+        console.log("File names retrieved from Firebase Storage:");
         for (const item of photosList.items) {
-          const url = await getDownloadURL(item);
-          const key = item.name; // Use the file name as the key
-          if (key.startsWith("otherImage")) {
-            if (!imageUrls.otherImages) imageUrls.otherImages = [];
-            imageUrls.otherImages.push({ name: key, url });
-          } else {
-            imageUrls[key] = url;
-          }
+          console.log(item.name); // Log each file name to the console
+          const url = await getDownloadURL(item); // Get the download URL
+          imageUrls[item.name] = { name: item.name, url }; // Store the file name and URL
         }
 
         setImages(imageUrls);
@@ -116,12 +128,14 @@ const ModifyVehiclePage = () => {
     fetchVehicleData();
   }, [id]);
 
+  // Handle updating vehicle details and images
   const handleUpdateVehicle = async () => {
     if (!id) return;
 
     setUploading(true);
 
     try {
+      // Prepare updated data for Firestore
       const updatedData = {
         vehicleType,
         ...commonFields,
@@ -131,6 +145,7 @@ const ModifyVehiclePage = () => {
         updatedAt: new Date(),
       };
 
+      // Add specific fields based on vehicle type
       if (vehicleType === 'car') {
         Object.assign(updatedData, carFields);
       } else if (vehicleType === 'motorcycle') {
@@ -139,10 +154,36 @@ const ModifyVehiclePage = () => {
 
       const updatedImages = {};
 
-      // Upload images
+      // Upload new images to Firebase Storage
       const uploadFile = async (file, path) => {
+        let fileToUpload = file;
+
+        // Convert image to PNG if necessary
+        if (file.type !== 'image/png') {
+          try {
+            const canvas = document.createElement('canvas');
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(file);
+
+            await new Promise((resolve) => {
+              img.onload = () => {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                canvas.toBlob((blob) => {
+                  fileToUpload = new File([blob], file.name.replace(/\.[^/.]+$/, ".png"), { type: 'image/png' });
+                  resolve();
+                }, 'image/png');
+              };
+            });
+          } catch (error) {
+            console.error("Error converting image to PNG:", error);
+          }
+        }
+
         const storageRef = ref(storage, path);
-        const uploadTask = uploadBytesResumable(storageRef, file);
+        const uploadTask = uploadBytesResumable(storageRef, fileToUpload);
 
         return new Promise((resolve, reject) => {
           uploadTask.on(
@@ -163,6 +204,7 @@ const ModifyVehiclePage = () => {
         }
       }
 
+      // Update Firestore with new data and images
       await updateDoc(doc(db, "listing", id), { ...updatedData, ...updatedImages });
       alert("Vehicle details and images updated successfully!");
       router.push(`/vehicleCard_page?id=${id}`);
@@ -174,25 +216,16 @@ const ModifyVehiclePage = () => {
     }
   };
 
-  const handleDeleteImage = async (key, index = null) => {
+  // Handle deleting an image from Firebase Storage
+  const handleDeleteImage = async (key) => {
     try {
-      if (key === 'otherImages' && index !== null) {
-        const imageName = images.otherImages[index].name;
-        const imageRef = ref(storage, `listing/${id}/photos/${imageName}`);
-        await deleteObject(imageRef);
-        setImages((prev) => ({
-          ...prev,
-          otherImages: prev.otherImages.filter((_, i) => i !== index),
-        }));
-      } else {
-        const imageRef = ref(storage, `listing/${id}/photos/${key}`);
-        await deleteObject(imageRef);
-        setImages((prev) => {
-          const updatedImages = { ...prev };
-          delete updatedImages[key];
-          return updatedImages;
-        });
-      }
+      const imageRef = ref(storage, `listing/${id}/photos/${key}`);
+      await deleteObject(imageRef);
+      setImages((prev) => {
+        const updatedImages = { ...prev };
+        delete updatedImages[key];
+        return updatedImages;
+      });
       alert(`${key} deleted successfully.`);
     } catch (error) {
       console.error(`Error deleting ${key}:`, error);
@@ -200,11 +233,13 @@ const ModifyVehiclePage = () => {
     }
   };
 
+  // Render the form for modifying vehicle fields
   const renderFieldsStep = () => (
     <div>
       <h1 className="text-3xl font-bold mb-6 text-center">Modify Vehicle Details</h1>
       <div className="form-container">
         {/* Common Fields */}
+        {/* Render input fields for common vehicle details */}
         <div className="form-section">
           <label className="form-label">Make</label>
           <input
@@ -417,12 +452,12 @@ const ModifyVehiclePage = () => {
               />
             </div>
             <div className="form-section">
-              <label className="form-label">Package Line</label>
+              <label className="form-label">Package / Line</label>
               <input
                 type="text"
-                value={carFields.packageLine}
+                value={carFields.package}
                 onChange={(e) =>
-                  setCarFields({ ...carFields, packageLine: e.target.value })
+                  setCarFields({ ...carFields, package: e.target.value })
                 }
                 className="border border-gray-300 p-2 rounded-md w-full mb-2"
               />
@@ -472,7 +507,7 @@ const ModifyVehiclePage = () => {
         )}
 
         <button
-          onClick={() => setStep(2)}
+          onClick={() => setStep(2)} // Move to the next step (Images)
           className="btn"
         >
           Next
@@ -481,78 +516,74 @@ const ModifyVehiclePage = () => {
     </div>
   );
 
+  // Render the form for modifying vehicle images
   const renderImagesStep = () => (
     <div>
       <h1 className="text-3xl font-bold mb-6 text-center">Modify Vehicle Images</h1>
       <div className="form-container">
-        {Object.keys(images).map((key) => (
+
+        {[
+          'frontImage',
+          'leftImage',
+          'rightImage',
+          'rearImage',
+          'dashboardImage',
+          ...(vehicleType === 'car'
+            ? [
+                'leftFrontWheelImage',
+                'rightFrontWheelImage',
+                'leftRearWheelImage',
+                'rightRearWheelImage',
+                'engineBayImage',
+              ]
+            : []),
+          ...(vehicleType === 'motorcycle'
+            ? ['chainImage', 'frontWheelImage', 'rearWheelImage']
+            : []),
+          'vehicleVideo',
+          'otherImage', // Ensure these are the last fields
+        ].map((key) => (
           <div className="form-section" key={key}>
             <label className="form-label">{key.replace(/([A-Z])/g, ' $1')}</label>
-            {key === 'otherImages' ? (
-              images.otherImages.map((image, index) => (
-                <div key={index} className="flex items-center mb-2">
-                  <a
-                    href={image.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-500 underline mr-2"
-                  >
-                    {image.name}
-                  </a>
-                  <button
-                    onClick={() => handleDeleteImage(key, index)}
-                    className="text-red-500 font-bold"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))
-            ) : (
+            {Object.keys(images).some((imageKey) => imageKey.replace('.png', '') === key) ? (
               <div className="flex items-center mb-2">
                 <a
-                  href={images[key]}
+                  href={images[`${key}.png`]?.url} // Use the URL from the images object
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-500 underline mr-2"
                 >
-                  {key}
+                  {`${key}.png`}
                 </a>
                 <button
-                  onClick={() => handleDeleteImage(key)}
+                  onClick={() => handleDeleteImage(`${key}.png`)} // Pass the key with .png extension
                   className="text-red-500 font-bold"
                 >
                   ✕
                 </button>
               </div>
+            ) : (
+              <p className="text-gray-500 mb-2">No image yet</p>
             )}
             <input
               type="file"
               onChange={(e) =>
-                key === 'otherImages'
-                  ? setImages((prev) => ({
-                      ...prev,
-                      otherImages: [
-                        ...(prev.otherImages || []),
-                        ...Array.from(e.target.files).map((file) => ({
-                          name: file.name,
-                          file,
-                        })),
-                      ],
-                    }))
-                  : setImages({ ...images, [key]: e.target.files[0] })
+                setImages((prev) => ({
+                  ...prev,
+                  [key]: { file: e.target.files[0], name: e.target.files[0]?.name },
+                }))
               }
-              multiple={key === 'otherImages'}
             />
           </div>
         ))}
         <button
-          onClick={() => setStep(1)}
+          onClick={() => setStep(1)} // Move back to the previous step (Fields)
           className="btn"
         >
           Previous
         </button>
         <button
-          onClick={handleUpdateVehicle}
+          onClick={handleUpdateVehicle} // Save the updated vehicle details and images
           className="btn"
           disabled={uploading}
         >
@@ -562,10 +593,12 @@ const ModifyVehiclePage = () => {
     </div>
   );
 
+  // Show a loading message while data is being fetched
   if (loading) {
     return <div>Loading...</div>;
   }
 
+  // Render the appropriate step (Fields or Images)
   return (
     <div className="min-h-screen p-6 bg-gray-100 text-black">
       {step === 1 ? renderFieldsStep() : renderImagesStep()}

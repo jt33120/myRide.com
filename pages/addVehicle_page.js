@@ -214,8 +214,34 @@ const AddVehiclePage = () => {
   };
 
   const uploadFile = async (file, path) => {
+    let fileToUpload = file;
+
+    // Convert image to PNG if necessary
+    if (file.type !== 'image/png') {
+      try {
+        const canvas = document.createElement('canvas');
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+
+        await new Promise((resolve) => {
+          img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            canvas.toBlob((blob) => {
+              fileToUpload = new File([blob], file.name.replace(/\.[^/.]+$/, ".png"), { type: 'image/png' });
+              resolve();
+            }, 'image/png');
+          };
+        });
+      } catch (error) {
+        console.error("Error converting image to PNG:", error);
+      }
+    }
+
     const storageRef = ref(storage, path);
-    const uploadTask = uploadBytesResumable(storageRef, file);
+    const uploadTask = uploadBytesResumable(storageRef, fileToUpload);
 
     return new Promise((resolve, reject) => {
       uploadTask.on(
