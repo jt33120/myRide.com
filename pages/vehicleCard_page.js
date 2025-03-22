@@ -136,8 +136,7 @@ const OwnerManualModal = ({ onClose, vehicleId }) => {
       setOwnerManualUrl(manualUrl); // Update state with new URL
       onClose(); // Close the modal
     } catch (error) {
-      console.error('Error saving owner manual URL:', error);
-      setError('Failed to save the owner manual URL.');
+      console.error('owner manual URL:', error);
     } finally {
       setUploading(false);
     }
@@ -494,7 +493,9 @@ const VehicleCardPage = () => {
     fetchVehicleData();
   }, [id]);
 
-
+  const refreshPage = () => {
+    router.reload(); // Reload the current page
+  };
 
   const handleReceiptUpload = async () => {
     console.log('handleReceiptUpload called');
@@ -716,6 +717,7 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
           });
           setExistingDocuments((prev) => ({ ...prev, [documentType]: { url: downloadURL, expirationDate } }));
           console.log(`${documentType} uploaded successfully.`);
+          refreshPage(); // Refresh the page after upload
         } catch (error) {
           console.error("Error retrieving download URL:", error);
         } finally {
@@ -897,7 +899,7 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
   return (
     <div className="min-h-screen p-6 bg-gray-100 text-black relative">
       <button
-        onClick={() => router.push('/myDashboard_page')}
+        onClick={() => router.push('/myVehicles_page')}
         className="return-button"
         title="Back to Dashboard"
       >

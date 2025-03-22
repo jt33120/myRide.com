@@ -16,7 +16,7 @@ export default async function handler(req, res) {
       - Model: ${model}
       - Year: ${year}
       - Mileage: ${mileage || 'Unknown'}
-      Consider factors such as depreciation, market trends, and mileage. Provide the estimated value in USD. You're answer should be:  "AI-based Value estimation : $..."
+      Consider factors such as depreciation, market trends, and mileage. Provide the estimated value in USD such as $xxxx.xx (not a comma). You're answer should be:  "AI-based Value estimation : $..."
     `;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {

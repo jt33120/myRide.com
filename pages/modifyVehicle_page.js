@@ -576,7 +576,15 @@ const ModifyVehiclePage = () => {
 
   // Render the appropriate step (Fields or Images)
   return (
-    <div className="min-h-screen p-6 bg-gray-100 text-black">
+    <div className="min-h-screen p-6 bg-gray-100 text-black relative">
+      {/* Return Button */}
+      <button
+        onClick={() => router.push(`/vehicleCard_page?id=${id}`)}
+        className="return-button"
+        title="Back to Vehicle Card"
+      >
+        ⏎
+      </button>
       {step === 1 ? renderFieldsStep() : renderImagesStep()}
     </div>
   );
