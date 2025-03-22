@@ -658,58 +658,78 @@ const VehicleCardPage = () => {
     fetchReceipts();
   }, [id]);
 
+const [uploadingDocType, setUploadingDocType] = useState(null); // State to track which document is uploading
+
 const handleDocumentUpload = async (documentType, file, expirationDate) => {
   if (!file) return;
 
-  if (!expirationDate) {
+  if (!expirationDate && documentType !== 'title') {
     alert('Expiration date is required for this document type.');
     return;
   }
 
+  setUploadingDocType(documentType); // Set the uploading state for the specific document type
   setUploading(true);
 
-  // Format expiration date for the file name (MM-DD-YYYY)
-  const formattedExpirationDate = new Date(expirationDate)
-    .toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
-    .replace(/\//g, '-');
-
-  const fileName = `${documentType}-${formattedExpirationDate}`;
-  const storageRef = ref(storage, `listing/${id}/docs/${fileName}`);
-
-  const uploadTask = uploadBytesResumable(storageRef, file);
-
-  uploadTask.on(
-    'state_changed',
-    (snapshot) => {
-      const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-      console.log(`${documentType} upload is ${progress}% done`);
-    },
-    (error) => {
-      console.error("Error uploading document:", error);
-      setUploading(false);
-    },
-    async () => {
-      try {
-        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-        const documentRef = collection(db, `listing/${id}/docs`);
-        await setDoc(doc(documentRef, documentType), {
-          title: documentType,
-          url: downloadURL,
-          expirationDate: new Date(expirationDate),
-          date: new Date(),
-          isPublic: true,
-        });
-        setExistingDocuments(prev => ({ ...prev, [documentType]: { url: downloadURL, expirationDate } }));
-        setUploading(false);
-        console.log(`${documentType} uploaded successfully.`);
-      } catch (error) {
-        console.error("Error retrieving download URL:", error);
-        setUploading(false);
-      }
+  try {
+    // Delete the previous document if it exists
+    const existingDocument = allDocuments.find((doc) => doc.name.includes(documentType));
+    if (existingDocument) {
+      const existingRef = ref(storage, `listing/${id}/docs/${existingDocument.name}`);
+      await deleteObject(existingRef);
+      console.log(`Deleted previous ${documentType} document: ${existingDocument.name}`);
     }
-  );
-};
 
+    // Format expiration date for the file name (MM-DD-YYYY)
+    const formattedExpirationDate = expirationDate
+      ? new Date(expirationDate)
+          .toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+          .replace(/\//g, '-')
+      : '';
+
+    const fileName = `${documentType}${formattedExpirationDate ? `-${formattedExpirationDate}` : ''}`;
+    const storageRef = ref(storage, `listing/${id}/docs/${fileName}`);
+
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    uploadTask.on(
+      'state_changed',
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        console.log(`${documentType} upload is ${progress}% done`);
+      },
+      (error) => {
+        console.error("Error uploading document:", error);
+        setUploading(false);
+        setUploadingDocType(null);
+      },
+      async () => {
+        try {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          const documentRef = collection(db, `listing/${id}/docs`);
+          await setDoc(doc(documentRef, documentType), {
+            title: documentType,
+            url: downloadURL,
+            expirationDate: expirationDate ? new Date(expirationDate) : null,
+            date: new Date(),
+            isPublic: true,
+          });
+          setExistingDocuments((prev) => ({ ...prev, [documentType]: { url: downloadURL, expirationDate } }));
+          console.log(`${documentType} uploaded successfully.`);
+        } catch (error) {
+          console.error("Error retrieving download URL:", error);
+        } finally {
+          setUploading(false);
+          setUploadingDocType(null);
+        }
+      }
+    );
+  } catch (error) {
+    console.error(`Error handling ${documentType} upload:`, error);
+    setUploading(false);
+    setUploadingDocType(null);
+  }
+};
 
 
   const handleEditReceipt = (receipt) => {
@@ -1155,10 +1175,42 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
             htmlFor={docType}
             className="flex items-center mt-2 cursor-pointer"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-purple-700 mr-2" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-            </svg>
-            <span className="text-black">{document?.url ? 'Update' : 'Add'}</span>
+            {uploadingDocType === docType ? (
+              <svg
+                className="animate-spin h-5 w-5 text-purple-700 mr-2"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                ></path>
+              </svg>
+            ) : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 text-purple-700 mr-2"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            )}
+            <span className="text-black">{documentExists ? 'Update' : 'Add'}</span>
           </label>
         )}
             </div>
