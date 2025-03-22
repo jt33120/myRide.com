@@ -10,6 +10,7 @@ import Image from "next/image";
 import { Line } from 'react-chartjs-2';
 import 'chart.js/auto';
 
+
 const ImageCarousel = ({ imageUrls }) => {
   const settings = {
     dots: true,
@@ -186,7 +187,7 @@ const VehicleCardPage = () => {
   const [receiptFiles, setReceiptFiles] = useState([]);
   const [receiptPrice, setReceiptPrice] = useState('');
   const [imageUrls, setImageUrls] = useState([]);
-  const [existingDocuments, setExistingDocuments] = useState({ title: null, inspection: null, registration: null });
+  const [, setExistingDocuments] = useState({ title: null, inspection: null, registration: null });
   const router = useRouter();
   const { id } = router.query;
   const user = auth.currentUser;
@@ -709,12 +710,7 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
   );
 };
 
-  const isExpired = (expirationDate) => {
-    if (!expirationDate) return false;
-    const today = new Date();
-    const expDate = new Date(expirationDate);
-    return expDate < today;
-  };
+
 
   const handleEditReceipt = (receipt) => {
     setEditingReceipt({
@@ -834,6 +830,39 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
       setRefreshing(false); // Hide loading state for the reload button
     }
   };
+  const [allDocuments, setAllDocuments] = useState([]); // State to store all documents
+  useEffect(() => {
+      if (!id) return;
+      const fetchDocuments = async () => {
+        try {
+          const folderRef = ref(storage, `listing/${id}/docs`);
+          const result = await listAll(folderRef);
+  
+          // Fetch all document URLs
+          const documentPromises = result.items.map(async (item) => {
+            const url = await getDownloadURL(item);
+            return { name: item.name, url };
+          });
+  
+          const documents = await Promise.all(documentPromises);
+          setAllDocuments(documents);
+        } catch (error) {
+          console.error('Error fetching documents:', error);
+        }
+      };
+  
+      fetchDocuments();
+    }, [id]);
+
+    const isDateDue = (fileName) => {
+      const dateMatch = fileName.match(/\d{2}-\d{2}-\d{4}/); // Match date in format MM-DD-YYYY
+      if (!dateMatch) return false;
+  
+      const fileDate = new Date(dateMatch[0]);
+      const today = new Date();
+  
+      return fileDate < today; // Return true if the date is due
+    };
 
   useEffect(() => {
     if (vehicleData) {
@@ -1048,80 +1077,80 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
 
           {/* Document Handling Section */}
       <div className="flex justify-around w-full px-6 mt-6">
-  {['title', 'registration', 'inspection'].map((docType) => {
-    const document = existingDocuments[docType];
-    const isDocumentExpired = document?.expirationDate ? isExpired(document.expirationDate) : false;
+         {['title', 'registration', 'inspection'].map((docType) => {
+          // Check if a document matching the type exists
+          const matchingDocument = allDocuments.find(doc => doc.name.includes(docType));
+          const documentExists = !!matchingDocument;
 
-    return (
-      <div key={docType} className="w-1/3 text-center relative">
-        {/* Document Title */}
-        <p className="text-xs text-gray-500 mb-1">{docType.charAt(0).toUpperCase() + docType.slice(1)}</p>
-        <a
-          href={isOwner && document?.url ? document.url : '#'}
-          target={isOwner && document?.url ? "_blank" : "_self"}
-          rel="noopener noreferrer"
-          onClick={(e) => {
-            if (!isOwner || !document?.url) {
-              e.preventDefault(); // Prevent click for non-owners or if no document exists
-            }
-          }}
-          className="relative inline-block"
-        >
-          {/* Image */}
-          <Image
-            src={`/${docType}_icon.png`}
-            alt={`${docType} icon`}
-            width={100}
-            height={100}
-            className={`cursor-pointer rounded-full border-2 ${
-              document?.url
-                ? isDocumentExpired
-                  ? 'border-red-500'
-                  : 'border-green-500'
-                : 'border-gray-300'
-            }`}
-            style={{
-              objectFit: "cover",
-              filter: document?.url ? 'none' : 'grayscale(100%)',
-            }}
-          />
+          // Check if the document is due (only for inspection and registration)
+          const isDue = documentExists && (docType === 'inspection' || docType === 'registration') 
+            ? isDateDue(matchingDocument.name) 
+            : false;
 
-          {/* Overlay */}
-          {document?.url && (
-            <div
-              className={`absolute inset-0 flex items-center justify-center ${
-                isDocumentExpired ? 'bg-red-500' : 'bg-green-500'
-              } bg-opacity-80 text-white text-xs rounded-full`}
-            >
-              {isDocumentExpired ? 'Expired' : isOwner ? 'Click to view' : 'Up to date'}
-            </div>
-          )}
-        </a>
+          return (
+            <div key={docType} className="w-1/3 text-center relative">
+              {/* Document Title */}
+              <p className="text-xs text-gray-500 mb-1">{docType.charAt(0).toUpperCase() + docType.slice(1)}</p>
+              <a
+                href={documentExists ? matchingDocument.url : '#'}
+                target={documentExists ? "_blank" : "_self"}
+                rel="noopener noreferrer"
+                onClick={(e) => {
+                  if (!documentExists) e.preventDefault(); // Prevent click if no document exists
+                }}
+                className="relative inline-block"
+              >
+                {/* Image */}
+                <Image
+                  src={`/${docType}_icon.png`}
+                  alt={`${docType} icon`}
+                  width={100}
+                  height={100}
+                  className={`cursor-pointer rounded-full border-2 ${
+                    documentExists ? (isDue ? 'border-red-500' : 'border-green-500') : 'border-gray-300'
+                  }`}
+                  style={{
+                    objectFit: "cover",
+                    filter: documentExists ? 'none' : 'grayscale(100%)',
+                  }}
+                />
 
-        {/* File Input (Hidden) */}
-        {isOwner && (
-          <input
-            type="file"
-            id={docType}
-            onChange={(e) => {
-              const file = e.target.files[0];
-              if (docType === 'title') {
-                handleDocumentUpload(docType, file, null); // No expiration date for title
-              } else {
-                const expirationDate = prompt('Enter expiration date (MM/DD/YYYY):');
-                if (expirationDate) {
-                  handleDocumentUpload(docType, file, expirationDate);
-                } else {
-                  alert('Expiration date is required for this document type.');
-                }
-              }
-            }}
-            className="hidden"
-          />
-        )}
+                {/* Overlay */}
+                {documentExists && (
+                  <div
+                    className={`absolute inset-0 flex items-center justify-center ${
+                      isDue ? 'bg-red-500' : 'bg-green-500'
+                    } bg-opacity-80 text-white text-xs rounded-full`}
+                  >
+                    {isDue ? 'Expired' : 'Click to view'}
+                  </div>
+                )}
+              </a>
 
-        {/* Upload Button */}
-        {isOwner && (
+              {/* File Input (Hidden) */}
+              {isOwner && (
+                <input
+                  type="file"
+                  id={docType}
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (docType === 'title') {
+                      handleDocumentUpload(docType, file, null); // No expiration date for title
+                    } else {
+                      const expirationDate = prompt('Enter expiration date (MM/DD/YYYY):');
+                      if (expirationDate) {
+                        handleDocumentUpload(docType, file, expirationDate);
+                      } else {
+                        alert('Expiration date is required for this document type.');
+                      }
+                    }
+                  }}
+                  className="hidden"
+                />
+              )}
+
+              {/* Upload Button */}
+              {isOwner && (
           <label
             htmlFor={docType}
             className="flex items-center mt-2 cursor-pointer"
@@ -1132,10 +1161,10 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
             <span className="text-black">{document?.url ? 'Update' : 'Add'}</span>
           </label>
         )}
+            </div>
+          );
+        })}
       </div>
-    );
-  })}
-</div>
 
       {/* AI Maintenance Question Box with Toggle */}
       <div className="mt-2 bg-white p-2 rounded-lg shadow-md border border-gray-300">
