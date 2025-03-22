@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from 'next/router';
 import { db, storage } from '../lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { ref, deleteObject, getDownloadURL } from 'firebase/storage';
+import { ref, listAll, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const ModifyVehiclePage = () => {
   const router = useRouter();
@@ -39,24 +39,7 @@ const ModifyVehiclePage = () => {
     cc: '',
     dropped: false,
   });
-  const [images, setImages] = useState({
-    frontImage: null,
-    leftImage: null,
-    rightImage: null,
-    rearImage: null,
-    dashboardImage: null,
-    vehicleVideo: null,
-    otherImages: [],
-    leftFrontWheelImage: null,
-    rightFrontWheelImage: null,
-    leftRearWheelImage: null,
-    rightRearWheelImage: null,
-    engineBayImage: null,
-    chainImage: null,
-    frontWheelImage: null,
-    rearWheelImage: null,
-  });
-  const [imagePreviews, setImagePreviews] = useState({});
+  const [images, setImages] = useState({});
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
 
@@ -104,46 +87,28 @@ const ModifyVehiclePage = () => {
               dropped: data.dropped || false,
             });
           }
-
-          setImages({
-            frontImage: data.frontImage || null,
-            leftImage: data.leftImage || null,
-            rightImage: data.rightImage || null,
-            rearImage: data.rearImage || null,
-            dashboardImage: data.dashboardImage || null,
-            vehicleVideo: data.vehicleVideo || null,
-            otherImages: data.otherImages || [],
-            leftFrontWheelImage: data.leftFrontWheelImage || null,
-            rightFrontWheelImage: data.rightFrontWheelImage || null,
-            leftRearWheelImage: data.leftRearWheelImage || null,
-            rightRearWheelImage: data.rightRearWheelImage || null,
-            engineBayImage: data.engineBayImage || null,
-            chainImage: data.chainImage || null,
-            frontWheelImage: data.frontWheelImage || null,
-            rearWheelImage: data.rearWheelImage || null,
-          });
-
-          setImagePreviews({
-            frontImage: data.frontImage || '',
-            leftImage: data.leftImage || '',
-            rightImage: data.rightImage || '',
-            rearImage: data.rearImage || '',
-            dashboardImage: data.dashboardImage || '',
-            vehicleVideo: data.vehicleVideo || '',
-            otherImages: Array.isArray(data.otherImages) ? data.otherImages : [],
-            leftFrontWheelImage: data.leftFrontWheelImage || '',
-            rightFrontWheelImage: data.rightFrontWheelImage || '',
-            leftRearWheelImage: data.leftRearWheelImage || '',
-            rightRearWheelImage: data.rightRearWheelImage || '',
-            engineBayImage: data.engineBayImage || '',
-            chainImage: data.chainImage || '',
-            frontWheelImage: data.frontWheelImage || '',
-            rearWheelImage: data.rearWheelImage || '',
-          });
         }
+
+        // Fetch images from Firebase Storage
+        const photosRef = ref(storage, `listing/${id}/photos`);
+        const photosList = await listAll(photosRef);
+        const imageUrls = {};
+
+        for (const item of photosList.items) {
+          const url = await getDownloadURL(item);
+          const key = item.name; // Use the file name as the key
+          if (key.startsWith("otherImage")) {
+            if (!imageUrls.otherImages) imageUrls.otherImages = [];
+            imageUrls.otherImages.push({ name: key, url });
+          } else {
+            imageUrls[key] = url;
+          }
+        }
+
+        setImages(imageUrls);
         setLoading(false);
       } catch (error) {
-        console.error("Error fetching vehicle:", error);
+        console.error("Error fetching vehicle data or images:", error);
         setLoading(false);
       }
     };
@@ -212,12 +177,9 @@ const ModifyVehiclePage = () => {
   const handleDeleteImage = async (key, index = null) => {
     try {
       if (key === 'otherImages' && index !== null) {
-        const imageRef = ref(storage, `listing/${id}/photos/otherImages/${index}`);
+        const imageName = images.otherImages[index].name;
+        const imageRef = ref(storage, `listing/${id}/photos/${imageName}`);
         await deleteObject(imageRef);
-        setImagePreviews((prev) => ({
-          ...prev,
-          otherImages: prev.otherImages.filter((_, i) => i !== index),
-        }));
         setImages((prev) => ({
           ...prev,
           otherImages: prev.otherImages.filter((_, i) => i !== index),
@@ -225,8 +187,11 @@ const ModifyVehiclePage = () => {
       } else {
         const imageRef = ref(storage, `listing/${id}/photos/${key}`);
         await deleteObject(imageRef);
-        setImagePreviews((prev) => ({ ...prev, [key]: null }));
-        setImages((prev) => ({ ...prev, [key]: null }));
+        setImages((prev) => {
+          const updatedImages = { ...prev };
+          delete updatedImages[key];
+          return updatedImages;
+        });
       }
       alert(`${key} deleted successfully.`);
     } catch (error) {
@@ -524,15 +489,15 @@ const ModifyVehiclePage = () => {
           <div className="form-section" key={key}>
             <label className="form-label">{key.replace(/([A-Z])/g, ' $1')}</label>
             {key === 'otherImages' ? (
-              imagePreviews.otherImages.map((url, index) => (
+              images.otherImages.map((image, index) => (
                 <div key={index} className="flex items-center mb-2">
                   <a
-                    href={url}
+                    href={image.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-500 underline mr-2"
                   >
-                    Other Image {index + 1}
+                    {image.name}
                   </a>
                   <button
                     onClick={() => handleDeleteImage(key, index)}
@@ -543,24 +508,22 @@ const ModifyVehiclePage = () => {
                 </div>
               ))
             ) : (
-              imagePreviews[key] && (
-                <div className="flex items-center mb-2">
-                  <a
-                    href={imagePreviews[key]}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-500 underline mr-2"
-                  >
-                    {key}.png
-                  </a>
-                  <button
-                    onClick={() => handleDeleteImage(key)}
-                    className="text-red-500 font-bold"
-                  >
-                    ✕
-                  </button>
-                </div>
-              )
+              <div className="flex items-center mb-2">
+                <a
+                  href={images[key]}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 underline mr-2"
+                >
+                  {key}
+                </a>
+                <button
+                  onClick={() => handleDeleteImage(key)}
+                  className="text-red-500 font-bold"
+                >
+                  ✕
+                </button>
+              </div>
             )}
             <input
               type="file"
@@ -568,7 +531,13 @@ const ModifyVehiclePage = () => {
                 key === 'otherImages'
                   ? setImages((prev) => ({
                       ...prev,
-                      otherImages: [...prev.otherImages, ...Array.from(e.target.files)],
+                      otherImages: [
+                        ...(prev.otherImages || []),
+                        ...Array.from(e.target.files).map((file) => ({
+                          name: file.name,
+                          file,
+                        })),
+                      ],
                     }))
                   : setImages({ ...images, [key]: e.target.files[0] })
               }

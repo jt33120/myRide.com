@@ -929,8 +929,8 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
                 ![
                   "uid", "imageUrls", "CreatedAt", "RightImage", "RearImage", "OtherImage", "year", "ai_estimated_price",
                   "RightfrontWheelImage", "FrontImage", "DashboardImage", "RightrearWheelImage", "vehicleType", "createdAt",
-                  "EngineBayImage", "LeftrearWheelImage", "city", "state", "zip","boughtAt",
-                  "description", "cosmeticDefaults", "aftermarketMods", "vin", "title", "ownerManual", "model", "make", "mileage"
+                  "EngineBayImage", "LeftrearWheelImage", "city", "state", "zip","boughtAt","recommendation",
+                  "description", "cosmeticDefaults", "aftermarketMods", "vin", "title", "ownerManual", "model", "make", "mileage","updatedAt"
                 ].includes(key) &&
                 typeof value !== "boolean" &&  // Exclude boolean fields since they're already displayed
                 !(typeof value === 'string' && value.includes("https://firebasestorage"))
