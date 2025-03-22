@@ -176,7 +176,6 @@ const VehicleCardPage = () => {
   const [vehicleData, setVehicleData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
-  const [, setDocuments] = useState({ title: '', inspection: '', registration: '' });
   const [uploading, setUploading] = useState(false);
   const [receipts, setReceipts] = useState([]);
   const [showReceiptForm, setShowReceiptForm] = useState(false);
@@ -190,7 +189,6 @@ const VehicleCardPage = () => {
   const [existingDocuments, setExistingDocuments] = useState({ title: null, inspection: null, registration: null });
   const router = useRouter();
   const { id } = router.query;
-  const [isListed, setIsListed] = useState(false);
   const user = auth.currentUser;
   const [conversationId, setConversationId] = useState(null);
   const [ownerName, setOwnerName] = useState('');
@@ -203,6 +201,49 @@ const VehicleCardPage = () => {
   const [aiRecommendation, setAIRecommendation] = useState(null); // State for AI recommendation
   const [, setOwnerManualUrl] = useState(null); // State for owner manual URL
   const [aiEstimation, setAiEstimation] = useState(null); // State for AI estimation
+
+  const [aiQuestion, setAiQuestion] = useState('');
+  const [aiAnswer, setAiAnswer] = useState('');
+  const [loadingAi, setLoadingAi] = useState(false);
+
+  const [showAiBox, setShowAiBox] = useState(false); // State for toggling AI box
+
+  const handleAskAi = async () => {
+    if (!aiQuestion.trim()) return;
+
+    setLoadingAi(true);
+    try {
+      const response = await fetch('/api/aiMaintenance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: aiQuestion,
+          vehicleDetails: {
+            make: vehicleData.make,
+            model: vehicleData.model,
+            year: vehicleData.year,
+            mileage: vehicleData.mileage,
+            color: vehicleData.color,
+            engine: vehicleData.engine,
+            transmission: vehicleData.transmission,
+          },
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setAiAnswer(data.answer);
+      } else {
+        setAiAnswer('Failed to get a response. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error asking AI:', error);
+      setAiAnswer('An error occurred. Please try again.');
+    } finally {
+      setLoadingAi(false);
+    }
+  };
 
   const calculateSum = (type) => {
     switch (type) {
@@ -452,65 +493,6 @@ const VehicleCardPage = () => {
     fetchVehicleData();
   }, [id]);
 
-  const handleDocumentChange = async (e, documentType) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (typeof window !== 'undefined' && (file.type === 'image/heic' || file.type === 'image/heif')) {
-        try {
-          const heic2any = (await import('heic2any')).default;
-          const convertedBlob = await heic2any({ blob: file, toType: 'image/jpeg' });
-          const convertedFile = new File([convertedBlob], file.name.replace(/\.[^/.]+$/, ".jpg"), { type: 'image/jpeg' });
-          setDocuments(prev => ({ ...prev, [documentType]: convertedFile }));
-          await handleDocumentUpload(documentType, convertedFile);
-        } catch (error) {
-          console.error("Error converting HEIC image:", error);
-        }
-      } else {
-        setDocuments(prev => ({ ...prev, [documentType]: file }));
-        await handleDocumentUpload(documentType, file);
-      }
-    }
-  };
-
-  const handleSellVehicle = async (id) => {
-    try {
-      await setDoc(doc(db, "on_marketplace", id), {
-        listedAt: new Date(),
-        status: "listed",
-      });
-      alert("Vehicle listed for sale!");
-    } catch (error) {
-      console.error("Error listing vehicle:", error);
-      alert("Failed to list vehicle.");
-    }
-  };
-
-  const handleRemoveListing = async (id) => {
-    try {
-      await deleteDoc(doc(db, "on_marketplace", id));
-      alert("Vehicle removed from listing.");
-    } catch (error) {
-      console.error("Error removing listing:", error);
-      alert("Failed to remove listing.");
-    }
-  };
-
-  useEffect(() => {
-    const checkIfListed = async () => {
-      const listingRef = doc(db, "on_marketplace", id);
-      const listingSnap = await getDoc(listingRef);
-
-      if (listingSnap.exists()) {
-        setIsListed(true);
-      } else {
-        setIsListed(false);
-      }
-    };
-
-    if (id) {
-      checkIfListed();
-    }
-  }, [id]);
 
 
   const handleReceiptUpload = async () => {
@@ -675,43 +657,63 @@ const VehicleCardPage = () => {
     fetchReceipts();
   }, [id]);
 
-  const handleDocumentUpload = async (documentType, file) => {
-    if (!file) return;
-  
-    setUploading(true);
-    const storageRef = ref(storage, `listing/${id}/docs/${documentType}`);
-  
-    const uploadTask = uploadBytesResumable(storageRef, file);
-  
-    uploadTask.on(
-      'state_changed',
-      (snapshot) => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        console.log(`${documentType} upload is ${progress}% done`);
-      },
-      (error) => {
-        console.error("Error uploading document:", error);
+const handleDocumentUpload = async (documentType, file, expirationDate) => {
+  if (!file) return;
+
+  if (!expirationDate) {
+    alert('Expiration date is required for this document type.');
+    return;
+  }
+
+  setUploading(true);
+
+  // Format expiration date for the file name (MM-DD-YYYY)
+  const formattedExpirationDate = new Date(expirationDate)
+    .toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+    .replace(/\//g, '-');
+
+  const fileName = `${documentType}-${formattedExpirationDate}`;
+  const storageRef = ref(storage, `listing/${id}/docs/${fileName}`);
+
+  const uploadTask = uploadBytesResumable(storageRef, file);
+
+  uploadTask.on(
+    'state_changed',
+    (snapshot) => {
+      const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+      console.log(`${documentType} upload is ${progress}% done`);
+    },
+    (error) => {
+      console.error("Error uploading document:", error);
+      setUploading(false);
+    },
+    async () => {
+      try {
+        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+        const documentRef = collection(db, `listing/${id}/docs`);
+        await setDoc(doc(documentRef, documentType), {
+          title: documentType,
+          url: downloadURL,
+          expirationDate: new Date(expirationDate),
+          date: new Date(),
+          isPublic: true,
+        });
+        setExistingDocuments(prev => ({ ...prev, [documentType]: { url: downloadURL, expirationDate } }));
         setUploading(false);
-      },
-      async () => {
-        try {
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          const documentRef = collection(db, `listing/${id}/docs`);
-          await setDoc(doc(documentRef, documentType), {
-            title: documentType,
-            url: downloadURL,
-            date: new Date(),
-            isPublic: true,
-          });
-          setExistingDocuments(prev => ({ ...prev, [documentType]: downloadURL }));
-          setUploading(false);
-          console.log(`${documentType} uploaded successfully.`);
-        } catch (error) {
-          console.error("Error retrieving download URL:", error);
-          setUploading(false);
-        }
+        console.log(`${documentType} uploaded successfully.`);
+      } catch (error) {
+        console.error("Error retrieving download URL:", error);
+        setUploading(false);
       }
-    );
+    }
+  );
+};
+
+  const isExpired = (expirationDate) => {
+    if (!expirationDate) return false;
+    const today = new Date();
+    const expDate = new Date(expirationDate);
+    return expDate < today;
   };
 
   const handleEditReceipt = (receipt) => {
@@ -870,53 +872,93 @@ const VehicleCardPage = () => {
       </div>
 
       {/* Info Section */}
-<section id="info-section" className="snap-start h-screen flex items-center justify-center">
-  <div className="w-full h-full bg-gray-200 p-6 rounded-lg shadow-md border border-gray-300 relative overflow-auto">
-    {isOwner && (
-      <button
-        className="absolute top-4 right-4 bg-purple-700 text-white px-2 py-1 rounded-full hover:bg-purple-800 text-sm"
-        onClick={() => router.push(`/modifyVehicle_page?id=${vehicleData.uid}`)}
-      >
-        ✏️ Modify
-      </button>
-    )}
-    <h2 className="text-2xl font-semibold mb-4">{vehicleData.year} {vehicleData.make} {vehicleData.model}</h2>
-    
-    {/* Dynamically Display Vehicle Data (excluding UID, specified image fields, and CreatedAt) */}
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {Object.entries(vehicleData)
-        .filter(([key, value]) => key !== "uid" && key !== "imageUrls" && key !== "CreatedAt" && ![
-          "RightImage", "RearImage", "OtherImage", "RightfrontWheelImage", 
-          "FrontImage", "DashboardImage", "RightrearWheelImage", 
-          "EngineBayImage", "LeftrearWheelImage"
-        ].includes(key) && !(typeof value === 'string' && value.includes("https://firebasestorage"))) // Exclude 'uid', 'imageUrls', 'CreatedAt', specified image fields, and fields containing Firebase Storage URLs from rendering
-        .sort(([keyA], [keyB]) => {
-          const order = ["make", "model", "year", "mileage", "color", "engine", "transmission", "fuelType"];
-          return order.indexOf(keyA) - order.indexOf(keyB);
-        })
-        .map(([key, value]) => (
-          <div key={key} className="bg-white p-4 rounded-lg shadow-md border border-gray-300">
-            <p>
-              <strong>{key.charAt(0).toUpperCase() + key.slice(1)}:</strong> {value !== null && value !== undefined ? (typeof value === "boolean" ? (value ? "Yes" : "No") : (value.seconds ? new Date(value.seconds * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : value.toString())) : "N/A"}
-            </p>
-          </div>
-        ))
-      }
-    </div>
-  </div>
-</section>
+      <section id="info-section" className="snap-start h-auto flex items-center justify-center">
+        <div className="w-full h-full bg-gray-200 p-6 rounded-lg shadow-md border border-gray-300 relative overflow-auto">
+          {isOwner && (
+            <button
+              className="absolute top-4 right-4 bg-purple-700 text-white px-2 py-1 rounded-full hover:bg-purple-800 text-sm"
+              onClick={() => router.push(`/modifyVehicle_page?id=${id}`)} // Pass the correct vehicle ID
+            >
+              ✏️ Modify
+            </button>
+          )}
+          <h2 className="text-2xl font-semibold mb-4">
+            {vehicleData.year} {vehicleData.make} {vehicleData.model}
+          </h2>
 
+          {/* Location Info */}
+          <div className="flex space-x-4 text-lg mb-4">
+            <p>{vehicleData.city || "N/A"},</p>
+            <p>{vehicleData.state || "N/A"},</p>
+            <p>{vehicleData.zip || "N/A"}</p>
+          </div>
+
+          {/* Description & Mods */}
+          <div className="space-y-2 mb-4">
+            <p><strong>Description:</strong> {vehicleData.description || "N/A"}</p>
+            <p><strong>Cosmetic Defaults:</strong> {vehicleData.cosmeticDefaults || "N/A"}</p>
+            <p><strong>Aftermarket Mods:</strong> {vehicleData.aftermarketMods || "N/A"}</p>
+          </div>
+
+          {/* Title, VIN & Mileage */}
+          <div className="flex space-x-4 text-lg mb-4">
+            <p><strong>Title Status:</strong> {vehicleData.title || "N/A"}</p>
+            <p><strong>VIN:</strong> {vehicleData.vin || "N/A"}</p>
+            <p><strong>Mileage:</strong> {vehicleData.mileage || "N/A"}</p>
+          </div>
+
+          {/* Boolean Features (Grouped) */}
+          <div className="bg-white p-4 rounded-md shadow-md mb-4">
+            <strong>Features:</strong>
+            <div className="flex flex-wrap gap-4 mt-2">
+              {Object.entries(vehicleData)
+                .filter(([, value]) => typeof value === "boolean")
+                .map(([key, value]) => (
+                  <div key={key} className="flex items-center space-x-2">
+                    <input type="checkbox" checked={value} readOnly className="w-4 h-4" />
+                    <label>{key.charAt(0).toUpperCase() + key.slice(1)}</label>
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          {/* Other Details (Dynamically Displayed) */}
+          <div className="grid grid-cols-3 md:grid-cols-3 gap-1">
+            {Object.entries(vehicleData)
+              .filter(([key, value]) => 
+                ![
+                  "uid", "imageUrls", "CreatedAt", "RightImage", "RearImage", "OtherImage", "year", "ai_estimated_price",
+                  "RightfrontWheelImage", "FrontImage", "DashboardImage", "RightrearWheelImage", "vehicleType", "createdAt",
+                  "EngineBayImage", "LeftrearWheelImage", "city", "state", "zip","boughtAt",
+                  "description", "cosmeticDefaults", "aftermarketMods", "vin", "title", "ownerManual", "model", "make", "mileage"
+                ].includes(key) &&
+                typeof value !== "boolean" &&  // Exclude boolean fields since they're already displayed
+                !(typeof value === 'string' && value.includes("https://firebasestorage"))
+              )
+              .map(([key, value]) => (
+                <div key={key} className="p-2 bg-white rounded-md shadow">
+                  <strong>{key.charAt(0).toUpperCase() + key.slice(1)}:</strong> 
+                  <span> {value !== null && value !== undefined ? 
+                    (value.seconds ? new Date(value.seconds * 1000).toLocaleDateString('en-US') : value.toString()) 
+                    : "N/A"}
+                  </span>
+                </div>
+              ))
+            }
+          </div>
+        </div>
+      </section>
 
       
     {/* Maintenance Section */}
 {isOwner && (
-  <section id="maintenance-section" className="snap-start h-screen flex items-center justify-center">
+  <section id="maintenance-section" className="snap-start h-auto flex items-center justify-center">
     <div className="max-w-lg mx-auto bg-gray-200 p-6 rounded-lg shadow-md border border-gray-300 relative">
-      <h2 className="text-2xl font-semibold mb-4">Maintenance</h2>
-      <p>Keep your vehicle at its best to maximize pleasure and resale value!</p>
+      <h2 className="text-2xl font-semibold mb-0">Maintenance</h2>
+      <p className="text-xs text-gray-500">Maintenance = maximized pleasure and resale value!</p>
       <div className="absolute top-4 right-4 bg-white p-2 rounded-lg shadow-md border border-gray-300 cursor-pointer" onClick={handleSumBoxClick}>
         <p className="text-xs text-gray-500">{sumType}</p>
-        <p className="text-md">${Number(calculateSum(sumType)).toFixed(2)}</p>
+        <p className="text-s">${Number(calculateSum(sumType)).toFixed(2)}</p>
       </div>
 
       {/* AI Upcoming Maintenance Header with Sync Button */}
@@ -927,7 +969,7 @@ const VehicleCardPage = () => {
         <p className="text-xs text-gray-500">(Current Mileage: {currentMileage})</p>
         <button
           onClick={() => setShowOwnerManualModal(true)}
-          className="bg-purple-500 text-sm text-white px- py-1 rounded-md hover:bg-blue-600"
+          className="bg-purple-500 text-xs text-white px- py-1 rounded-md hover:bg-blue-600"
         >
           Sync Owner Manual
         </button>
@@ -998,7 +1040,7 @@ const VehicleCardPage = () => {
         </div>
         <button
             onClick={() => setShowReceiptForm(true)}
-            className="bg-purple-700 text-white text-sm px-4 py-1 mt-2 rounded-full hover:bg-purple-800"
+            className="bg-purple-700 text-white text-sm px-4 py-1 mt-2 rounded-full hover:bg-blue-600"
           >
             + Receipt
           </button>
@@ -1006,103 +1048,144 @@ const VehicleCardPage = () => {
 
           {/* Document Handling Section */}
       <div className="flex justify-around w-full px-6 mt-6">
-        {['title', 'registration', 'inspection'].map((docType) => (
-          <div key={docType} className="w-1/3 text-center relative">
-            {/* Document Title */}
-            <p className="text-xs text-gray-500 mb-1">{docType.charAt(0).toUpperCase() + docType.slice(1)}</p>
-            <a
-              href={existingDocuments[docType] || '#'}
-              target={existingDocuments[docType] ? "_blank" : "_self"}
-              rel="noopener noreferrer"
-              onClick={(e) => {
-                if (!existingDocuments[docType]) {
-                  e.preventDefault();
-                  document.getElementById(docType).click(); // Trigger file input click
+  {['title', 'registration', 'inspection'].map((docType) => {
+    const document = existingDocuments[docType];
+    const isDocumentExpired = document?.expirationDate ? isExpired(document.expirationDate) : false;
+
+    return (
+      <div key={docType} className="w-1/3 text-center relative">
+        {/* Document Title */}
+        <p className="text-xs text-gray-500 mb-1">{docType.charAt(0).toUpperCase() + docType.slice(1)}</p>
+        <a
+          href={isOwner && document?.url ? document.url : '#'}
+          target={isOwner && document?.url ? "_blank" : "_self"}
+          rel="noopener noreferrer"
+          onClick={(e) => {
+            if (!isOwner || !document?.url) {
+              e.preventDefault(); // Prevent click for non-owners or if no document exists
+            }
+          }}
+          className="relative inline-block"
+        >
+          {/* Image */}
+          <Image
+            src={`/${docType}_icon.png`}
+            alt={`${docType} icon`}
+            width={100}
+            height={100}
+            className={`cursor-pointer rounded-full border-2 ${
+              document?.url
+                ? isDocumentExpired
+                  ? 'border-red-500'
+                  : 'border-green-500'
+                : 'border-gray-300'
+            }`}
+            style={{
+              objectFit: "cover",
+              filter: document?.url ? 'none' : 'grayscale(100%)',
+            }}
+          />
+
+          {/* Overlay */}
+          {document?.url && (
+            <div
+              className={`absolute inset-0 flex items-center justify-center ${
+                isDocumentExpired ? 'bg-red-500' : 'bg-green-500'
+              } bg-opacity-80 text-white text-xs rounded-full`}
+            >
+              {isDocumentExpired ? 'Expired' : isOwner ? 'Click to view' : 'Up to date'}
+            </div>
+          )}
+        </a>
+
+        {/* File Input (Hidden) */}
+        {isOwner && (
+          <input
+            type="file"
+            id={docType}
+            onChange={(e) => {
+              const file = e.target.files[0];
+              if (docType === 'title') {
+                handleDocumentUpload(docType, file, null); // No expiration date for title
+              } else {
+                const expirationDate = prompt('Enter expiration date (MM/DD/YYYY):');
+                if (expirationDate) {
+                  handleDocumentUpload(docType, file, expirationDate);
+                } else {
+                  alert('Expiration date is required for this document type.');
                 }
-              }}
-              className="relative inline-block"
-            >
-              {/* Image */}
-              <Image
-                src={`/${docType}_icon.png`}
-                alt={`${docType} icon`}
-                width={100}
-                height={100}
-                className={`cursor-pointer rounded-full border-2 ${
-                  existingDocuments[docType] ? 'border-green-500' : 'border-red-500'
-                }`}
-                style={{
-                  objectFit: "cover",
-                  filter: existingDocuments[docType] ? 'none' : 'grayscale(100%)',
-                }}
-              />
+              }
+            }}
+            className="hidden"
+          />
+        )}
 
-              {/* Loader Overlay (if uploading) */}
-              {uploading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full">
-                  <div className="loader"></div>
-                </div>
-              )}
-
-              {/* "Click to view" Overlay (only when document exists & not uploading) */}
-              {!uploading && existingDocuments[docType] && (
-                <div className="absolute inset-0 flex items-center justify-center bg-green-500 bg-opacity-80 text-white text-xs rounded-full">
-                  Click to view
-                </div>
-              )}
-            </a>
-
-            {/* File Input (Hidden) */}
-            <input
-              type="file"
-              id={docType}
-              onChange={(e) => handleDocumentChange(e, docType)}
-              className="hidden"
-            />
-
-            {/* Upload Button */}
-            <label
-              htmlFor={docType}
-              className="flex items-center mt-2 cursor-pointer"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-purple-700 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
-              <span className="text-black">{existingDocuments[docType] ? 'Update' : 'Add'}</span>
-            </label>
-          </div>
-        ))}
+        {/* Upload Button */}
+        {isOwner && (
+          <label
+            htmlFor={docType}
+            className="flex items-center mt-2 cursor-pointer"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-purple-700 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+            </svg>
+            <span className="text-black">{document?.url ? 'Update' : 'Add'}</span>
+          </label>
+        )}
       </div>
+    );
+  })}
+</div>
 
+      {/* AI Maintenance Question Box with Toggle */}
+      <div className="mt-2 bg-white p-2 rounded-lg shadow-md border border-gray-300">
+        <h3
+          className="text-sm font-semibold mb-1 cursor-pointer"
+          onClick={() => setShowAiBox(!showAiBox)}
+        >
+          Any question? Ask AI! {showAiBox ? '▲' : '▼'}
+        </h3>
+        {showAiBox && (
+          <div>
+            <textarea
+              value={aiQuestion}
+              onChange={(e) => setAiQuestion(e.target.value)}
+              placeholder="Type your maintenance-related question here..."
+              className="border border-gray-300 p-2 rounded-md w-full mb-2"
+            />
+            <button
+              onClick={handleAskAi}
+              className="bg-purple-700 text-white px-4 py-2 rounded-full hover:bg-purple-800"
+              disabled={loadingAi}
+            >
+              {loadingAi ? 'Asking AI...' : 'Ask AI'}
+            </button>
+            {aiAnswer && (
+              <div className="mt-2 bg-gray-100 p-2 rounded-lg border border-gray-300">
+                <h4 className="text-md font-semibold">AI Answer:</h4>
+                <p>{aiAnswer}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
         </div>
       </section>
       )}
 
       {/* Dollar Section */}
-      <section id="dollar-section" className="snap-start h-screen flex items-center justify-center">
+      <section id="dollar-section" className="snap-start h-auto flex items-center justify-center">
         <div className="max-w-lg mx-auto bg-gray-200 p-6 rounded-lg shadow-md border border-gray-300">
           <h2 className="text-2xl font-semibold mb-4">Market</h2>
           {!isOwner && (
             <button onClick={handleContactSeller}
               className="bg-purple-600 text-white px-6 py-2 rounded-full w-full hover:bg-blue-700">
-              Contact Seller
+              Contact Owner
             </button>
           )}
           {isOwner && (
-            <div className="flex justify-around mt-4">
-              <button
-                onClick={() => {
-                  if (isListed) {
-                    handleRemoveListing(id);
-                  } else {
-                    handleSellVehicle(id);
-                  }
-                }}
-                className={`bg-gray-600 text-white px-6 py-2 rounded-full hover:${isListed ? 'bg-red-700' : 'bg-green-700'}`}
-              >
-                {isListed ? 'Remove from Listing' : 'Add to Listing'}
-              </button>
+            <div className="flex justify-around mt-0">
             </div>
           )}
           <div className="mt-4 p-4 bg-white rounded-lg shadow-md border border-gray-300">

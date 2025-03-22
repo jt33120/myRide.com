@@ -28,7 +28,7 @@ export default async function handler(req, res) {
       `;
     } else {
       // Handle case with receipts
-      prompt = `
+      prompt = ` In 100 characters output.
         Analyze the owner's manual available at the following URL: ${url}.
         Based on the following maintenance history provided by the user:
         ${JSON.stringify(receipts.map((r) => ({ title: r.title, mileage: r.mileage })), null, 2)},
@@ -39,7 +39,7 @@ export default async function handler(req, res) {
         - Recommended tasks.
         - Check (Inspect/Adjust) tasks.
         - Recommended Parts & Oil (if specified in the manual).
-        Your output should be concise and informative, no more than 200 characters. For example: "To come: Oil change at 19500 miles. Recommended: air filter at ... . Check chain at ...".
+        Don't make sentence, just info. For example: "To come: Oil change at 19500 miles. Recommended: air filter at ... . Check chain at ...".
       `;
     }
 
