@@ -3,19 +3,22 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { make, model, year, mileage } = req.body;
+  const { make, model, year, mileage, city,state,zip,color,title  } = req.body;
 
-  if (!make || !model || !year) {
-    return res.status(400).json({ error: 'Make, model, and year are required.' });
+  if (!make || !model || !year|| !mileage|| !city|| !state|| !zip|| !color|| !title) {
+    return res.status(400).json({ error: 'Missing required fields.' });
   }
 
   try {
     const prompt = `
       Based on the current market trends, provide a reasonable and robust estimation of the value for the following vehicle:
-      - Make: ${make}
-      - Model: ${model}
-      - Year: ${year}
-      - Mileage: ${mileage || 'Unknown'}
+            - Make: ${make}
+            - Model: ${model}
+            - Year: ${year}
+            - Mileage: ${mileage || 'Unknown'}
+            - Color: ${color || 'Unknown'}
+            - Title Status: ${title || 'Unknown'}
+            - Location: ${city || 'Unknown'}, ${state || 'Unknown'}, ${zip || 'Unknown'}
       Consider factors such as depreciation, market trends, and mileage. Provide the estimated value in USD such as $xxxx.xx (not a comma). You're answer should be:  "AI-based Value estimation : $..."
     `;
 

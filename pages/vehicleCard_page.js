@@ -826,6 +826,13 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
           model: vehicleData.model,
           year: vehicleData.year,
           mileage: vehicleData.mileage || 'Unknown',
+          color: vehicleData.color || 'Unknown',
+          city: vehicleData.city || 'Unknown',
+          zip: vehicleData.zip || 'Unknown',
+          state: vehicleData.state || 'Unknown',
+          title: vehicleData.title || 'Unknown',
+          aftermarketMods: vehicleData.aftermarketMods || 'Unknown',
+          cosmeticDefaults: vehicleData.cosmeticDefaults || 'Unknown',
         }),
       });
 

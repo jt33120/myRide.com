@@ -34,12 +34,13 @@ export default async function handler(req, res) {
         ${JSON.stringify(receipts.map((r) => ({ title: r.title, mileage: r.mileage })), null, 2)},
         compare the maintenance history with the manual and provide recommendations for the next maintenance tasks. If a task has been done recently, adapt the owner manual with common sense.
         The recommendations should include:
-        - Mileage at which the task should be performed.
+        - Mileage at which the task should be performed (it can't be lower than the current mileage, of course)
         - Mandatory tasks.
         - Recommended tasks.
         - Check (Inspect/Adjust) tasks.
         - Recommended Parts & Oil (if specified in the manual).
-        Don't make sentence, just info. For example: "To come: Oil change at 19500 miles. Recommended: air filter at ... . Check chain at ...".
+        Ask yourself, when the user did the last oil change, or chain brake, or regular maintenance? Based on its own case, is the upcoming maintenance coming soon?
+        Don't make sentence, just info. For example: "To come: Oil change at 19500 miles. Recommended: air filter at ... . Check chain at ...". 
       `;
     }
 
