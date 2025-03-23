@@ -1054,71 +1054,69 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
 
       
     {/* Maintenance Section */}
-{isOwner && (
-  <section id="maintenance-section" className="snap-start h-auto flex items-center justify-center">
-    <div className="max-w-lg mx-auto bg-gray-200 p-6 rounded-lg shadow-md border border-gray-300 relative">
-      <h2 className="text-2xl font-semibold mb-0">Maintenance</h2>
-      <p className="text-xs text-gray-500">Maintenance = maximized pleasure and resale value!</p>
-      <div className="absolute top-4 right-4 bg-white p-2 rounded-lg shadow-md border border-gray-300 cursor-pointer" onClick={handleSumBoxClick}>
-        <p className="text-xs text-gray-500">{sumType}</p>
-        <p className="text-s">${Number(calculateSum(sumType)).toFixed(2)}</p>
-      </div>
+<section id="maintenance-section" className="snap-start h-auto flex items-center justify-center">
+  <div className="max-w-lg mx-auto bg-gray-200 p-6 rounded-lg shadow-md border border-gray-300 relative">
+    <h2 className="text-2xl font-semibold mb-0">Maintenance</h2>
+    <p className="text-xs text-gray-500">Maintenance = maximized pleasure and resale value!</p>
+    <div className="absolute top-4 right-4 bg-white p-2 rounded-lg shadow-md border border-gray-300 cursor-pointer" onClick={handleSumBoxClick}>
+      <p className="text-xs text-gray-500">{sumType}</p>
+      <p className="text-s">${Number(calculateSum(sumType)).toFixed(2)}</p>
+    </div>
 
-      {/* AI Upcoming Maintenance Header with Sync Button */}
-      <div className="mt-6 flex justify-between items-center">
-        <h3 className="text-md font-bold text-red-500">
-          Maintenance Recommendation
-        </h3>
-        <p className="text-xs text-gray-500">(Current Mileage: {currentMileage})</p>
+    {/* AI Upcoming Maintenance Header */}
+    <div className="mt-6 flex justify-between items-center">
+      <h3 className="text-md font-bold text-red-500">
+        Maintenance Recommendation
+      </h3>
+      <p className="text-xs text-gray-500">(Current Mileage: {currentMileage})</p>
+      {isOwner && (
         <button
           onClick={() => setShowOwnerManualModal(true)}
-          className="bg-purple-500 text-xs text-white px- py-1 rounded-md hover:bg-blue-600"
+          className="bg-purple-500 text-xs text-white px-2 py-1 rounded-md hover:bg-blue-600"
         >
           Sync Owner Manual
         </button>
-      </div>
+      )}
+    </div>
 
-      {/* AI Recommendation Box */}
-      <div className="mt-4 bg-gray-100 p-4 rounded-lg border border-gray-300 text-sm overflow-auto relative">
-        <button
-          onClick={handleRefreshRecommendation}
-          className="absolute top-2 right-2 bg-white p-1 rounded-full shadow-md"
-          disabled={refreshing}
-          title="Refresh AI Recommendation"
-        >
-          <Image
-            src="/reload-icon.png" // Ensure this path is correct
-            alt=""
-            width={10}
-            height={10}
-            className={`cursor-pointer ${refreshing ? 'animate-spin' : ''}`}
-          />
-        </button>
-        <pre className="whitespace-pre-wrap">
-          {aiRecommendation
-            ? typeof aiRecommendation === 'string'
-              ? aiRecommendation
-              : JSON.stringify(aiRecommendation, null, 2)
-            : "No AI recommendation available."}
-        </pre>
-      </div>
+    {/* AI Recommendation Box */}
+    <div className="mt-4 bg-gray-100 p-4 rounded-lg border border-gray-300 text-sm overflow-auto relative">
+      <button
+        onClick={handleRefreshRecommendation}
+        className="absolute top-2 right-2 bg-white p-1 rounded-full shadow-md"
+        disabled={refreshing}
+        title="Refresh AI Recommendation"
+      >
+        <Image
+          src="/reload-icon.png"
+          alt=""
+          width={10}
+          height={10}
+          className={`cursor-pointer ${refreshing ? 'animate-spin' : ''}`}
+        />
+      </button>
+      <pre className="whitespace-pre-wrap">
+        {aiRecommendation
+          ? typeof aiRecommendation === 'string'
+            ? aiRecommendation
+            : JSON.stringify(aiRecommendation, null, 2)
+          : "No AI recommendation available."}
+      </pre>
+    </div>
 
-
-
-
-      {/* Receipt History Section */}
-      <div className="mt-6">
-        <h3 className="text-lg font-semibold mb-2">History</h3>
-
-        <div className="max-h-48 overflow-y-auto bg-gray-100 p-4 rounded-lg shadow-inner border border-gray-300">
-          {receipts.length > 0 ? (
-            receipts.map((receipt) => (
-              <div key={receipt.id} className="mb-2 flex justify-between items-center bg-white p-2 rounded-md shadow-sm border border-gray-300">
-                {receipt.urls && receipt.urls.length > 0 && (
-                  <a href={receipt.urls[0]} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                    {receipt.title} - {new Date(receipt.date.seconds * 1000).toLocaleDateString()} - ${receipt.price}
-                  </a>
-                )}
+    {/* Receipt History Section */}
+    <div className="mt-6">
+      <h3 className="text-lg font-semibold mb-2">History</h3>
+      <div className="max-h-48 overflow-y-auto bg-gray-100 p-4 rounded-lg shadow-inner border border-gray-300">
+        {receipts.length > 0 ? (
+          receipts.map((receipt) => (
+            <div key={receipt.id} className="mb-2 flex justify-between items-center bg-white p-2 rounded-md shadow-sm border border-gray-300">
+              {receipt.urls && receipt.urls.length > 0 && (
+                <a href={receipt.urls[0]} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                  {receipt.title} - {new Date(receipt.date.seconds * 1000).toLocaleDateString()} - ${receipt.price}
+                </a>
+              )}
+              {isOwner && (
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => handleEditReceipt(receipt)}
@@ -1135,179 +1133,169 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
                     ✖
                   </button>
                 </div>
-              </div>
-            ))
-          ) : (
-            <p className="text-gray-500">No receipts available.</p>
-          )}
-        </div>
-        <button
-            onClick={() => setShowReceiptForm(true)}
-            className="bg-purple-700 text-white text-sm px-4 py-1 mt-2 rounded-full hover:bg-blue-600"
-          >
-            + Receipt
-          </button>
-      </div>
-
-          {/* Document Handling Section */}
-      <div className="flex justify-around w-full px-6 mt-6">
-         {['title', 'registration', 'inspection'].map((docType) => {
-          // Check if a document matching the type exists
-          const matchingDocument = allDocuments.find(doc => doc.name.includes(docType));
-          const documentExists = !!matchingDocument;
-
-          // Check if the document is due (only for inspection and registration)
-          const isDue = documentExists && (docType === 'inspection' || docType === 'registration') 
-            ? isDateDue(matchingDocument.name) 
-            : false;
-
-          return (
-            <div key={docType} className="w-1/3 text-center relative">
-              {/* Document Title */}
-              <p className="text-xs text-gray-500 mb-1">{docType.charAt(0).toUpperCase() + docType.slice(1)}</p>
-              <a
-                href={documentExists ? matchingDocument.url : '#'}
-                target={documentExists ? "_blank" : "_self"}
-                rel="noopener noreferrer"
-                onClick={(e) => {
-                  if (!documentExists) e.preventDefault(); // Prevent click if no document exists
-                }}
-                className="relative inline-block"
-              >
-                {/* Image */}
-                <Image
-                  src={`/${docType}_icon.png`}
-                  alt={`${docType} icon`}
-                  width={100}
-                  height={100}
-                  className={`cursor-pointer rounded-full border-2 ${
-                    documentExists ? (isDue ? 'border-red-500' : 'border-green-500') : 'border-gray-300'
-                  }`}
-                  style={{
-                    objectFit: "cover",
-                    filter: documentExists ? 'none' : 'grayscale(100%)',
-                  }}
-                />
-
-                {/* Overlay */}
-                {documentExists && (
-                  <div
-                    className={`absolute inset-0 flex items-center justify-center ${
-                      isDue ? 'bg-red-500' : 'bg-green-500'
-                    } bg-opacity-80 text-white text-xs rounded-full`}
-                  >
-                    {isDue ? 'Expired' : 'Click to view'}
-                  </div>
-                )}
-              </a>
-
-              {/* File Input (Hidden) */}
-              {isOwner && (
-                <input
-                  type="file"
-                  id={docType}
-                  onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (docType === 'title') {
-                      handleDocumentUpload(docType, file, null); // No expiration date for title
-                    } else {
-                      const expirationDate = prompt('Enter expiration date (MM/DD/YYYY):');
-                      if (expirationDate) {
-                        handleDocumentUpload(docType, file, expirationDate);
-                      } else {
-                        alert('Expiration date is required for this document type.');
-                      }
-                    }
-                  }}
-                  className="hidden"
-                />
               )}
-
-              {/* Upload Button */}
-              {isOwner && (
-          <label
-            htmlFor={docType}
-            className="flex items-center mt-2 cursor-pointer"
-          >
-            {uploadingDocType === docType ? (
-              <svg
-                className="animate-spin h-5 w-5 text-purple-700 mr-2"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                ></path>
-              </svg>
-            ) : (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 text-purple-700 mr-2"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            )}
-            <span className="text-black">{documentExists ? 'Update' : 'Add'}</span>
-          </label>
-        )}
             </div>
-          );
-        })}
+          ))
+        ) : (
+          <p className="text-gray-500">No receipts available.</p>
+        )}
       </div>
-
-      {/* AI Maintenance Question Box with Toggle */}
-      <div className="mt-2 bg-white p-2 rounded-lg shadow-md border border-gray-300">
-        <h3
-          className="text-sm font-semibold mb-1 cursor-pointer"
-          onClick={() => setShowAiBox(!showAiBox)}
+      {isOwner && (
+        <button
+          onClick={() => setShowReceiptForm(true)}
+          className="bg-purple-700 text-white text-sm px-4 py-1 mt-2 rounded-full hover:bg-blue-600"
         >
-          Any question? Ask AI! {showAiBox ? '▲' : '▼'}
-        </h3>
-        {showAiBox && (
-          <div>
-            <textarea
-              value={aiQuestion}
-              onChange={(e) => setAiQuestion(e.target.value)}
-              placeholder="Type your maintenance-related question here..."
-              className="border border-gray-300 p-2 rounded-md w-full mb-2"
-            />
-            <button
-              onClick={handleAskAi}
-              className="bg-purple-700 text-white px-4 py-2 rounded-full hover:bg-purple-800"
-              disabled={loadingAi}
+          + Receipt
+        </button>
+      )}
+    </div>
+
+    {/* Document Handling Section */}
+    <div className="flex justify-around w-full px-6 mt-6">
+      {['title', 'registration', 'inspection'].map((docType) => {
+        const matchingDocument = allDocuments.find(doc => doc.name.includes(docType));
+        const documentExists = !!matchingDocument;
+        const isDue = documentExists && (docType === 'inspection' || docType === 'registration') 
+          ? isDateDue(matchingDocument.name) 
+          : false;
+
+        return (
+          <div key={docType} className="w-1/3 text-center relative">
+            <p className="text-xs text-gray-500 mb-1">{docType.charAt(0).toUpperCase() + docType.slice(1)}</p>
+            <a
+              href={documentExists && isOwner ? matchingDocument.url : '#'}
+              target={documentExists && isOwner ? "_blank" : "_self"}
+              rel="noopener noreferrer"
+              onClick={(e) => {
+                if (!documentExists || !isOwner) e.preventDefault();
+              }}
+              className="relative inline-block"
             >
-              {loadingAi ? 'Asking AI...' : 'Ask AI'}
-            </button>
-            {aiAnswer && (
-              <div className="mt-2 bg-gray-100 p-2 rounded-lg border border-gray-300">
-                <h4 className="text-md font-semibold">AI Answer:</h4>
-                <p>{aiAnswer}</p>
-              </div>
+              <Image
+                src={`/${docType}_icon.png`}
+                alt={`${docType} icon`}
+                width={100}
+                height={100}
+                className={`cursor-pointer rounded-full border-2 ${
+                  documentExists ? (isDue ? 'border-red-500' : 'border-green-500') : 'border-gray-300'
+                }`}
+                style={{
+                  objectFit: "cover",
+                  filter: documentExists ? 'none' : 'grayscale(100%)',
+                }}
+              />
+              {documentExists && (
+                <div
+                  className={`absolute inset-0 flex items-center justify-center ${
+                    isDue ? 'bg-red-500' : 'bg-green-500'
+                  } bg-opacity-80 text-white text-xs rounded-full`}
+                >
+                  {isDue ? 'Expired' : isOwner ? 'Click to view' : 'View disabled'}
+                </div>
+              )}
+            </a>
+            {isOwner && (
+              <input
+                type="file"
+                id={docType}
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (docType === 'title') {
+                    handleDocumentUpload(docType, file, null);
+                  } else {
+                    const expirationDate = prompt('Enter expiration date (MM/DD/YYYY):');
+                    if (expirationDate) {
+                      handleDocumentUpload(docType, file, expirationDate);
+                    } else {
+                      alert('Expiration date is required for this document type.');
+                    }
+                  }
+                }}
+                className="hidden"
+              />
+            )}
+            {isOwner && (
+              <label
+                htmlFor={docType}
+                className="flex items-center mt-2 cursor-pointer"
+              >
+                {uploadingDocType === docType ? (
+                  <svg
+                    className="animate-spin h-5 w-5 text-purple-700 mr-2"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                    ></path>
+                  </svg>
+                ) : (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5 text-purple-700 mr-2"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                )}
+                <span className="text-black">{documentExists ? 'Update' : 'Add'}</span>
+              </label>
             )}
           </div>
-        )}
-      </div>
+        );
+      })}
+    </div>
 
+    {/* AI Maintenance Question Box */}
+    <div className="mt-2 bg-white p-2 rounded-lg shadow-md border border-gray-300">
+      <h3
+        className="text-sm font-semibold mb-1 cursor-pointer"
+        onClick={() => setShowAiBox(!showAiBox)}
+      >
+        Any question? Ask AI! {showAiBox ? '▲' : '▼'}
+      </h3>
+      {showAiBox && (
+        <div>
+          <textarea
+            value={aiQuestion}
+            onChange={(e) => setAiQuestion(e.target.value)}
+            placeholder="Type your maintenance-related question here..."
+            className="border border-gray-300 p-2 rounded-md w-full mb-2"
+          />
+          <button
+            onClick={handleAskAi}
+            className="bg-purple-700 text-white px-4 py-2 rounded-full hover:bg-purple-800"
+            disabled={loadingAi}
+          >
+            {loadingAi ? 'Asking AI...' : 'Ask AI'}
+          </button>
+          {aiAnswer && (
+            <div className="mt-2 bg-gray-100 p-2 rounded-lg border border-gray-300">
+              <h4 className="text-md font-semibold">AI Answer:</h4>
+              <p>{aiAnswer}</p>
+            </div>
+          )}
         </div>
-      </section>
       )}
+    </div>
+  </div>
+</section>
 
       {/* Dollar Section */}
       <section id="dollar-section" className="snap-start h-auto flex items-center justify-center">
