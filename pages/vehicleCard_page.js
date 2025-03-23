@@ -899,6 +899,27 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
     }
   }, [vehicleData]);
 
+  const handleShare = async () => {
+    const shareData = {
+      title: `${ownerName} invites you to check this ${vehicleData.year} ${vehicleData.make} ${vehicleData.model}`,
+      url: window.location.href,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+        console.log('Page shared successfully');
+      } catch (error) {
+        console.error('Error sharing the page:', error);
+      }
+    } else {
+      // Fallback for browsers that don't support the Web Share API
+      navigator.clipboard.writeText(shareData.url).then(() => {
+        alert('Link copied to clipboard!');
+      });
+    }
+  };
+
   if (loading) return <p>Loading vehicle details...</p>;
 
   if (!vehicleData) return <p>Vehicle not found.</p>;
@@ -915,7 +936,31 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
 
       <ImageCarousel imageUrls={imageUrls} />
 
-      <h1 className="text-3xl font-bold mb-6 text-center">{ownerName}&apos;s {vehicleData.year} {vehicleData.model}</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-center">
+          {ownerName}&apos;s {vehicleData.year} {vehicleData.model}
+        </h1>
+        <button
+          onClick={handleShare}
+          className="flex items-center justify-center bg-gray-200 p-2 rounded-full shadow-md hover:bg-gray-300"
+          title="Share this page"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-6 w-6 text-gray-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 12v1m0-1a9 9 0 0118 0v1m-9-4v10m0 0l-3-3m3 3l3-3"
+            />
+          </svg>
+        </button>
+      </div>
 
       <div className="flex justify-around w-full px-6 mb-6">
         <button onClick={() => document.getElementById('info-section').scrollIntoView({ behavior: 'smooth' })}>

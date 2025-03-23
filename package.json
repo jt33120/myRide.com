@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@firebasegen/default-connector": "file:dataconnect-generated/js/default-connector",
+    "@heroicons/react": "^2.2.0",
     "@react-google-maps/api": "^2.20.6",
     "@vercel/analytics": "^1.5.0",
     "@vercel/speed-insights": "^1.2.0",
