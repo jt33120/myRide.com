@@ -208,6 +208,8 @@ const VehicleCardPage = () => {
 
   const [showAiBox, setShowAiBox] = useState(false); // State for toggling AI box
 
+  const [hideVin, setHideVin] = useState(false); // State to track if VIN is hidden
+
   const handleAskAi = async () => {
     if (!aiQuestion.trim()) return;
 
@@ -480,6 +482,7 @@ const VehicleCardPage = () => {
 
           // Set current mileage from Firestore
           setCurrentMileage(vehicle.mileage || 'N/A');
+          setHideVin(vehicle.hideVin || false); // Set initial VIN visibility state
         } else {
           console.log("No such document!");
         }
@@ -899,6 +902,16 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
     }
   }, [vehicleData]);
 
+  const toggleHideVin = async () => {
+    try {
+      const vehicleRef = doc(db, 'listing', id);
+      await setDoc(vehicleRef, { hideVin: !hideVin }, { merge: true });
+      setHideVin(!hideVin);
+    } catch (error) {
+      console.error('Error toggling VIN visibility:', error);
+    }
+  };
+
   const handleShare = async () => {
     const shareData = {
       title: `${ownerName} invites you to check this ${vehicleData.year} ${vehicleData.make} ${vehicleData.model}`,
@@ -1006,7 +1019,22 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
           {/* Title, VIN & Mileage */}
           <div className="flex space-x-4 text-lg mb-4">
             <p><strong>Title Status:</strong> {vehicleData.title || "N/A"}</p>
-            <p><strong>VIN:</strong> {vehicleData.vin || "N/A"}</p>
+            <p>
+              <strong>VIN:</strong>{" "}
+              {isOwner || !hideVin ? (
+                vehicleData.vin || "N/A"
+              ) : (
+                "Hidden"
+              )}
+              {isOwner && (
+                <button
+                  onClick={toggleHideVin}
+                  className="ml-2 text-sm text-blue-500 hover:underline"
+                >
+                  {hideVin ? "Unhide" : "Hide"}
+                </button>
+              )}
+            </p>
             <p><strong>Mileage:</strong> {vehicleData.mileage || "N/A"}</p>
           </div>
 
