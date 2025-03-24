@@ -11,9 +11,9 @@ const DocumentsPage = () => {
     const fetchDocumentUrls = async () => {
       try {
         // Get URLs for each document stored in Firebase Storage
-        const motorcycleChecklistRef = ref(storage, 'BUY_MOTORCYCLE_CHECKLIST.xlsx');
-        const billOfSaleRef = ref(storage, 'BillOfSale_Template.pdf');
-        const carChecklistRef = ref(storage, 'BUY_CAR_CHECKLIST.xlsx');
+        const motorcycleChecklistRef = ref(storage, 'public/BUY_MOTORCYCLE_CHECKLIST.xlsx');
+        const billOfSaleRef = ref(storage, 'public/BillOfSale_Template.pdf');
+        const carChecklistRef = ref(storage, 'public/BUY_CAR_CHECKLIST.xlsx');
 
         const motorcycleChecklistUrl = await getDownloadURL(motorcycleChecklistRef);
         const billOfSaleUrl = await getDownloadURL(billOfSaleRef);

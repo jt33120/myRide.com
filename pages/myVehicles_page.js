@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { auth, db } from '../lib/firebase';
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
-import { getStorage, ref, listAll, getDownloadURL } from 'firebase/storage';
+import { doc, getDoc, collection, getDocs, deleteDoc, updateDoc, arrayRemove } from 'firebase/firestore';
+import { getStorage, ref, listAll, getDownloadURL, deleteObject } from 'firebase/storage';
 import Image from 'next/image';
 
 const MyGarage = () => {
@@ -170,6 +170,37 @@ const MyGarage = () => {
     setCurrentIndex(index);
   };
 
+  const handleDeleteVehicle = async (vehicleId) => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const confirmDelete = confirm("Are you sure you want to delete this vehicle?");
+    if (!confirmDelete) return;
+
+    try {
+      // Delete vehicle document from Firestore
+      await deleteDoc(doc(db, "listing", vehicleId));
+
+      // Remove vehicle ID from the user's vehicles array in the members collection
+      const userDocRef = doc(db, "members", user.uid);
+      await updateDoc(userDocRef, {
+        vehicles: arrayRemove(vehicleId),
+      });
+
+      // Delete all associated files from Firebase Storage
+      const storageRef = ref(storage, `listing/${vehicleId}`);
+      await deleteObject(storageRef);
+
+      // Update the local state to remove the deleted vehicle
+      setVehicles((prevVehicles) => prevVehicles.filter((vehicle) => vehicle.id !== vehicleId));
+
+      alert("Vehicle deleted successfully.");
+    } catch (error) {
+      console.error("Error deleting vehicle:", error);
+      alert("Failed to delete vehicle. Please try again.");
+    }
+  };
+
   if (loading) return <p>Loading...</p>;
 
   return (
@@ -203,9 +234,33 @@ const MyGarage = () => {
           {vehicles.map((vehicle) => (
             <div
               key={vehicle.id}
-              className="bg-white p-4 rounded-lg shadow-md cursor-pointer hover:shadow-lg flex flex-col items-center"
+              className="bg-white p-2 rounded-lg shadow-md relative flex flex-col"
               onClick={() => router.push(`/vehicleCard_page?id=${vehicle.id}`)}
             >
+              {/* Delete Button */}
+              <div className="absolute top-2 left-2 justify-start z-50">
+  <button
+    onClick={() => handleDeleteVehicle(vehicle.id)}
+    className="bg-purple-500 text-white p-1 rounded-full hover:bg-purple-600 focus:outline-none"
+    title="Delete Vehicle"
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth="1.5"
+      stroke="currentColor"
+      className="h-4 w-4"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+      />
+    </svg>
+  </button>
+</div>
+
               {/* Carousel */}
               <div className="carousel-container relative mb-4 w-48 h-48">
                 <div className="carousel-images overflow-hidden w-full h-full">

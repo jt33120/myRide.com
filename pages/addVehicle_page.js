@@ -267,6 +267,17 @@ const AddVehiclePage = () => {
     });
   };
 
+  const handleFileDownload = async () => {
+    try {
+      const fileRef = ref(storage, 'public/BUY_MOTORCYCLE_CHECKLIST.xlsx'); // Updated path to include 'public'
+      const downloadURL = await getDownloadURL(fileRef);
+      window.open(downloadURL, '_blank'); // Open the file in a new tab
+    } catch (error) {
+      console.error("Error downloading file:", error);
+      alert("Failed to download the file. Please try again.");
+    }
+  };
+
   return (
     <div className="min-h-screen p-6 bg-gray-100 text-black">
       <h1 className="text-3xl font-bold mb-6 text-center">Add Vehicle</h1>
@@ -510,6 +521,9 @@ const AddVehiclePage = () => {
           disabled={uploading}
         >
           {uploading ? <div className="loader"></div> : 'Add Vehicle'}
+        </button>
+        <button onClick={handleFileDownload} className="btn">
+          Download Motorcycle Checklist
         </button>
       </div>
     </div>
