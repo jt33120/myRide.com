@@ -1,8 +1,37 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true; // Public access
+    
+    // Members collection: Only the user can read/write their own data
+    match /members/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Listing collection: Only authenticated users can read, and only the owner can write
+    match /listing/{vehicleId} {
+      allow read: if request.auth != null; // Authenticated users can read
+      allow write: if request.auth != null && request.auth.uid == resource.data.uid; // Only the owner can write
+
+      // Protect sensitive fields like VIN
+      allow get: if request.auth != null && (resource.data.hideVin == false || request.auth.uid == resource.data.uid);
+    }
+
+    // Conversations collection: Only participants can read/write
+    match /conversations/{conversationId} {
+      allow read, write: if request.auth != null && request.auth.uid in resource.data.participants;
+    }
+
+    // Receipts subcollection under listing: Only the owner can write
+    match /listing/{vehicleId}/receipts/{receiptId} {
+      allow read: if request.auth != null; // Authenticated users can read
+      allow write: if request.auth != null && request.auth.uid == resource.data.uid; // Only the owner can write
+    }
+
+    // Reviews subcollection under listing: Authenticated users can write, but only the author can modify/delete
+    match /listing/{vehicleId}/reviews/{reviewId} {
+      allow create: if request.auth != null; // Any authenticated user can write a review
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.uid; // Only the author can modify/delete
+      allow read: if request.auth != null; // Authenticated users can read reviews
     }
   }
 }

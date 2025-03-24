@@ -10,14 +10,20 @@ export default function Login() {
   const [error, setError] = useState('');  // State for storing error message
   const router = useRouter();
 
-  const handleLogin = async () => {
+  const handleSignIn = async (email, password) => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log('User signed in:', userCredential.user);
       // If authentication is successful, redirect to the dashboard
       router.push("/myDashboard_page");
-    } catch {
-      // If authentication fails, display an error message
-      setError('Invalid email or password. Please try again.');
+    } catch (error) {
+      if (error.code === 'auth/user-not-found') {
+        setError('No user found with this email.');
+      } else if (error.code === 'auth/wrong-password') {
+        setError('Incorrect password.');
+      } else {
+        setError('An error occurred. Please try again.');
+      }
     }
   };
 
@@ -41,7 +47,7 @@ export default function Login() {
         required 
       />
 
-      <button onClick={handleLogin}>Login</button>
+      <button onClick={() => handleSignIn(email, password)}>Login</button>
 
       {/* Display error message if there is an error */}
       {error && <p style={{ color: 'red' }}>{error}</p>}
