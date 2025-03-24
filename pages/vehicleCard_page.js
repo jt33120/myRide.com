@@ -185,6 +185,7 @@ const LoginModal = ({ onClose, onLoginSuccess }) => {
       await signInWithEmailAndPassword(auth, email, password);
       onLoginSuccess(); // Notify parent component of successful login
     } catch (err) {
+      console.error('Login error:', err); // Log the error
       setError('Invalid email or password. Please try again.');
     } finally {
       setLoading(false);
@@ -224,7 +225,7 @@ const LoginModal = ({ onClose, onLoginSuccess }) => {
           {loading ? 'Signing In...' : 'Sign In'}
         </button>
         <p className="text-center mt-4">
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <button
             onClick={() => {
               onClose();
