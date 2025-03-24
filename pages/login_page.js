@@ -23,8 +23,8 @@ export default function Login() {
 
   return (
     <div className={styles.authContainer}>
-      <p>For privacy reason, you need to be logged in to access any data on the website.</p>
       <h2>Login</h2>
+      <p>For privacy reason, you need to be logged in to access any data on the website.</p>
 
       <input 
         type="email" 
