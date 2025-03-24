@@ -117,8 +117,8 @@ const NavBar = () => {
             {user ? (
               <>
                 <p className="text-sm font-semibold welcome-text">Welcome, {firstName}!</p>
-
                 <Link href="/myDashboard_page">My Dashboard</Link>
+                <Link href="/userProfile_page">My Profile</Link> {/* Added My Profile link */}
                 <button onClick={handleSignOut}>Log Out</button>
               </>
             ) : (
