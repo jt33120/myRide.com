@@ -489,7 +489,7 @@ const VehicleCardPage = () => {
     if (!conversationId) {
       const newConversation = {
         participants: [user.uid, vehicleData.uid],
-        vehicleName: `${vehicleData.Year} ${vehicleData.Make} ${vehicleData.Model}`,
+        vehicleName: `${vehicleData.year} ${vehicleData.make} ${vehicleData.model}`,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
