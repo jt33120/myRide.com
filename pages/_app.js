@@ -23,7 +23,8 @@ function MyApp({ Component, pageProps }) {
       } else {
         // User is not authenticated, redirect to Welcome_page if trying to access any other page
         if (!['/Welcome_page', '/login_page', '/signup_page'].includes(router.pathname)) {
-          router.push('/Welcome_page');
+          const redirectUrl = router.asPath;
+          router.push(`/login_page?redirect=${encodeURIComponent(redirectUrl)}`);
         }
       }
     });
@@ -36,7 +37,8 @@ function MyApp({ Component, pageProps }) {
       if (user && ['/Welcome_page', '/login_page', '/signup_page'].includes(router.pathname)) {
         router.push('/myDashboard_page');
       } else if (!user && !['/Welcome_page', '/login_page', '/signup_page'].includes(router.pathname)) {
-        router.push('/Welcome_page');
+        const redirectUrl = router.asPath;
+        router.push(`/login_page?redirect=${encodeURIComponent(redirectUrl)}`);
       }
     }
   }, [authChecked, user, router]);

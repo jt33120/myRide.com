@@ -177,15 +177,18 @@ const LoginModal = ({ onClose, onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleLogin = async () => {
     setLoading(true);
     setError('');
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      onLoginSuccess(); // Notify parent component of successful login
+      const redirect = router.query.redirect || '/'; // Default to home if no redirect is provided
+      onLoginSuccess();
+      router.push(redirect); // Navigate to the intended page
     } catch (err) {
-      console.error('Login error:', err); // Log the error
+      console.error('Login error:', err);
       setError('Invalid email or password. Please try again.');
     } finally {
       setLoading(false);
