@@ -127,7 +127,6 @@ export default function SignUp() {
                 uid: user.uid,
                 invitationcode: invitationCode,
                 profileImage: imageUrl, // Save the image URL
-                vehicles: [], // Initialize the vehicles array as empty
                 createdAt: new Date(),
               });
 

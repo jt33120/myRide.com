@@ -167,7 +167,7 @@ const AddVehiclePage = () => {
       const timestamp = new Date()
         .toLocaleString("en-US", { timeZone: "UTC", hour12: false })
         .replace(/[/,: ]/g, "-");
-      const vehicleId = `${vehicleType.toUpperCase()}-${user.uid}-${timestamp}`;
+      const vehicleId = `${vehicleType.toUpperCase()}-${selectedMake}-${selectedModel}-${selectedYear}-${user.uid}-${timestamp}`;
 
       // Write vehicle data to Firestore
       console.log("Writing vehicle data to Firestore...");
