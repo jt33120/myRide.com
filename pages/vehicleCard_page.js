@@ -988,23 +988,40 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
   };
 
   const handleShare = async () => {
-    const shareData = {
-      title: `${ownerName} invites you to check this ${vehicleData.year} ${vehicleData.make} ${vehicleData.model}`,
-      url: window.location.href,
-    };
-
-    if (navigator.share) {
-      try {
-        await navigator.share(shareData);
-        console.log('Page shared successfully');
-      } catch (error) {
-        console.error('Error sharing the page:', error);
+    try {
+      // Fetch the current user's firstName from Firebase
+      const userRef = doc(db, 'members', auth.currentUser.uid);
+      const userSnap = await getDoc(userRef);
+  
+      if (!userSnap.exists()) {
+        console.error('User data not found.');
+        return;
       }
-    } else {
-      // Fallback for browsers that don't support the Web Share API
-      navigator.clipboard.writeText(shareData.url).then(() => {
-        alert('Link copied to clipboard!');
-      });
+  
+      const { firstName } = userSnap.data();
+  
+      // Prepare the share data
+      const shareData = {
+        title: `${firstName} invites you to check this ${vehicleData.year} ${vehicleData.make} ${vehicleData.model}`,
+        url: window.location.href,
+      };
+  
+      // Use the Web Share API if available
+      if (navigator.share) {
+        try {
+          await navigator.share(shareData);
+          console.log('Page shared successfully');
+        } catch (error) {
+          console.error('Error sharing the page:', error);
+        }
+      } else {
+        // Fallback for browsers that don't support the Web Share API
+        navigator.clipboard.writeText(shareData.url).then(() => {
+          alert('Link copied to clipboard!');
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching user data for sharing:', error);
     }
   };
 
