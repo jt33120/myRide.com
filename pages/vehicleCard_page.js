@@ -9,7 +9,7 @@ import 'slick-carousel/slick/slick-theme.css';
 import Image from "next/image";
 import { Line } from 'react-chartjs-2';
 import 'chart.js/auto';
-
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 const ImageCarousel = ({ imageUrls }) => {
   const settings = {
@@ -172,6 +172,74 @@ const OwnerManualModal = ({ onClose, vehicleId }) => {
   );
 };
 
+const LoginModal = ({ onClose, onLoginSuccess }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      onLoginSuccess(); // Notify parent component of successful login
+    } catch (err) {
+      setError('Invalid email or password. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+      <div className="bg-white p-6 rounded-lg shadow-lg w-96 relative">
+        <button
+          onClick={onClose}
+          className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
+        >
+          ✖
+        </button>
+        <h2 className="text-2xl font-semibold mb-4">Sign In</h2>
+        {error && <p className="text-red-500 mb-4">{error}</p>}
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="border border-gray-300 p-2 rounded-md w-full mb-2"
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="border border-gray-300 p-2 rounded-md w-full mb-4"
+        />
+        <button
+          onClick={handleLogin}
+          className="bg-purple-700 text-white px-6 py-2 rounded-full w-full hover:bg-purple-800"
+          disabled={loading}
+        >
+          {loading ? 'Signing In...' : 'Sign In'}
+        </button>
+        <p className="text-center mt-4">
+          Don't have an account?{' '}
+          <button
+            onClick={() => {
+              onClose();
+              router.push('/signup_page');
+            }}
+            className="text-blue-500 hover:underline"
+          >
+            Sign Up
+          </button>
+        </p>
+      </div>
+    </div>
+  );
+};
+
 const VehicleCardPage = () => {
   const [vehicleData, setVehicleData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -209,6 +277,9 @@ const VehicleCardPage = () => {
   const [showAiBox, setShowAiBox] = useState(false); // State for toggling AI box
 
   const [hideVin, setHideVin] = useState(false); // State to track if VIN is hidden
+
+  const [authenticatedUser, setAuthenticatedUser] = useState(null); // Track the authenticated user
+  const [showLoginModal, setShowLoginModal] = useState(false); // State for login modal
 
   const handleAskAi = async () => {
     if (!aiQuestion.trim()) return;
@@ -932,6 +1003,36 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
       });
     }
   };
+
+  useEffect(() => {
+    // Listen for authentication state changes
+    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+      setAuthenticatedUser(currentUser);
+      if (!currentUser) {
+        setShowLoginModal(true); // Show login modal if user is not signed in
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  if (!authenticatedUser) {
+    // Show login modal if the user is not signed in
+    return (
+      <div className="relative min-h-screen bg-gray-100 flex items-center justify-center">
+        {showLoginModal && (
+          <LoginModal
+            onClose={() => setShowLoginModal(false)}
+            onLoginSuccess={() => {
+              setShowLoginModal(false);
+              router.reload(); // Reload the page after successful login
+            }}
+          />
+        )}
+        <div className="absolute inset-0 bg-gray-100 z-0"></div>
+      </div>
+    );
+  }
 
   if (loading) return <p>Loading vehicle details...</p>;
 
