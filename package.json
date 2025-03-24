@@ -16,6 +16,7 @@
     "@vercel/speed-insights": "^1.2.0",
     "chart.js": "^4.4.8",
     "cropperjs": "^2.0.0",
+    "firebase-admin": "^13.2.0",
     "heic2any": "^0.0.4",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
