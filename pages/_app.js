@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { auth } from '../lib/firebase';
 import Layout from '../components/Layout';
+import Head from 'next/head';
 import '../styles/globals.css';
 import '../styles/Navbar.css';
 import '../styles/Footer.css';
@@ -51,9 +52,14 @@ function MyApp({ Component, pageProps }) {
   }
 
   return (
-    <Layout>
-      <Component {...pageProps} />
-    </Layout>
+    <>
+      <Head>
+        <link rel="icon" href="/logo.png" type="image/png" />
+      </Head>
+      <Layout>
+        <Component {...pageProps} />
+      </Layout>
+    </>
   );
 }
 
