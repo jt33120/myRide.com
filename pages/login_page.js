@@ -23,6 +23,7 @@ export default function Login() {
 
   return (
     <div className={styles.authContainer}>
+      <p>For privacy reason, you need to be logged in to access any data on the website.</p>
       <h2>Login</h2>
 
       <input 
@@ -46,7 +47,7 @@ export default function Login() {
       {error && <p style={{ color: 'red' }}>{error}</p>}
 
       <p>
-        Do not have an account?{" "}
+        No account yet? Create one, it takes 2sec!{" "}
         <button onClick={() => router.push("/signup_page")}>Register</button>
       </p>
     </div>
