@@ -184,7 +184,7 @@ const LoginModal = ({ onClose, onLoginSuccess }) => {
     setError('');
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      const redirect = router.query.redirect || '/'; // Default to home if no redirect is provided
+      const redirect = router.query.redirect || router.asPath; // Use the current page as the default redirect
       onLoginSuccess();
       router.push(redirect); // Navigate to the intended page
     } catch (err) {

@@ -15,13 +15,15 @@ function MyApp({ Component, pageProps }) {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       setUser(user);
       setAuthChecked(true);
+
       if (user) {
-        // User is authenticated, redirect to myDashboard_page if trying to access restricted pages
+        // Redirect only if the user is on public pages
         if (['/Welcome_page', '/login_page', '/signup_page'].includes(router.pathname)) {
-          router.push('/myDashboard_page');
+          const redirectUrl = router.query.redirect || '/myDashboard_page';
+          router.push(redirectUrl); // Redirect to the intended page or dashboard
         }
       } else {
-        // User is not authenticated, redirect to Welcome_page if trying to access any other page
+        // Redirect to login with the current page as the redirect parameter
         if (!['/Welcome_page', '/login_page', '/signup_page'].includes(router.pathname)) {
           const redirectUrl = router.asPath;
           router.push(`/login_page?redirect=${encodeURIComponent(redirectUrl)}`);
@@ -35,7 +37,8 @@ function MyApp({ Component, pageProps }) {
   useEffect(() => {
     if (authChecked) {
       if (user && ['/Welcome_page', '/login_page', '/signup_page'].includes(router.pathname)) {
-        router.push('/myDashboard_page');
+        const redirectUrl = router.query.redirect || '/myDashboard_page';
+        router.push(redirectUrl); // Redirect to the intended page or dashboard
       } else if (!user && !['/Welcome_page', '/login_page', '/signup_page'].includes(router.pathname)) {
         const redirectUrl = router.asPath;
         router.push(`/login_page?redirect=${encodeURIComponent(redirectUrl)}`);
