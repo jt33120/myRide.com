@@ -1241,38 +1241,47 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
     <div className="mt-6">
       <h3 className="text-lg font-semibold mb-2">History</h3>
       <div className="max-h-48 overflow-y-auto bg-gray-100 p-4 rounded-lg shadow-inner border border-gray-300">
-        {receipts.length > 0 ? (
-          receipts.map((receipt) => (
-            <div key={receipt.id} className="mb-2 flex justify-between items-center bg-white p-2 rounded-md shadow-sm border border-gray-300">
-              {receipt.urls && receipt.urls.length > 0 && (
-                <a href={receipt.urls[0]} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                  {receipt.title} - {new Date(receipt.date.seconds * 1000).toLocaleDateString()} - ${receipt.price}
-                </a>
-              )}
-              {isOwner && (
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => handleEditReceipt(receipt)}
-                    className="text-green-600 hover:text-green-800"
-                    title="Edit Receipt"
-                  >
-                    ✎
-                  </button>
-                  <button
-                    onClick={() => handleReceiptDelete(receipt.id, receipt.urls)}
-                    className="text-red-600 hover:text-red-800"
-                    title="Delete Receipt"
-                  >
-                    ✖
-                  </button>
-                </div>
-              )}
-            </div>
-          ))
-        ) : (
-          <p className="text-gray-500">No receipts available.</p>
+  {receipts.length > 0 ? (
+    receipts.map((receipt) => (
+      <div key={receipt.id} className="mb-2 flex justify-between items-center bg-white p-2 rounded-md shadow-sm border border-gray-300">
+        {receipt.urls && receipt.urls.length > 0 && (
+          <a
+            href={isOwner ? receipt.urls[0] : '#'}
+            target={isOwner ? "_blank" : "_self"}
+            rel="noopener noreferrer"
+            className={`text-blue-600 hover:underline ${!isOwner && 'cursor-not-allowed text-gray-400'}`}
+            onClick={(e) => {
+              if (!isOwner) e.preventDefault();
+            }}
+          >
+            {receipt.title} - {new Date(receipt.date.seconds * 1000).toLocaleDateString()} - ${receipt.price}
+          </a>
+        )}
+        {isOwner && (
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => handleEditReceipt(receipt)}
+              className="text-green-600 hover:text-green-800"
+              title="Edit Receipt"
+            >
+              ✎
+            </button>
+            <button
+              onClick={() => handleReceiptDelete(receipt.id, receipt.urls)}
+              className="text-red-600 hover:text-red-800"
+              title="Delete Receipt"
+            >
+              ✖
+            </button>
+          </div>
         )}
       </div>
+    ))
+  ) : (
+    <p className="text-gray-500">No receipts available.</p>
+  )}
+</div>
+
       {isOwner && (
         <button
           onClick={() => setShowReceiptForm(true)}
@@ -1323,7 +1332,7 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
                     isDue ? 'bg-red-500' : 'bg-green-500'
                   } bg-opacity-80 text-white text-xs rounded-full`}
                 >
-                  {isDue ? 'Expired' : isOwner ? 'Click to view' : 'View disabled'}
+                  {isDue ? 'Expired' : isOwner ? 'Click to view' : 'Owner Access Only'}
                 </div>
               )}
             </a>

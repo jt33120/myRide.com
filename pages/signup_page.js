@@ -9,7 +9,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { useMediaQuery } from "react-responsive"; // Import useMediaQuery for responsive handling
 import styles from '../styles/Auth.module.css';
 import Resizer from "react-image-file-resizer"; // Import the image resizer library
-
+import Link from 'next/link'; // Import Link for navigation
 
 const MyDatePicker = ({ selectedDate, setSelectedDate }) => {
   const isMobile = useMediaQuery({ maxWidth: 768 }); // Detect if the user is on mobile
@@ -156,6 +156,12 @@ export default function SignUp() {
 
   return (
     <div className={styles.authContainer}>
+      <p className="text-center mb-4">
+        Already have an account?{' '}
+        <Link href="/login_page" className="text-blue-500 hover:underline">
+          Sign in!
+        </Link>
+      </p>
       <h2>Register</h2>
       {error && <p className="text-red-500">{error}</p>}
 
