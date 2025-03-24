@@ -484,8 +484,23 @@ const ModifyVehiclePage = () => {
 
         <button
           onClick={() => setStep(2)} // Move to the next step (Images)
-          className="btn"
+          className="flex items-center justify-center bg-gray-200 text-black px-6 py-2 rounded-full hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
+          title="Next Step"
         >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth="1.5"
+            stroke="currentColor"
+            className="h-6 w-6 mr-2"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"
+            />
+          </svg>
           Next
         </button>
       </div>
@@ -554,16 +569,45 @@ const ModifyVehiclePage = () => {
         ))}
         <button
           onClick={() => setStep(1)} // Move back to the previous step (Fields)
-          className="btn"
+          className="flex items-center justify-center bg-gray-200 text-black px-6 py-2 rounded-full hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
+          title="Previous Step"
         >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth="1.5"
+            stroke="currentColor"
+            className="h-6 w-6 mr-2"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
+            />
+          </svg>
           Previous
         </button>
         <button
           onClick={handleUpdateVehicle} // Save the updated vehicle details and images
-          className="btn"
-          disabled={uploading}
+          className="flex items-center justify-center bg-black text-white px-6 py-2 rounded-full hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+          title="Save Changes"
         >
-          {uploading ? 'Uploading...' : 'Save'}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth="1.5"
+            stroke="currentColor"
+            className="h-6 w-6 mr-2"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="m4.5 12.75 6 6 9-13.5"
+            />
+          </svg>
+          Save
         </button>
       </div>
     </div>

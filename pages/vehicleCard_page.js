@@ -1088,27 +1088,82 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
       </div>
 
       <div className="flex justify-around w-full px-6 mb-6">
-        <button onClick={() => document.getElementById('info-section').scrollIntoView({ behavior: 'smooth' })}>
-          <Image src="/info.png" alt="Info" width={100} height={100} />
-        </button>
-        <button onClick={() => document.getElementById('maintenance-section').scrollIntoView({ behavior: 'smooth' })}>
-          <Image src="/maintenance.png" alt="Maintenance" width={100} height={100} />
-        </button>
-        <button onClick={() => document.getElementById('dollar-section').scrollIntoView({ behavior: 'smooth' })}>
-          <Image src="/dollar.png" alt="Dollar" width={100} height={100} />
-        </button>
-      </div>
+      <button
+        onClick={() => document.getElementById('info-section').scrollIntoView({ behavior: 'smooth' })}
+        className="p-4 rounded-full bg-gray-200 hover:bg-gray-300"
+        title="Info Section"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth="1.5"
+          stroke="currentColor"
+          className="h-10 w-10 text-gray-600"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+          />
+        </svg>
+      </button>
+      <button
+        onClick={() => document.getElementById('maintenance-section').scrollIntoView({ behavior: 'smooth' })}
+        className="p-4 rounded-full bg-gray-200 hover:bg-gray-300"
+        title="Maintenance Section"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth="1.5"
+          stroke="currentColor"
+          className="h-10 w-10 text-gray-600"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437 1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008Z"
+          />
+        </svg>
+      </button>
+      <button
+        onClick={() => document.getElementById('dollar-section').scrollIntoView({ behavior: 'smooth' })}
+        className="p-4 rounded-full bg-gray-200 hover:bg-gray-300"
+        title="Dollar Section"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth="1.5"
+          stroke="currentColor"
+          className="h-10 w-10 text-gray-600"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z"
+          />
+        </svg>
+      </button>
+    </div>
 
       {/* Info Section */}
       <section id="info-section" className="snap-start h-auto flex items-center justify-center">
         <div className="w-full h-full bg-gray-200 p-6 rounded-lg shadow-md border border-gray-300 relative overflow-auto">
           {isOwner && (
             <button
-              className="absolute top-4 right-4 bg-purple-700 text-white px-2 py-1 rounded-full hover:bg-purple-800 text-sm"
-              onClick={() => router.push(`/modifyVehicle_page?id=${id}`)} // Pass the correct vehicle ID
-            >
-              ✏️ Modify
-            </button>
+            className="absolute top-4 right-4 bg-purple-700 text-white p-2 rounded-full hover:bg-purple-800"
+            onClick={() => router.push(`/modifyVehicle_page?id=${id}`)} // Pass the correct vehicle ID
+            title="Modify Vehicle"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+</svg>
+
+          </button>
           )}
           <h2 className="text-2xl font-semibold mb-4">
             {vehicleData.year} {vehicleData.make} {vehicleData.model}
@@ -1205,7 +1260,7 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
 
     {/* AI Upcoming Maintenance Header */}
     <div className="mt-6 flex justify-between items-center">
-      <h3 className="text-md font-bold text-red-500">
+      <h3 className="text-md font-bold text-blue-500">
         Maintenance Recommendation
       </h3>
       <p className="text-xs text-gray-500">(Current Mileage: {currentMileage})</p>
