@@ -1043,7 +1043,7 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
             <strong>Features:</strong>
             <div className="flex flex-wrap gap-4 mt-2">
               {Object.entries(vehicleData)
-                .filter(([, value]) => typeof value === "boolean")
+                .filter(([key, value]) => typeof value === "boolean" && key !== "hideVin")
                 .map(([key, value]) => (
                   <div key={key} className="flex items-center space-x-2">
                     <input type="checkbox" checked={value} readOnly className="w-4 h-4" />
