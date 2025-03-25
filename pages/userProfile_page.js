@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { auth, db, storage } from "../lib/firebase";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, getDocs, query, collection, where } from "firebase/firestore";
 import { ref, getDownloadURL, uploadBytesResumable } from "firebase/storage";
 
 const UserProfilePage = () => {
@@ -47,12 +47,25 @@ const UserProfilePage = () => {
     setUploading(true);
 
     try {
+      // Check if the invitation code is unique
+      if (formData.invitationcode && formData.invitationcode !== userData.invitationcode) {
+        const querySnapshot = await getDocs(
+          query(collection(db, "members"), where("invitationcode", "==", formData.invitationcode))
+        );
+        if (!querySnapshot.empty) {
+          alert("This invitation code is already in use. Please choose a different one.");
+          setUploading(false);
+          return;
+        }
+      }
+
       // Update profile data in Firestore
       await updateDoc(doc(db, "members", user.uid), {
         firstName: formData.firstName,
         middleName: formData.middleName,
         lastName: formData.lastName,
         phoneNumber: formData.phoneNumber,
+        invitationcode: formData.invitationcode, // Update invitation code
       });
 
       // Replace profile picture in Firebase Storage if changed
@@ -158,6 +171,14 @@ const UserProfilePage = () => {
 
     setFormData({ ...formData, profileImage: fileToUpload });
     setImageUploading(false);
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      alert("Copied to clipboard!");
+    }).catch((error) => {
+      console.error("Error copying to clipboard:", error);
+    });
   };
 
   const renderStars = (rating) => {
@@ -282,6 +303,37 @@ const UserProfilePage = () => {
                   className="border border-gray-300 p-2 rounded-md w-full mb-2"
                 />
               </div>
+              <div className="form-section">
+                <label className="form-label">Invitation Code</label>
+                <div className="flex items-center">
+                  <input
+                    type="text"
+                    value={formData.invitationcode || ""}
+                    onChange={(e) => setFormData({ ...formData, invitationcode: e.target.value })}
+                    className="border border-gray-300 p-2 rounded-md w-full mb-2"
+                  />
+                  <button
+                    onClick={() => copyToClipboard(formData.invitationcode || "")}
+                    className="ml-2 p-2 bg-gray-200 rounded-md"
+                    title="Copy Invitation Code"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth="1.5"
+                      stroke="currentColor"
+                      className="h-6 w-6"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M8.25 7.5V6.108c0-1.135.845-2.098 1.976-2.192.373-.03.748-.057 1.123-.08M15.75 18H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08M15.75 18.75v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5A3.375 3.375 0 0 0 6.375 7.5H5.25m11.9-3.664A2.251 2.251 0 0 0 15 2.25h-1.5a2.251 2.251 0 0 0-2.15 1.586m5.8 0c.065.21.1.433.1.664v.75h-6V4.5c0-.231.035-.454.1-.664M6.75 7.5H4.875c-.621 0-1.125.504-1.125 1.125v12c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V16.5a9 9 0 0 0-9-9Z"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
               <div className="flex space-x-4 mt-4">
                 <button onClick={handleSave} className="btn flex items-center" disabled={uploading}>
                   <svg
@@ -328,6 +380,31 @@ const UserProfilePage = () => {
                   <p className="flex items-center">
                     <strong>Rating:</strong> {renderStars(userData.rating || 0)}
                   </p>
+                  <div className="flex items-center mb-4">
+                    <p>
+                      <strong>Invitation Code:</strong> {userData.invitationcode || "N/A"}
+                    </p>
+                    <button
+                      onClick={() => copyToClipboard(userData.invitationcode || "")}
+                      className="ml-2 p-2 bg-gray-200 rounded-md"
+                      title="Copy Invitation Code"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth="1.5"
+                        stroke="currentColor"
+                        className="h-6 w-6"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M8.25 7.5V6.108c0-1.135.845-2.098 1.976-2.192.373-.03.748-.057 1.123-.08M15.75 18H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08M15.75 18.75v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5A3.375 3.375 0 0 0 6.375 7.5H5.25m11.9-3.664A2.251 2.251 0 0 0 15 2.25h-1.5a2.251 2.251 0 0 0-2.15 1.586m5.8 0c.065.21.1.433.1.664v.75h-6V4.5c0-.231.035-.454.1-.664M6.75 7.5H4.875c-.621 0-1.125.504-1.125 1.125v12c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V16.5a9 9 0 0 0-9-9Z"
+                        />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
               <button onClick={() => setEditing(true)} className="btn flex items-center">
