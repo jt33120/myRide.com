@@ -13,16 +13,37 @@ export default function Login() {
   const handleSignIn = async (email, password) => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      console.log('User signed in:', userCredential.user);
-      // If authentication is successful, redirect to the dashboard
-      router.push("/myDashboard_page");
+      const user = userCredential.user; // Extract the user object
+      console.log('User signed in:', user);
+
+      // Redirect to the dashboard with user information
+      router.push({
+        pathname: "/myDashboard_page",
+        query: { uid: user.uid, email: user.email }, // Pass user details as query parameters
+      });
     } catch (error) {
-      if (error.code === 'auth/user-not-found') {
-        setError('No user found with this email.');
-      } else if (error.code === 'auth/wrong-password') {
-        setError('Incorrect password.');
-      } else {
-        setError('An error occurred. Please try again.');
+      console.error("Error during sign-in:", error.code); // Log only the error code for debugging
+
+      // Provide user-friendly error messages
+      switch (error.code) {
+        case 'auth/user-not-found':
+          setError('The email you entered is not associated with an account.');
+          break;
+        case 'auth/wrong-password':
+          setError('The password you entered is incorrect.');
+          break;
+        case 'auth/invalid-email':
+          setError('Please enter a valid email address.');
+          break;
+        case 'auth/too-many-requests':
+          setError('Too many failed attempts. Please try again later.');
+          break;
+        case 'auth/invalid-credential':
+          setError('There was an issue with your credentials. Please try again.');
+          break;
+        default:
+          setError('Unable to log in. Please check your credentials and try again.');
+          break;
       }
     }
   };

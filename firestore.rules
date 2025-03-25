@@ -4,13 +4,17 @@ service cloud.firestore {
     
     // Members collection: Only the user can read/write their own data
     match /members/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == uid;
+      allow read: if request.auth == null || request.auth != null; // Allow anyone to read
+      
+      // Allow public access to the invitationCode field
+      allow get: if resource.data.invitationcode != null;
     }
 
     // Listing collection: Only authenticated users can read, and only the owner can write
     match /listing/{vehicleId} {
       allow read: if request.auth != null; // Authenticated users can read
-      allow write: if request.auth != null && request.auth.uid == resource.data.uid; // Only the owner can write
+      allow write: if request.auth != null; // Authenticated users can write
 
       // Protect sensitive fields like VIN
       allow get: if request.auth != null && (resource.data.hideVin == false || request.auth.uid == resource.data.uid);
@@ -19,6 +23,11 @@ service cloud.firestore {
     // Conversations collection: Only participants can read/write
     match /conversations/{conversationId} {
       allow read, write: if request.auth != null && request.auth.uid in resource.data.participants;
+
+      // Rules for messages within a conversation
+      match /messages/{messageId} {
+        allow read, write: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+      }
     }
 
     // Receipts subcollection under listing: Only the owner can write
