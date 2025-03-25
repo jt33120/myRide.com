@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from 'next/router';
 import { auth, db, storage } from '../lib/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { doc, setDoc, arrayUnion, updateDoc } from 'firebase/firestore'; // Import setDoc, doc, arrayUnion, and updateDoc from Firestore
+import { doc, setDoc, updateDoc, arrayUnion } from 'firebase/firestore'; // Add updateDoc and arrayUnion
 
 const usStates = [
   "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
@@ -45,7 +45,7 @@ const AddVehiclePage = () => {
   const [rearWheelImage, setRearWheelImage] = useState(null);
   const [vehicleVideo, setVehicleVideo] = useState(null);
   const [otherImage, setOtherImage] = useState(null);
-  const [uploading, setUploading] = useState(false);
+  const [, setUploading] = useState(false);
   const router = useRouter();
 
   const [makes, setMakes] = useState([]);
@@ -54,6 +54,8 @@ const AddVehiclePage = () => {
   const [selectedMake, setSelectedMake] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
   const [selectedModel, setSelectedModel] = useState("");
+  const [errors, setErrors] = useState({}); // State to track errors
+  const [currentSection, setCurrentSection] = useState(1); // Track current section (1: Textual, 2: Media)
 
   // Fetch makes based on vehicle type
   useEffect(() => {
@@ -63,10 +65,25 @@ const AddVehiclePage = () => {
         return;
       }
 
-      const type = vehicleType === 'car' ? 'passenger car' : 'motorcycle';
-      const response = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/GetMakesForVehicleType/${type}?format=json`);
-      const data = await response.json();
-      setMakes(data.Results.map((make) => make.MakeName));
+      try {
+        let response;
+        if (vehicleType === 'car') {
+          response = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/GetMakesForVehicleType/passenger%20car?format=json`);
+        } else if (vehicleType === 'motorcycle') {
+          response = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/GetMakesForVehicleType/motorcycle?format=json`);
+        }
+
+        const data = await response.json();
+
+        if (data.Results && data.Results.length > 0) {
+          setMakes(data.Results.map((make) => make.MakeName));
+        } else {
+          setMakes([]); // No makes found for the selected vehicle type
+        }
+      } catch (error) {
+        console.error("Error fetching makes:", error);
+        setMakes([]); // Handle errors gracefully
+      }
     };
 
     fetchMakes();
@@ -111,8 +128,24 @@ const AddVehiclePage = () => {
     setUploading(true);
 
     // Validate required fields
-    if (!vehicleType || !selectedMake || !selectedModel || !selectedYear) {
-      alert("Please fill in all required fields!");
+    const newErrors = {};
+    if (!vehicleType) newErrors.vehicleType = "Vehicle type is required.";
+    if (!selectedMake) newErrors.selectedMake = "Make is required.";
+    if (!selectedModel) newErrors.selectedModel = "Model is required.";
+    if (!selectedYear) newErrors.selectedYear = "Year is required.";
+    if (!frontImage) newErrors.frontImage = "Front image is required.";
+    if (!boughtIn) newErrors.boughtIn = "Bought In is required.";
+    if (!boughtAt) newErrors.boughtAt = "Bought At is required.";
+    if (!color) newErrors.color = "Color is required.";
+    if (!title) newErrors.title = "Title is required.";
+    if (!mileage) newErrors.mileage = "Mileage is required.";
+    if (!zip) newErrors.zip = "Zip is required.";
+    if (!city) newErrors.city = "City is required.";
+    if (!state) newErrors.state = "State is required.";
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length > 0) {
       setUploading(false);
       return;
     }
@@ -214,34 +247,8 @@ const AddVehiclePage = () => {
   };
 
   const uploadFile = async (file, path) => {
-    let fileToUpload = file;
-
-    // Convert image to PNG if necessary
-    if (file.type !== 'image/png') {
-      try {
-        const canvas = document.createElement('canvas');
-        const img = document.createElement('img');
-        img.src = URL.createObjectURL(file);
-
-        await new Promise((resolve) => {
-          img.onload = () => {
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0);
-            canvas.toBlob((blob) => {
-              fileToUpload = new File([blob], file.name.replace(/\.[^/.]+$/, ".png"), { type: 'image/png' });
-              resolve();
-            }, 'image/png');
-          };
-        });
-      } catch (error) {
-        console.error("Error converting image to PNG:", error);
-      }
-    }
-
     const storageRef = ref(storage, path);
-    const uploadTask = uploadBytesResumable(storageRef, fileToUpload);
+    const uploadTask = uploadBytesResumable(storageRef, file);
 
     return new Promise((resolve, reject) => {
       uploadTask.on(
@@ -267,264 +274,337 @@ const AddVehiclePage = () => {
     });
   };
 
-  const handleFileDownload = async () => {
-    try {
-      const fileRef = ref(storage, 'public/BUY_MOTORCYCLE_CHECKLIST.xlsx'); // Updated path to include 'public'
-      const downloadURL = await getDownloadURL(fileRef);
-      window.open(downloadURL, '_blank'); // Open the file in a new tab
-    } catch (error) {
-      console.error("Error downloading file:", error);
-      alert("Failed to download the file. Please try again.");
+  // Navigation handlers
+  const goToNextSection = () => setCurrentSection(2);
+  const goToPreviousSection = () => setCurrentSection(1);
+
+  const handleValidate = async () => {
+    setUploading(true);
+
+    // Validate required fields
+    const newErrors = {};
+    if (!vehicleType) newErrors.vehicleType = "Vehicle type is required.";
+    if (!selectedMake) newErrors.selectedMake = "Make is required.";
+    if (!selectedModel) newErrors.selectedModel = "Model is required.";
+    if (!selectedYear) newErrors.selectedYear = "Year is required.";
+    if (!boughtIn) newErrors.boughtIn = "Bought In is required.";
+    if (!boughtAt) newErrors.boughtAt = "Bought At is required.";
+    if (!color) newErrors.color = "Color is required.";
+    if (!title) newErrors.title = "Title is required.";
+    if (!mileage) newErrors.mileage = "Mileage is required.";
+    if (!zip) newErrors.zip = "Zip is required.";
+    if (!city) newErrors.city = "City is required.";
+    if (!state) newErrors.state = "State is required.";
+    if (!frontImage) newErrors.frontImage = "Front image is required.";
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length > 0) {
+      setUploading(false);
+      return;
     }
+
+    await handleAddVehicle(); // Proceed to add vehicle if no errors
   };
 
   return (
     <div className="min-h-screen p-6 bg-gray-100 text-black">
       <h1 className="text-3xl font-bold mb-6 text-center">Add Vehicle</h1>
       <div className="form-container">
-        <div className="form-section">
-          <label className="form-label">Vehicle Type *</label>
-          <select
-            value={vehicleType}
-            onChange={(e) => {
-              setVehicleType(e.target.value);
-              setSelectedMake(''); // Reset make when vehicle type changes
-              setSelectedModel(''); // Reset model when vehicle type changes
-            }}
-            className="border border-gray-300 p-2 rounded-md w-full mb-2"
-            required
-          >
-            <option value="">Select Vehicle Type</option>
-            <option value="car">Car</option>
-            <option value="motorcycle">Motorcycle</option>
-          </select>
-        </div>
-        <div className="form-section">
-          <label className="form-label">Make *</label>
-          <select
-            value={selectedMake}
-            onChange={(e) => setSelectedMake(e.target.value)}
-            className="border border-gray-300 p-2 rounded-md w-full mb-2"
-            required
-            disabled={!vehicleType}
-          >
-            <option value="">Select Make</option>
-            {makes.map((make, index) => (
-              <option key={index} value={make}>
-                {make}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="form-section">
-          <label className="form-label">Year *</label>
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(e.target.value)}
-            className="border border-gray-300 p-2 rounded-md w-full mb-2"
-            required
-          >
-            <option value="">Select Year</option>
-            {years.map((year, index) => (
-              <option key={index} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="form-section">
-          <label className="form-label">Model *</label>
-          <select
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
-            className="border border-gray-300 p-2 rounded-md w-full mb-2"
-            required
-            disabled={!selectedMake || !selectedYear}
-          >
-            <option value="">Select Model</option>
-            {models.map((model, index) => (
-              <option key={index} value={model}>
-                {model}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="form-section">
-          <label className="form-label">Bought in *</label>
-          <input type="text" value={boughtIn} onChange={(e) => setBoughtIn(e.target.value)} required />
-        </div>
-        <div className="form-section">
-          <label className="form-label">Bought at *</label>
-          <input type="text" value={boughtAt} onChange={(e) => setBoughtAt(e.target.value)} required />
-        </div>
-        <div className="form-section">
-          <label className="form-label">Color *</label>
-          <input type="text" value={color} onChange={(e) => setColor(e.target.value)} required />
-        </div>
-        <div className="form-section">
-          <label className="form-label">VIN *</label>
-          <input type="text" value={vin} onChange={(e) => setVin(e.target.value)} required />
-        </div>
-        <div className="form-section">
-          <label className="form-label">Title *</label>
-          <select value={title} onChange={(e) => setTitle(e.target.value)} required>
-            <option value="">Select Title Status</option>
-            <option value="clean">Clean</option>
-            <option value="salvage">Salvage</option>
-            <option value="rebuilt">Rebuilt</option>
-          </select>
-        </div>
-        <div className="form-section">
-          <label className="form-label">Mileage *</label>
-          <input type="text" value={mileage} onChange={(e) => setMileage(e.target.value)} required />
-        </div>
-        <div className="form-section">
-          <label className="form-label">ZIP Code *</label>
-          <input type="text" value={zip} onChange={(e) => setZip(e.target.value)} maxLength="5" pattern="\d*" required />
-        </div>
-        <div className="form-section">
-          <label className="form-label">State *</label>
-          <select value={state} onChange={(e) => setState(e.target.value)} required>
-            <option value="">Select State</option>
-            {usStates.map((state, index) => (
-              <option key={index} value={state}>{state}</option>
-            ))}
-          </select>
-        </div>
-        <div className="form-section">
-          <label className="form-label">City *</label>
-          <input type="text" value={city} onChange={(e) => setCity(e.target.value)} required />
-        </div>
-        {vehicleType === 'car' && (
+        {currentSection === 1 && (
           <>
             <div className="form-section">
-              <label className="form-label">Interior Color</label>
-              <input type="text" value={interiorColor} onChange={(e) => setInteriorColor(e.target.value)} />
+              <label className="form-label">Vehicle Type *</label>
+              <select
+                value={vehicleType}
+                onChange={(e) => {
+                  setVehicleType(e.target.value);
+                  setSelectedMake(''); // Reset make when vehicle type changes
+                  setSelectedModel(''); // Reset model when vehicle type changes
+                  setErrors({ ...errors, vehicleType: null }); // Clear error
+                }}
+                className={`border p-2 rounded-md w-full mb-2 ${errors.vehicleType ? 'border-red-500' : 'border-gray-300'}`}
+                required
+              >
+                <option value="">Select Vehicle Type</option>
+                <option value="car">Car</option>
+                <option value="motorcycle">Motorcycle</option>
+              </select>
+              {errors.vehicleType && <p className="text-red-500 text-sm">{errors.vehicleType}</p>}
             </div>
             <div className="form-section">
-              <label className="form-label">All Wheel Drive</label>
-              <input type="checkbox" checked={awd} onChange={(e) => setAwd(e.target.checked)} />
+              <label className="form-label">Make *</label>
+              <select
+                value={selectedMake}
+                onChange={(e) => {
+                  setSelectedMake(e.target.value);
+                  setErrors({ ...errors, selectedMake: null }); // Clear error
+                }}
+                className={`border p-2 rounded-md w-full mb-2 ${errors.selectedMake ? 'border-red-500' : 'border-gray-300'}`}
+                required
+                disabled={!vehicleType}
+              >
+                <option value="">Select Make</option>
+                {makes.map((make, index) => (
+                  <option key={index} value={make}>
+                    {make}
+                  </option>
+                ))}
+              </select>
+              {errors.selectedMake && <p className="text-red-500 text-sm">{errors.selectedMake}</p>}
             </div>
             <div className="form-section">
-              <label className="form-label">Specific line (sportline, package, etc)</label>
-              <input type="text" value={packageLine} onChange={(e) => setPackageLine(e.target.value)} />
+              <label className="form-label">Year *</label>
+              <select
+                value={selectedYear}
+                onChange={(e) => {
+                  setSelectedYear(e.target.value);
+                  setErrors({ ...errors, selectedYear: null }); // Clear error
+                }}
+                className={`border p-2 rounded-md w-full mb-2 ${errors.selectedYear ? 'border-red-500' : 'border-gray-300'}`}
+                required
+              >
+                <option value="">Select Year</option>
+                {years.map((year, index) => (
+                  <option key={index} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+              {errors.selectedYear && <p className="text-red-500 text-sm">{errors.selectedYear}</p>}
             </div>
             <div className="form-section">
-              <label className="form-label">Options</label>
-              <input type="text" value={options} onChange={(e) => setOptions(e.target.value)} />
+              <label className="form-label">Model *</label>
+              <select
+                value={selectedModel}
+                onChange={(e) => {
+                  setSelectedModel(e.target.value);
+                  setErrors({ ...errors, selectedModel: null }); // Clear error
+                }}
+                className={`border p-2 rounded-md w-full mb-2 ${errors.selectedModel ? 'border-red-500' : 'border-gray-300'}`}
+                required
+                disabled={!selectedMake || !selectedYear}
+              >
+                <option value="">Select Model</option>
+                {models.map((model, index) => (
+                  <option key={index} value={model}>
+                    {model}
+                  </option>
+                ))}
+              </select>
+              {errors.selectedModel && <p className="text-red-500 text-sm">{errors.selectedModel}</p>}
+            </div>
+            <div className="form-section">
+              <label className="form-label">Bought in *</label>
+              <input type="text" value={boughtIn} onChange={(e) => setBoughtIn(e.target.value)} required />
+            </div>
+            <div className="form-section">
+              <label className="form-label">Bought at *</label>
+              <input type="text" value={boughtAt} onChange={(e) => setBoughtAt(e.target.value)} required />
+            </div>
+            <div className="form-section">
+              <label className="form-label">Color *</label>
+              <input type="text" value={color} onChange={(e) => setColor(e.target.value)} required />
+            </div>
+            <div className="form-section">
+              <label className="form-label">VIN *</label>
+              <input type="text" value={vin} onChange={(e) => setVin(e.target.value)} required />
+            </div>
+            <div className="form-section">
+              <label className="form-label">Title *</label>
+              <select value={title} onChange={(e) => setTitle(e.target.value)} required>
+                <option value="">Select Title Status</option>
+                <option value="clean">Clean</option>
+                <option value="salvage">Salvage</option>
+                <option value="rebuilt">Rebuilt</option>
+              </select>
+            </div>
+            <div className="form-section">
+              <label className="form-label">Mileage *</label>
+              <input type="text" value={mileage} onChange={(e) => setMileage(e.target.value)} required />
+            </div>
+            <div className="form-section">
+              <label className="form-label">ZIP Code *</label>
+              <input type="text" value={zip} onChange={(e) => setZip(e.target.value)} maxLength="5" pattern="\d*" required />
+            </div>
+            <div className="form-section">
+              <label className="form-label">State *</label>
+              <select value={state} onChange={(e) => setState(e.target.value)} required>
+                <option value="">Select State</option>
+                {usStates.map((state, index) => (
+                  <option key={index} value={state}>{state}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-section">
+              <label className="form-label">City *</label>
+              <input type="text" value={city} onChange={(e) => setCity(e.target.value)} required />
+            </div>
+            {vehicleType === 'car' && (
+              <>
+                <div className="form-section">
+                  <label className="form-label">Interior Color</label>
+                  <input type="text" value={interiorColor} onChange={(e) => setInteriorColor(e.target.value)} />
+                </div>
+                <div className="form-section">
+                  <label className="form-label">All Wheel Drive</label>
+                  <input type="checkbox" checked={awd} onChange={(e) => setAwd(e.target.checked)} />
+                </div>
+                <div className="form-section">
+                  <label className="form-label">Specific line (sportline, package, etc)</label>
+                  <input type="text" value={packageLine} onChange={(e) => setPackageLine(e.target.value)} />
+                </div>
+                <div className="form-section">
+                  <label className="form-label">Options</label>
+                  <input type="text" value={options} onChange={(e) => setOptions(e.target.value)} />
+                </div>
+              </>
+            )}
+            {vehicleType === 'motorcycle' && (
+              <>
+                <div className="form-section">
+                  <label className="form-label">CC</label>
+                  <input type="text" value={cc} onChange={(e) => setCc(e.target.value)} />
+                </div>
+                <div className="form-section">
+                  <label className="form-label">Dropped</label>
+                  <input type="checkbox" checked={dropped} onChange={(e) => setDropped(e.target.checked)} />
+                </div>
+              </>
+            )}
+            <div className="form-section">
+              <label className="form-label">Tracked</label>
+              <input type="checkbox" checked={tracked} onChange={(e) => setTracked(e.target.checked)} />
+            </div>
+            <div className="form-section">
+              <label className="form-label">Garage kept</label>
+              <input type="checkbox" checked={garageKept} onChange={(e) => setGarageKept(e.target.checked)} />
+            </div>
+            <div className="form-section">
+              <label className="form-label">Description</label>
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} />
+            </div>
+            <div className="form-section">
+              <label className="form-label">Cosmetic Defaults</label>
+              <textarea value={cosmeticDefaults} onChange={(e) => setCosmeticDefaults(e.target.value)} />
+            </div>
+            <div className="form-section">
+              <label className="form-label">Aftermarket Mods</label>
+              <textarea value={aftermarketMods} onChange={(e) => setAftermarketMods(e.target.value)} />
+            </div>
+            <button
+              onClick={goToNextSection}
+              className="btn flex items-center justify-center mt-4"
+            >
+              Next
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6 ml-2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+              </svg>
+            </button>
+          </>
+        )}
+
+        {currentSection === 2 && (
+          <>
+            <div className="form-section">
+              <label className="form-label">Front Image *</label>
+              <input
+                type="file"
+                onChange={(e) => {
+                  setFrontImage(e.target.files[0]);
+                  setErrors({ ...errors, frontImage: null }); // Clear error
+                }}
+                className={`border p-2 rounded-md w-full mb-2 ${errors.frontImage ? 'border-red-500' : 'border-gray-300'}`}
+                required
+              />
+              {errors.frontImage && <p className="text-red-500 text-sm">{errors.frontImage}</p>}
+            </div>
+            <div className="form-section">
+              <label className="form-label">Left Image</label>
+              <input type="file" onChange={(e) => setLeftImage(e.target.files[0])} />
+            </div>
+            <div className="form-section">
+              <label className="form-label">Right Image</label>
+              <input type="file" onChange={(e) => setRightImage(e.target.files[0])} />
+            </div>
+            <div className="form-section">
+              <label className="form-label">Rear Image</label>
+              <input type="file" onChange={(e) => setRearImage(e.target.files[0])} />
+            </div>
+            <div className="form-section">
+              <label className="form-label">Dashboard Image</label>
+              <input type="file" onChange={(e) => setDashboardImage(e.target.files[0])} />
+            </div>
+            {vehicleType === 'car' && (
+              <>
+                <div className="form-section">
+                  <label className="form-label">Left Front Wheel Image</label>
+                  <input type="file" onChange={(e) => setLeftFrontWheelImage(e.target.files[0])} />
+                </div>
+                <div className="form-section">
+                  <label className="form-label">Right Front Wheel Image</label>
+                  <input type="file" onChange={(e) => setRightFrontWheelImage(e.target.files[0])} />
+                </div>
+                <div className="form-section">
+                  <label className="form-label">Left Rear Wheel Image</label>
+                  <input type="file" onChange={(e) => setLeftRearWheelImage(e.target.files[0])} />
+                </div>
+                <div className="form-section">
+                  <label className="form-label">Right Rear Wheel Image</label>
+                  <input type="file" onChange={(e) => setRightRearWheelImage(e.target.files[0])} />
+                </div>
+                <div className="form-section">
+                  <label className="form-label">Engine Bay Image</label>
+                  <input type="file" onChange={(e) => setEngineBayImage(e.target.files[0])} />
+                </div>
+              </>
+            )}
+            {vehicleType === 'motorcycle' && (
+              <>
+                <div className="form-section">
+                  <label className="form-label">Chain Image</label>
+                  <input type="file" onChange={(e) => setChainImage(e.target.files[0])} />
+                </div>
+                <div className="form-section">
+                  <label className="form-label">Front Wheel Image</label>
+                  <input type="file" onChange={(e) => setFrontWheelImage(e.target.files[0])} />
+                </div>
+                <div className="form-section">
+                  <label className="form-label">Rear Wheel Image</label>
+                  <input type="file" onChange={(e) => setRearWheelImage(e.target.files[0])} />
+                </div>
+              </>
+            )}
+            <div className="form-section">
+              <label className="form-label">Vehicle Video</label>
+              <input type="file" onChange={(e) => setVehicleVideo(e.target.files[0])} />
+            </div>
+            <div className="form-section">
+              <label className="form-label">Other Image</label>
+              <input type="file" onChange={(e) => setOtherImage(e.target.files[0])} />
+            </div>
+            <div className="flex justify-between mt-4">
+              <button
+                onClick={goToPreviousSection}
+                className="btn flex items-center justify-center"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6 mr-2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+                </svg>
+                Previous
+              </button>
+              <button
+                onClick={handleValidate}
+                className="btn flex items-center justify-center"
+              >
+                Validate
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6 ml-2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                </svg>
+              </button>
             </div>
           </>
         )}
-        {vehicleType === 'motorcycle' && (
-          <>
-            <div className="form-section">
-              <label className="form-label">CC</label>
-              <input type="text" value={cc} onChange={(e) => setCc(e.target.value)} />
-            </div>
-            <div className="form-section">
-              <label className="form-label">Dropped</label>
-              <input type="checkbox" checked={dropped} onChange={(e) => setDropped(e.target.checked)} />
-            </div>
-          </>
-        )}
-        <div className="form-section">
-          <label className="form-label">Tracked</label>
-          <input type="checkbox" checked={tracked} onChange={(e) => setTracked(e.target.checked)} />
-        </div>
-        <div className="form-section">
-          <label className="form-label">Garage kept</label>
-          <input type="checkbox" checked={garageKept} onChange={(e) => setGarageKept(e.target.checked)} />
-        </div>
-        <div className="form-section">
-          <label className="form-label">Description</label>
-          <textarea value={description} onChange={(e) => setDescription(e.target.value)} />
-        </div>
-        <div className="form-section">
-          <label className="form-label">Cosmetic Defaults</label>
-          <textarea value={cosmeticDefaults} onChange={(e) => setCosmeticDefaults(e.target.value)} />
-        </div>
-        <div className="form-section">
-          <label className="form-label">Aftermarket Mods</label>
-          <textarea value={aftermarketMods} onChange={(e) => setAftermarketMods(e.target.value)} />
-        </div>
-        <div className="form-section">
-          <label className="form-label">Front Image *</label>
-          <input type="file" onChange={(e) => setFrontImage(e.target.files[0])} required />
-        </div>
-        <div className="form-section">
-          <label className="form-label">Left Image</label>
-          <input type="file" onChange={(e) => setLeftImage(e.target.files[0])} />
-        </div>
-        <div className="form-section">
-          <label className="form-label">Right Image</label>
-          <input type="file" onChange={(e) => setRightImage(e.target.files[0])} />
-        </div>
-        <div className="form-section">
-          <label className="form-label">Rear Image</label>
-          <input type="file" onChange={(e) => setRearImage(e.target.files[0])} />
-        </div>
-        <div className="form-section">
-          <label className="form-label">Dashboard Image</label>
-          <input type="file" onChange={(e) => setDashboardImage(e.target.files[0])} />
-        </div>
-        {vehicleType === 'car' && (
-          <>
-            <div className="form-section">
-              <label className="form-label">Left Front Wheel Image</label>
-              <input type="file" onChange={(e) => setLeftFrontWheelImage(e.target.files[0])} />
-            </div>
-            <div className="form-section">
-              <label className="form-label">Right Front Wheel Image</label>
-              <input type="file" onChange={(e) => setRightFrontWheelImage(e.target.files[0])} />
-            </div>
-            <div className="form-section">
-              <label className="form-label">Left Rear Wheel Image</label>
-              <input type="file" onChange={(e) => setLeftRearWheelImage(e.target.files[0])} />
-            </div>
-            <div className="form-section">
-              <label className="form-label">Right Rear Wheel Image</label>
-              <input type="file" onChange={(e) => setRightRearWheelImage(e.target.files[0])} />
-            </div>
-            <div className="form-section">
-              <label className="form-label">Engine Bay Image</label>
-              <input type="file" onChange={(e) => setEngineBayImage(e.target.files[0])} />
-            </div>
-          </>
-        )}
-        {vehicleType === 'motorcycle' && (
-          <>
-            <div className="form-section">
-              <label className="form-label">Chain Image</label>
-              <input type="file" onChange={(e) => setChainImage(e.target.files[0])} />
-            </div>
-            <div className="form-section">
-              <label className="form-label">Front Wheel Image</label>
-              <input type="file" onChange={(e) => setFrontWheelImage(e.target.files[0])} />
-            </div>
-            <div className="form-section">
-              <label className="form-label">Rear Wheel Image</label>
-              <input type="file" onChange={(e) => setRearWheelImage(e.target.files[0])} />
-            </div>
-          </>
-        )}
-        <div className="form-section">
-          <label className="form-label">Vehicle Video</label>
-          <input type="file" onChange={(e) => setVehicleVideo(e.target.files[0])} />
-        </div>
-        <div className="form-section">
-          <label className="form-label">Other Image</label>
-          <input type="file" onChange={(e) => setOtherImage(e.target.files[0])} />
-        </div>
-        <button
-          onClick={handleAddVehicle}
-          className="btn"
-          disabled={uploading}
-        >
-          {uploading ? <div className="loader"></div> : 'Add Vehicle'}
-        </button>
-        <button onClick={handleFileDownload} className="btn">
-          Download Motorcycle Checklist
-        </button>
       </div>
     </div>
   );
