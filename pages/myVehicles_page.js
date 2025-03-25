@@ -195,6 +195,9 @@ const MyGarage = () => {
       setVehicles((prevVehicles) => prevVehicles.filter((vehicle) => vehicle.id !== vehicleId));
 
       alert("Vehicle deleted successfully.");
+
+      // Redirect to myVehicles_page and refresh the page
+      router.replace('/myVehicles_page');
     } catch (error) {
       console.error("Error deleting vehicle:", error);
       alert("Failed to delete vehicle. Please try again.");

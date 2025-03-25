@@ -292,7 +292,7 @@ const AddVehiclePage = () => {
     if (!color) newErrors.color = "Color is required.";
     if (!title) newErrors.title = "Title is required.";
     if (!mileage) newErrors.mileage = "Mileage is required.";
-    if (!zip) newErrors.zip = "Zip is required.";
+    if (!zip) newErrors.zip = "ZIP Code is required.";
     if (!city) newErrors.city = "City is required.";
     if (!state) newErrors.state = "State is required.";
     if (!frontImage) newErrors.frontImage = "Front image is required.";
@@ -395,50 +395,130 @@ const AddVehiclePage = () => {
               {errors.selectedModel && <p className="text-red-500 text-sm">{errors.selectedModel}</p>}
             </div>
             <div className="form-section">
-              <label className="form-label">Bought in *</label>
-              <input type="text" value={boughtIn} onChange={(e) => setBoughtIn(e.target.value)} required />
+              <label className="form-label">Bought In *</label>
+              <input
+                type="text"
+                value={boughtIn}
+                onChange={(e) => {
+                  setBoughtIn(e.target.value);
+                  setErrors({ ...errors, boughtIn: null });
+                }}
+                className={`border p-2 rounded-md w-full mb-2 ${errors.boughtIn ? 'border-red-500' : 'border-gray-300'}`}
+                required
+              />
+              {errors.boughtIn && <p className="text-red-500 text-sm">{errors.boughtIn}</p>}
             </div>
             <div className="form-section">
-              <label className="form-label">Bought at *</label>
-              <input type="text" value={boughtAt} onChange={(e) => setBoughtAt(e.target.value)} required />
+              <label className="form-label">Bought At *</label>
+              <input
+                type="text"
+                value={boughtAt}
+                onChange={(e) => {
+                  setBoughtAt(e.target.value);
+                  setErrors({ ...errors, boughtAt: null });
+                }}
+                className={`border p-2 rounded-md w-full mb-2 ${errors.boughtAt ? 'border-red-500' : 'border-gray-300'}`}
+                required
+              />
+              {errors.boughtAt && <p className="text-red-500 text-sm">{errors.boughtAt}</p>}
             </div>
             <div className="form-section">
               <label className="form-label">Color *</label>
-              <input type="text" value={color} onChange={(e) => setColor(e.target.value)} required />
+              <input
+                type="text"
+                value={color}
+                onChange={(e) => {
+                  setColor(e.target.value);
+                  setErrors({ ...errors, color: null });
+                }}
+                className={`border p-2 rounded-md w-full mb-2 ${errors.color ? 'border-red-500' : 'border-gray-300'}`}
+                required
+              />
+              {errors.color && <p className="text-red-500 text-sm">{errors.color}</p>}
             </div>
             <div className="form-section">
-              <label className="form-label">VIN *</label>
-              <input type="text" value={vin} onChange={(e) => setVin(e.target.value)} required />
+              <label className="form-label">VIN</label>
+              <textarea value={vin} onChange={(e) => setVin(e.target.value)} />
             </div>
             <div className="form-section">
               <label className="form-label">Title *</label>
-              <select value={title} onChange={(e) => setTitle(e.target.value)} required>
+              <select
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  setErrors({ ...errors, title: null });
+                }}
+                className={`border p-2 rounded-md w-full mb-2 ${errors.title ? 'border-red-500' : 'border-gray-300'}`}
+                required
+              >
                 <option value="">Select Title Status</option>
                 <option value="clean">Clean</option>
                 <option value="salvage">Salvage</option>
                 <option value="rebuilt">Rebuilt</option>
               </select>
+              {errors.title && <p className="text-red-500 text-sm">{errors.title}</p>}
             </div>
             <div className="form-section">
               <label className="form-label">Mileage *</label>
-              <input type="text" value={mileage} onChange={(e) => setMileage(e.target.value)} required />
+              <input
+                type="text"
+                value={mileage}
+                onChange={(e) => {
+                  setMileage(e.target.value);
+                  setErrors({ ...errors, mileage: null });
+                }}
+                className={`border p-2 rounded-md w-full mb-2 ${errors.mileage ? 'border-red-500' : 'border-gray-300'}`}
+                required
+              />
+              {errors.mileage && <p className="text-red-500 text-sm">{errors.mileage}</p>}
             </div>
             <div className="form-section">
               <label className="form-label">ZIP Code *</label>
-              <input type="text" value={zip} onChange={(e) => setZip(e.target.value)} maxLength="5" pattern="\d*" required />
+              <input
+                type="text"
+                value={zip}
+                onChange={(e) => {
+                  setZip(e.target.value);
+                  setErrors({ ...errors, zip: null });
+                }}
+                className={`border p-2 rounded-md w-full mb-2 ${errors.zip ? 'border-red-500' : 'border-gray-300'}`}
+                required
+              />
+              {errors.zip && <p className="text-red-500 text-sm">{errors.zip}</p>}
             </div>
             <div className="form-section">
               <label className="form-label">State *</label>
-              <select value={state} onChange={(e) => setState(e.target.value)} required>
+              <select
+                value={state}
+                onChange={(e) => {
+                  setState(e.target.value);
+                  setErrors({ ...errors, state: null });
+                }}
+                className={`border p-2 rounded-md w-full mb-2 ${errors.state ? 'border-red-500' : 'border-gray-300'}`}
+                required
+              >
                 <option value="">Select State</option>
                 {usStates.map((state, index) => (
-                  <option key={index} value={state}>{state}</option>
+                  <option key={index} value={state}>
+                    {state}
+                  </option>
                 ))}
               </select>
+              {errors.state && <p className="text-red-500 text-sm">{errors.state}</p>}
             </div>
             <div className="form-section">
               <label className="form-label">City *</label>
-              <input type="text" value={city} onChange={(e) => setCity(e.target.value)} required />
+              <input
+                type="text"
+                value={city}
+                onChange={(e) => {
+                  setCity(e.target.value);
+                  setErrors({ ...errors, city: null });
+                }}
+                className={`border p-2 rounded-md w-full mb-2 ${errors.city ? 'border-red-500' : 'border-gray-300'}`}
+                required
+              />
+              {errors.city && <p className="text-red-500 text-sm">{errors.city}</p>}
             </div>
             {vehicleType === 'car' && (
               <>
