@@ -26,7 +26,7 @@ export default async function handler(req, res) {
     const fullPrompt = `
       ${vehicleContext}
       User Question: ${prompt}
-      Provide a detailed and specific answer based on the vehicle details above.
+      You are a maintenance helper for this vehicle owner. Answer the user question as accurately as posible.
     `;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {

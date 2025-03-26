@@ -19,7 +19,7 @@ export default async function handler(req, res) {
             - Color: ${color || 'Unknown'}
             - Title Status: ${title || 'Unknown'}
             - Location: ${city || 'Unknown'}, ${state || 'Unknown'}, ${zip || 'Unknown'}
-      Consider factors such as depreciation, market trends, and mileage. Provide the estimated value in USD such as $xxxx.xx (not a comma). You're answer should be:  "AI-based Value estimation : $..."
+      Consider factors such as depreciation, market trends, and mileage, and current data online to provide the most accurate estimated value for this vehicle, in USD such as $xxxx.xx (not a comma). You're answer should be:  "AI-based Value estimation : $..."
     `;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {

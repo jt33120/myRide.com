@@ -18,29 +18,19 @@ export default async function handler(req, res) {
         Analyze the owner's manual available at the following URL: ${url}.
         There are no maintenance receipts provided. Based on the vehicle's mileage (${mileage} miles):
         - If the mileage is less than 1000, assume the vehicle is new and recommend starting with the initial maintenance tasks from the owner's manual.
-        - If the mileage is higher, assume the vehicle has just been purchased and recommend an appropriate checkup for the current mileage.
-        Provide recommendations for the next maintenance tasks, including:
-        - Mandatory tasks.
-        - Recommended tasks.
-        - Check (Inspect/Adjust) tasks.
-        - Recommended Parts & Oil (if specified in the manual).
-        Your output should be concise and informative, no more than 200 characters. For example: "To come: Oil change at 19500 miles. Recommended: air filter at ... . Check chain at ...".
+        - If the mileage is higher than 1000, assume the vehicle has just been purchased recently and recommend an appropriate checkup for the vehicle's mileage.
+        Your output should be concise and informative, no more than 200 characters. For example: "Vehicle just purchased, recommend to check...".
       `;
     } else {
       // Handle case with receipts
       prompt = ` In 100 characters output.
-        Analyze the owner's manual available at the following URL: ${url}.
-        Based on the following maintenance history provided by the user:
+        Compare the owner's manual maintenance schedule, available at the following URL: ${url}.
+        with the maintenance history available through the receipts provided by the vehicle owner:
         ${JSON.stringify(receipts.map((r) => ({ title: r.title, mileage: r.mileage })), null, 2)},
-        compare the maintenance history with the manual and provide recommendations for the next maintenance tasks. If a task has been done recently, adapt the owner manual with common sense.
-        The recommendations should include:
-        - Mileage at which the task should be performed (it can't be lower than the current mileage, of course)
-        - Mandatory tasks.
-        - Recommended tasks.
-        - Check (Inspect/Adjust) tasks.
-        - Recommended Parts & Oil (if specified in the manual).
-        Ask yourself, when the user did the last oil change, or chain brake, or regular maintenance? Based on its own case, is the upcoming maintenance coming soon?
-        Don't make sentence, just info. For example: "To come: Oil change at 19500 miles. Recommended: air filter at ... . Check chain at ...". 
+        These receipts are what the owner did and at which mileage he did it. The current vehicle mileage is : ${mileage} miles.
+        From this comparison, provide recommendations for the upcoming maintenance tasks, as such :
+        - Mandatory  : ... at ... miles. Recommended : ... at ... miles. Check (Inspect/Adjust) : ... at ...
+        - Next oil change at ... miles (ajust based on the receipts from last time it has been done and the frequency provided by the user manual)
       `;
     }
 
