@@ -23,14 +23,17 @@ export default async function handler(req, res) {
       `;
     } else {
       // Handle case with receipts
-      prompt = ` In 100 characters output.
-        Compare the owner's manual maintenance schedule, available at the following URL: ${url}.
-        with the maintenance history available through the receipts provided by the vehicle owner:
+      prompt = ` You are an maintenance expert.
+        Based on the owner manual, that you can find at thir url : ${url}.
+        The history of what has been done to the vehicle (to know what is mising, or to adjust the frequency of some maintenance tasks) : 
         ${JSON.stringify(receipts.map((r) => ({ title: r.title, mileage: r.mileage })), null, 2)},
-        These receipts are what the owner did and at which mileage he did it. The current vehicle mileage is : ${mileage} miles.
-        From this comparison, provide recommendations for the upcoming maintenance tasks, as such :
-        - Mandatory  : ... at ... miles. Recommended : ... at ... miles. Check (Inspect/Adjust) : ... at ...
-        - Next oil change at ... miles (ajust based on the receipts from last time it has been done and the frequency provided by the user manual)
+        And the current mileage of the vehicle : ${mileage} miles.
+        You need to tell the owner what he is gonna have to do next, to be sure that his vehicle is safe, and completely up-to-date with the owner manual.
+        Your primary tool is the user manual, what should be done at this stage, then you can adjust with the real history of maintenance of the vehicle 
+        (to adjust mileage of regular maintenance task for example). Obviously, you can't recommend a task at mileage inferior to the current one!
+        Your output should follow this exact format:
+      "- To do: [Task name other than oil change] ([Mileage] miles). Recommended (check/inspect): [Task name] at [Mileage] miles.
+      - Next oil change: at [Mileage] miles" (based on current mileage, last known oil change, and the frequency specified in the owner's manual).
       `;
     }
 

@@ -356,10 +356,12 @@ const VehicleCardPage = () => {
 
         const vehicleData = vehicleDoc.data();
         const ownerManual = vehicleData.ownerManual;
+        const currentMileage = vehicleData.mileage;
         if (!ownerManual) {
           throw new Error('Owner manual URL not available.');
         }
         setOwnerManualUrl(ownerManual);
+        setCurrentMileage(currentMileage);
 
         // Fetch receipts
         const receiptsRef = collection(db, `listing/${id}/receipts`);
@@ -376,6 +378,7 @@ const VehicleCardPage = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             url: ownerManual,
+            mileage: currentMileage,
             receipts: receiptsData.map((r) => ({
               title: r.title,
               mileage: r.mileage || 'Unknown',
@@ -556,7 +559,7 @@ const VehicleCardPage = () => {
 
 
           // Set current mileage from Firestore
-          setCurrentMileage(vehicle.mileage || 'N/A');
+          setCurrentMileage(vehicle.mileage);
           setHideVin(vehicle.hideVin || false); // Set initial VIN visibility state
         } else {
           console.log("No such document!");
@@ -870,6 +873,7 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           url: ownerManualUrl,
+          mileage: vehicleData?.mileage || 'Unknown', // Include current mileage
           receipts: receipts.map((r) => ({
             title: r.title,
             mileage: r.mileage || 'Unknown',
@@ -1264,7 +1268,7 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
       <h3 className="text-md font-bold text-blue-500">
         Maintenance Recommendation
       </h3>
-      <p className="text-xs text-gray-500">(Current Mileage: {currentMileage})</p>
+      <p className="text-xs text-gray-500">(Current Mileage: {vehicleData.mileage })</p>
       {isOwner && (
         <button
           onClick={() => setShowOwnerManualModal(true)}
