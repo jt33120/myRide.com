@@ -266,7 +266,7 @@ const VehicleCardPage = () => {
   const [ownerName, setOwnerName] = useState('');
   const [sumType, setSumType] = useState('Total Spent'); // State to track the current sum type
   const [showOwnerManualModal, setShowOwnerManualModal] = useState(false);
-  const [currentMileage, setCurrentMileage] = useState(null); // State for current mileage
+  const [, setCurrentMileage] = useState(null); // State for current mileage
   const [showEditReceiptForm, setShowEditReceiptForm] = useState(false);
   const [editingReceipt, setEditingReceipt] = useState(null); // State for editing receipt
   const [refreshing, setRefreshing] = useState(false); // State for refresh button
