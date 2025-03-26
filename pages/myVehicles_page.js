@@ -178,30 +178,54 @@ const MyGarage = () => {
     if (!confirmDelete) return;
 
     try {
-      // Delete vehicle document from Firestore
+      // Delete all files in the folder from Firebase Storage
+      const folderRef = ref(storage, `listing/${vehicleId}/photos`);
+      const fileList = await listAll(folderRef);
+
+      if (fileList.items.length === 0) {
+        console.log(`No files found in folder listing/${vehicleId}/photos.`);
+      }
+
+      // Log files to be deleted
+      console.log(`Files to delete in folder listing/${vehicleId}/photos:`, fileList.items.map(file => file.name));
+
+      // Delete each file in the folder
+      const deletePromises = fileList.items.map(async (fileRef) => {
+        try {
+          await deleteObject(fileRef);
+          console.log(`Deleted file: ${fileRef.fullPath}`);
+        } catch (error) {
+          console.error(`Failed to delete file: ${fileRef.fullPath}`, error);
+        }
+      });
+      await Promise.all(deletePromises);
+
+      // Delete the document from the `listing` collection
       await deleteDoc(doc(db, "listing", vehicleId));
 
-      // Remove vehicle ID from the user's vehicles array in the members collection
+      // Remove the vehicle ID from the user's `vehicles` array in the `members` collection
       const userDocRef = doc(db, "members", user.uid);
       await updateDoc(userDocRef, {
         vehicles: arrayRemove(vehicleId),
       });
 
-      // Delete all associated files from Firebase Storage
-      const storageRef = ref(storage, `listing/${vehicleId}`);
-      await deleteObject(storageRef);
-
-      // Update the local state to remove the deleted vehicle
+      // Refresh the vehicles list by re-fetching data
       setVehicles((prevVehicles) => prevVehicles.filter((vehicle) => vehicle.id !== vehicleId));
 
       alert("Vehicle deleted successfully.");
-
-      // Redirect to myVehicles_page and refresh the page
-      router.replace('/myVehicles_page');
     } catch (error) {
       console.error("Error deleting vehicle:", error);
       alert("Failed to delete vehicle. Please try again.");
     }
+  };
+
+  // Prevent navigation to `vehicleCard_page` when clicking the delete button
+  const handleCardClick = (vehicleId, event) => {
+    if (event.target.closest(".delete-button")) {
+      // If the delete button was clicked, do nothing
+      return;
+    }
+    router.push(`/vehicleCard_page?id=${vehicleId}`);
   };
 
   if (loading) return <p>Loading...</p>;
@@ -238,31 +262,31 @@ const MyGarage = () => {
             <div
               key={vehicle.id}
               className="bg-white p-2 rounded-lg shadow-md relative flex flex-col"
-              onClick={() => router.push(`/vehicleCard_page?id=${vehicle.id}`)}
+              onClick={(event) => handleCardClick(vehicle.id, event)} // Handle card click
             >
               {/* Delete Button */}
-              <div className="absolute top-2 left-2 justify-start z-50">
-  <button
-    onClick={() => handleDeleteVehicle(vehicle.id)}
-    className="bg-purple-500 text-white p-1 rounded-full hover:bg-purple-600 focus:outline-none"
-    title="Delete Vehicle"
-  >
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth="1.5"
-      stroke="currentColor"
-      className="h-4 w-4"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
-      />
-    </svg>
-  </button>
-</div>
+              <div className="absolute top-2 left-2 justify-start z-50 delete-button">
+                <button
+                  onClick={() => handleDeleteVehicle(vehicle.id)}
+                  className="bg-purple-500 text-white p-1 rounded-full hover:bg-purple-600 focus:outline-none"
+                  title="Delete Vehicle"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth="1.5"
+                    stroke="currentColor"
+                    className="h-4 w-4"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+                    />
+                  </svg>
+                </button>
+              </div>
 
               {/* Carousel */}
               <div className="carousel-container relative mb-4 w-48 h-48">

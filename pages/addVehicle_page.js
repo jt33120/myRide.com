@@ -45,7 +45,6 @@ const AddVehiclePage = () => {
   const [rearWheelImage, setRearWheelImage] = useState(null);
   const [vehicleVideo, setVehicleVideo] = useState(null);
   const [otherImage, setOtherImage] = useState(null);
-  const [, setUploading] = useState(false);
   const router = useRouter();
 
   const [makes, setMakes] = useState([]);
@@ -56,6 +55,8 @@ const AddVehiclePage = () => {
   const [selectedModel, setSelectedModel] = useState("");
   const [errors, setErrors] = useState({}); // State to track errors
   const [currentSection, setCurrentSection] = useState(1); // Track current section (1: Textual, 2: Media)
+  const [formError, setFormError] = useState(''); // State to track general form errors
+  const [uploading, setUploading] = useState(false); // Ensure this state is used for loading
 
   // Fetch makes based on vehicle type
   useEffect(() => {
@@ -279,7 +280,7 @@ const AddVehiclePage = () => {
   const goToPreviousSection = () => setCurrentSection(1);
 
   const handleValidate = async () => {
-    setUploading(true);
+    setUploading(true); // Show loading spinner
 
     // Validate required fields
     const newErrors = {};
@@ -295,16 +296,35 @@ const AddVehiclePage = () => {
     if (!zip) newErrors.zip = "ZIP Code is required.";
     if (!city) newErrors.city = "City is required.";
     if (!state) newErrors.state = "State is required.";
-    if (!frontImage) newErrors.frontImage = "Front image is required.";
+
+    // Check if a front image is selected
+    if (!frontImage) {
+      newErrors.frontImage = "Front image is required.";
+    }
 
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length > 0) {
-      setUploading(false);
+      // Temporarily hide and redisplay the error message for better feedback
+      setFormError(""); // Clear the error message briefly
+      setTimeout(() => {
+        setFormError("Something is wrong. Please check the form."); // Redisplay the error message
+      }, 100); // Delay of 100ms for a quick flash effect
+
+      setUploading(false); // Hide loading spinner
       return;
     }
 
+    setFormError(''); // Clear general error message if no errors
     await handleAddVehicle(); // Proceed to add vehicle if no errors
+    setUploading(false); // Hide loading spinner after submission
+  };
+
+  const handleFileChange = (e, setImage) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImage(file); // Save the selected file in state
+    }
   };
 
   return (
@@ -590,52 +610,91 @@ const AddVehiclePage = () => {
               <label className="form-label">Front Image *</label>
               <input
                 type="file"
-                onChange={(e) => {
-                  setFrontImage(e.target.files[0]);
-                  setErrors({ ...errors, frontImage: null }); // Clear error
-                }}
+                onChange={(e) => handleFileChange(e, setFrontImage)}
                 className={`border p-2 rounded-md w-full mb-2 ${errors.frontImage ? 'border-red-500' : 'border-gray-300'}`}
                 required
               />
+              {frontImage && (
+                <p className="text-sm text-gray-600">Selected: {frontImage.name}</p>
+              )}
               {errors.frontImage && <p className="text-red-500 text-sm">{errors.frontImage}</p>}
             </div>
             <div className="form-section">
               <label className="form-label">Left Image</label>
-              <input type="file" onChange={(e) => setLeftImage(e.target.files[0])} />
+              <input
+                type="file"
+                onChange={(e) => handleFileChange(e, setLeftImage)}
+              />
+              {leftImage && (
+                <p className="text-sm text-gray-600">Selected: {leftImage.name}</p>
+              )}
             </div>
             <div className="form-section">
               <label className="form-label">Right Image</label>
-              <input type="file" onChange={(e) => setRightImage(e.target.files[0])} />
+              <input
+                type="file"
+                onChange={(e) => handleFileChange(e, setRightImage)}
+              />
+              {rightImage && (
+                <p className="text-sm text-gray-600">Selected: {rightImage.name}</p>
+              )}
             </div>
             <div className="form-section">
               <label className="form-label">Rear Image</label>
-              <input type="file" onChange={(e) => setRearImage(e.target.files[0])} />
+              <input
+                type="file"
+                onChange={(e) => handleFileChange(e, setRearImage)}
+              />
+              {rearImage && (
+                <p className="text-sm text-gray-600">Selected: {rearImage.name}</p>
+              )}
             </div>
             <div className="form-section">
               <label className="form-label">Dashboard Image</label>
-              <input type="file" onChange={(e) => setDashboardImage(e.target.files[0])} />
+              <input
+                type="file"
+                onChange={(e) => handleFileChange(e, setDashboardImage)}
+              />
+              {dashboardImage && (
+                <p className="text-sm text-gray-600">Selected: {dashboardImage.name}</p>
+              )}
             </div>
             {vehicleType === 'car' && (
               <>
                 <div className="form-section">
                   <label className="form-label">Left Front Wheel Image</label>
-                  <input type="file" onChange={(e) => setLeftFrontWheelImage(e.target.files[0])} />
+                  <input type="file" onChange={(e) => handleFileChange(e, setLeftFrontWheelImage)} />
+                  {leftFrontWheelImage && (
+                    <p className="text-sm text-gray-600">Selected: {leftFrontWheelImage.name}</p>
+                  )}
                 </div>
                 <div className="form-section">
                   <label className="form-label">Right Front Wheel Image</label>
-                  <input type="file" onChange={(e) => setRightFrontWheelImage(e.target.files[0])} />
+                  <input type="file" onChange={(e) => handleFileChange(e, setRightFrontWheelImage)} />
+                  {rightFrontWheelImage && (
+                    <p className="text-sm text-gray-600">Selected: {rightFrontWheelImage.name}</p>
+                  )}
                 </div>
                 <div className="form-section">
                   <label className="form-label">Left Rear Wheel Image</label>
-                  <input type="file" onChange={(e) => setLeftRearWheelImage(e.target.files[0])} />
+                  <input type="file" onChange={(e) => handleFileChange(e, setLeftRearWheelImage)} />
+                  {leftRearWheelImage && (
+                    <p className="text-sm text-gray-600">Selected: {leftRearWheelImage.name}</p>
+                  )}
                 </div>
                 <div className="form-section">
                   <label className="form-label">Right Rear Wheel Image</label>
-                  <input type="file" onChange={(e) => setRightRearWheelImage(e.target.files[0])} />
+                  <input type="file" onChange={(e) => handleFileChange(e, setRightRearWheelImage)} />
+                  {rightRearWheelImage && (
+                    <p className="text-sm text-gray-600">Selected: {rightRearWheelImage.name}</p>
+                  )}
                 </div>
                 <div className="form-section">
                   <label className="form-label">Engine Bay Image</label>
-                  <input type="file" onChange={(e) => setEngineBayImage(e.target.files[0])} />
+                  <input type="file" onChange={(e) => handleFileChange(e, setEngineBayImage)} />
+                  {engineBayImage && (
+                    <p className="text-sm text-gray-600">Selected: {engineBayImage.name}</p>
+                  )}
                 </div>
               </>
             )}
@@ -643,26 +702,44 @@ const AddVehiclePage = () => {
               <>
                 <div className="form-section">
                   <label className="form-label">Chain Image</label>
-                  <input type="file" onChange={(e) => setChainImage(e.target.files[0])} />
+                  <input type="file" onChange={(e) => handleFileChange(e, setChainImage)} />
+                  {chainImage && (
+                    <p className="text-sm text-gray-600">Selected: {chainImage.name}</p>
+                  )}
                 </div>
                 <div className="form-section">
                   <label className="form-label">Front Wheel Image</label>
-                  <input type="file" onChange={(e) => setFrontWheelImage(e.target.files[0])} />
+                  <input type="file" onChange={(e) => handleFileChange(e, setFrontWheelImage)} />
+                  {frontWheelImage && (
+                    <p className="text-sm text-gray-600">Selected: {frontWheelImage.name}</p>
+                  )}
                 </div>
                 <div className="form-section">
                   <label className="form-label">Rear Wheel Image</label>
-                  <input type="file" onChange={(e) => setRearWheelImage(e.target.files[0])} />
+                  <input type="file" onChange={(e) => handleFileChange(e, setRearWheelImage)} />
+                  {rearWheelImage && (
+                    <p className="text-sm text-gray-600">Selected: {rearWheelImage.name}</p>
+                  )}
                 </div>
               </>
             )}
             <div className="form-section">
               <label className="form-label">Vehicle Video</label>
-              <input type="file" onChange={(e) => setVehicleVideo(e.target.files[0])} />
+              <input type="file" onChange={(e) => handleFileChange(e, setVehicleVideo)} />
+              {vehicleVideo && (
+                <p className="text-sm text-gray-600">Selected: {vehicleVideo.name}</p>
+              )}
             </div>
             <div className="form-section">
               <label className="form-label">Other Image</label>
-              <input type="file" onChange={(e) => setOtherImage(e.target.files[0])} />
+              <input type="file" onChange={(e) => handleFileChange(e, setOtherImage)} />
+              {otherImage && (
+                <p className="text-sm text-gray-600">Selected: {otherImage.name}</p>
+              )}
             </div>
+            {formError && (
+              <p className="text-red-500 text-sm text-center mb-4">{formError}</p>
+            )}
             <div className="flex justify-between mt-4">
               <button
                 onClick={goToPreviousSection}
@@ -676,11 +753,40 @@ const AddVehiclePage = () => {
               <button
                 onClick={handleValidate}
                 className="btn flex items-center justify-center"
+                disabled={uploading} // Disable button while uploading
               >
-                Validate
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6 ml-2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                </svg>
+                {uploading ? (
+                  <>
+                    <svg
+                      className="animate-spin h-5 w-5 mr-2 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v8H4z"
+                      ></path>
+                    </svg>
+                    Validating...
+                  </>
+                ) : (
+                  <>
+                    Validate
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6 ml-2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                  </>
+                )}
               </button>
             </div>
           </>
