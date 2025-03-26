@@ -1,55 +1,55 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { auth, db, storage } from '../lib/firebase'; // Import storage for Firebase Storage
 import { doc, getDoc } from "firebase/firestore";
 import { useRouter } from 'next/router';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ref, getDownloadURL } from 'firebase/storage'; // For fetching the image URL from Firebase Storage
+import { UserContext } from '../context/UserContext';
 
 const NavBar = () => {
   const [user, setUser] = useState(null);
   const [firstName, setFirstName] = useState(""); // Store first name
-  const [profilePicture, setProfilePicture] = useState('/profile_icon.png'); // Default profile icon
+  const [profilePicture, setProfilePicture] = useState('/profile_icon.png'); // Ensure this is defined
   const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
+  const { userProfile } = useContext(UserContext); // Access global state
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
       setUser(currentUser);
 
       if (currentUser) {
-        // Fetch user's first name from Firestore
-        const userRef = doc(db, "members", currentUser.uid);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-          setFirstName(userSnap.data().firstName || "User");
+        try {
+          // Fetch user's first name from Firestore
+          const userRef = doc(db, "members", currentUser.uid);
+          const userSnap = await getDoc(userRef);
 
-          // Check if profile picture URL exists in Firestore
-          const userProfilePicture = userSnap.data().profileImage;
-          if (userProfilePicture) {
-            setProfilePicture(userProfilePicture); // Set the profile picture from Firestore
-          } else {
-            // Fetch the profile picture from Firebase Storage if not found in Firestore
-            const storageRef = ref(storage, `members/${currentUser.uid}/profilepicture.png`);
-            try {
-              const url = await getDownloadURL(storageRef); // Fetch the URL of the profile picture
-              setProfilePicture(url); // Set the profile picture from Firebase Storage
-              console.log('Profile picture URL:', url); // Log the profile picture URL
-            } catch (error) {
-              console.log('Error fetching profile picture:', error);
+          if (userSnap.exists()) {
+            setFirstName(userSnap.data().firstName || "User");
+
+            // Check if profile picture URL exists in Firestore
+            const userProfilePicture = userSnap.data().profileImage;
+            if (userProfilePicture) {
+              setProfilePicture(userProfilePicture); // Update state
+            } else {
+              // Fetch the profile picture from Firebase Storage if not found in Firestore
+              const storageRef = ref(storage, `members/${currentUser.uid}/profilepicture.png`);
+              const url = await getDownloadURL(storageRef);
+              setProfilePicture(url); // Update state
             }
           }
-        } else {
-          console.log("No such document!");
+        } catch (error) {
+          console.error("Error fetching profile picture:", error);
         }
       } else {
         setFirstName(""); // Reset if logged out
-        setProfilePicture('/profile_icon.png'); // Reset profile icon if logged out
+        setProfilePicture('/profile_icon.png'); // Reset to default
       }
     });
 
     return () => unsubscribe();
-  }, []);
+  }, []); // Ensure dependencies are correct
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -102,15 +102,25 @@ const NavBar = () => {
       </nav>
 
       <div className="profile-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <Image
-          src={profilePicture}
-          alt="Profile"
-          width={40}
-          height={40}
-          className="profile-icon"
-          onClick={() => setMenuOpen(!menuOpen)}
-          style={{ borderRadius: '50%', cursor: 'pointer' }} // Make the image round and add cursor pointer
-        />
+        {userProfile?.profileImage ? (
+          <img
+            src={userProfile.profileImage}
+            alt="Profile"
+            className="w-8 h-8 rounded-full object-cover"
+            onClick={() => setMenuOpen(!menuOpen)}
+            style={{ cursor: 'pointer' }}
+          />
+        ) : (
+          <Image
+            src={profilePicture}
+            alt="Profile"
+            width={40}
+            height={40}
+            className="profile-icon"
+            onClick={() => setMenuOpen(!menuOpen)}
+            style={{ borderRadius: '50%', cursor: 'pointer' }} // Make the image round and add cursor pointer
+          />
+        )}
 
         {menuOpen && (
           <div className="dropdown-menu">

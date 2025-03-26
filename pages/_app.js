@@ -6,6 +6,7 @@ import Head from 'next/head';
 import '../styles/globals.css';
 import '../styles/Navbar.css';
 import '../styles/Footer.css';
+import { UserProvider } from '../context/UserContext';
 
 function MyApp({ Component, pageProps }) {
   const router = useRouter();
@@ -52,7 +53,7 @@ function MyApp({ Component, pageProps }) {
   }
 
   return (
-    <>
+    <UserProvider>
       <Head>
         <link rel="icon" href="/logo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/logo.png" />
@@ -63,7 +64,7 @@ function MyApp({ Component, pageProps }) {
       <Layout>
         <Component {...pageProps} />
       </Layout>
-    </>
+    </UserProvider>
   );
 }
 

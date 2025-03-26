@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { auth, db, storage } from "../lib/firebase";
 import { doc, getDoc, updateDoc, getDocs, query, collection, where } from "firebase/firestore";
 import { ref, getDownloadURL, uploadBytesResumable } from "firebase/storage";
+import { UserContext } from '../context/UserContext';
 
 const UserProfilePage = () => {
+  const { setUserProfile } = useContext(UserContext); // Access global state updater
   const [userData, setUserData] = useState(null);
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({});
@@ -113,13 +115,23 @@ const UserProfilePage = () => {
             (error) => reject(error),
             async () => {
               const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-              setProfilePicture(downloadURL);
-              await updateDoc(doc(db, "members", user.uid), { profileImage: downloadURL });
+              setProfilePicture(downloadURL); // Update local state
+              setUserProfile((prev) => ({ ...prev, profileImage: downloadURL })); // Update global state for Navbar
               resolve();
             }
           );
         });
       }
+
+      // Update other profile data in global state
+      setUserProfile((prev) => ({
+        ...prev,
+        firstName: formData.firstName,
+        middleName: formData.middleName,
+        lastName: formData.lastName,
+        phoneNumber: formData.phoneNumber,
+        invitationcode: formData.invitationcode,
+      }));
 
       setUserData(formData);
       setEditing(false);
