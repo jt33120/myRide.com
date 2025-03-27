@@ -874,8 +874,11 @@ const VehicleCardPage = () => {
         category: receiptCategory,
         mileage: parsedMileage,
         price: parsedPrice,
-        urls: downloadURLs,
+        urls: downloadURLs, // Update Firestore with the created URLs
       });
+  
+      // Refresh recommendations
+      handleRefreshRecommendation();
   
       // Reset form state
       setUploading(false);
@@ -887,7 +890,6 @@ const VehicleCardPage = () => {
       setReceiptFiles([]);
       setShowReceiptForm(false);
       console.log('Receipt uploaded successfully.');
-      handleRefreshRecommendation();
       router.reload();
     } catch (error) {
       console.error('Error uploading receipt files:', error);
@@ -899,15 +901,15 @@ const VehicleCardPage = () => {
     try {
       // Delete the receipt document from Firestore
       await deleteDoc(doc(db, `listing/${id}/receipts`, receiptId));
-
+  
       // Delete the receipt files from Firebase Storage
       const deletePromises = receiptUrls.map(async (url) => {
         const receiptRef = ref(storage, url);
         await deleteObject(receiptRef);
       });
-
+  
       await Promise.all(deletePromises);
-
+  
       // Refresh the receipts list
       const receiptsRef = collection(db, `listing/${id}/receipts`);
       const receiptsSnapshot = await getDocs(receiptsRef);
@@ -915,6 +917,8 @@ const VehicleCardPage = () => {
         .map(doc => ({ id: doc.id, ...doc.data() }))
         .sort((a, b) => b.date.seconds - a.date.seconds); // Sort by date, most recent first
       setReceipts(sortedReceipts);
+  
+      console.log('Receipt deleted successfully.');
     } catch (error) {
       console.error("Error deleting receipt:", error);
     }
