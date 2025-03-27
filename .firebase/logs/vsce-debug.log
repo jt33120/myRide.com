@@ -97,3 +97,9 @@
 [debug] [2025-03-26T21:59:25.961Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects [omitted]
 [debug] [2025-03-26T21:59:25.962Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects 200
 [debug] [2025-03-26T21:59:25.962Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects [omitted]
+[info] [Firebase Plugin] Stopping Data Connect toolkit
+[debug] [2025-03-27T17:49:14.007Z] [Firebase Plugin] Activating Firebase extension.
+[debug] [2025-03-27T17:49:16.953Z] [Firebase Plugin] VSCode notification server listening on port 40001
+[info] [Firebase Plugin] Stopping Data Connect toolkit
+[debug] [2025-03-27T22:00:37.649Z] [Firebase Plugin] Activating Firebase extension.
+[debug] [2025-03-27T22:00:41.051Z] [Firebase Plugin] VSCode notification server listening on port 40001
