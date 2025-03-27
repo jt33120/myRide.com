@@ -16,10 +16,19 @@ const ImageCarousel = ({ imageUrls }) => {
     dots: true,
     infinite: true,
     speed: 500,
-    slidesToShow: 1,  // Show only one image per slide
+    slidesToShow: 1, // Show only one image per slide
     slidesToScroll: 1,
     autoplay: true,
     autoplaySpeed: 5000,
+  };
+
+  const isVideo = (url) => {
+    const videoExtensions = ['.mp4', '.webm', '.ogg'];
+    return videoExtensions.some((ext) => url.toLowerCase().endsWith(ext));
+  };
+
+  const getVideoThumbnail = (url) => {
+    return `${url}#t=0.5`; // Use the first frame of the video as the thumbnail
   };
 
   return (
@@ -27,21 +36,52 @@ const ImageCarousel = ({ imageUrls }) => {
       {imageUrls.length > 0 ? (
         <Slider {...settings}>
           {imageUrls.map((url, index) => (
-            <div key={index} className="w-full h-[50vh]">
-              <Image
-                src={url}
-                alt={`Vehicle Image ${index + 1}`}
-                width={800}  // Set fixed width
-                height={450} // Set fixed height
-                className="rounded-lg shadow-lg cursor-pointer"
-                onClick={() => window.open(url, "_blank")}
-                style={{ objectFit: "cover", width: "100%", height: "100%" }}
-              />
+            <div key={index} className="w-full h-[50vh] relative">
+              {isVideo(url) ? (
+                <div
+                  className="relative w-full h-full cursor-pointer"
+                  onClick={() => window.open(url, "_blank")}
+                >
+                  <Image
+                    src={getVideoThumbnail(url)}
+                    alt={`Video Thumbnail ${index + 1}`}
+                    width={800}
+                    height={450}
+                    className="rounded-lg shadow-lg object-cover w-full h-full"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="white"
+                      viewBox="0 0 24 24"
+                      strokeWidth="1.5"
+                      stroke="currentColor"
+                      className="h-16 w-16"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M5.25 5.25v13.5l13.5-6.75-13.5-6.75z"
+                      />
+                    </svg>
+                  </div>
+                </div>
+              ) : (
+                <Image
+                  src={url}
+                  alt={`Vehicle Image ${index + 1}`}
+                  width={800}
+                  height={450}
+                  className="rounded-lg shadow-lg cursor-pointer"
+                  onClick={() => window.open(url, "_blank")}
+                  style={{ objectFit: "cover", width: "100%", height: "100%" }}
+                />
+              )}
             </div>
           ))}
         </Slider>
       ) : (
-        <p>No images found</p>
+        <p>No images or videos found</p>
       )}
     </div>
   );
@@ -682,15 +722,9 @@ const VehicleCardPage = () => {
       setReceiptFiles([]);
       setShowReceiptForm(false);
       console.log('Receipt uploaded successfully.');
-      router.push(`/VehicleCard_page?id=${id}`); 
 
-      // After uploading the receipt, regenerate the upcoming maintenance
-      if (vehicleData?.ownerManual) {
-        await generateUpcomingMaintenance(vehicleData.ownerManual, [...receipts, {
-          title: receiptTitle,
-          mileage: receiptMileage,
-        }]);
-      }
+      // Trigger handleRefreshRecommendation after uploading the receipt
+      await handleRefreshRecommendation();
 
       // Refresh the page automatically
       router.reload();
@@ -853,11 +887,23 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
   };
 
   const handleRefreshRecommendation = async () => {
-    if (!vehicleData?.ownerManual || !receipts) return;
+    if (!vehicleData?.ownerManual || receipts.length === 0) return; // Refresh only if receipts exist
 
     setRefreshing(true);
     try {
-      await generateUpcomingMaintenance(vehicleData.ownerManual, receipts);
+      const updatedReceipts = await getDocs(collection(db, `listing/${id}/receipts`));
+      const updatedReceiptsData = updatedReceipts.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      if (updatedReceiptsData.length > receipts.length) {
+        const recommendations = await generateUpcomingMaintenance(vehicleData.ownerManual, updatedReceiptsData);
+        const vehicleRef = doc(db, 'listing', id);
+        await setDoc(vehicleRef, { maintenance_recommendation: recommendations }, { merge: true });
+        setReceipts(updatedReceiptsData); // Update the receipts state
+        setAIRecommendation(recommendations); // Update the local state
+      }
     } catch (error) {
       console.error('Error refreshing AI recommendation:', error);
     } finally {
@@ -887,10 +933,10 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
         throw new Error(data.error || 'Failed to generate upcoming maintenance.');
       }
   
-      setAIRecommendation(data.recommendations || 'No recommendations available.');
+      return data.recommendations || 'No recommendations available.';
     } catch (error) {
       console.error('Error generating upcoming maintenance:', error);
-      setAIRecommendation('Failed to generate recommendations.');
+      return 'Failed to generate recommendations.';
     }
   };
 
@@ -1281,27 +1327,6 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
 
     {/* AI Recommendation Box */}
     <div className="mt-4 bg-gray-100 p-4 rounded-lg border border-gray-300 text-sm overflow-auto relative">
-      <button
-        onClick={handleRefreshRecommendation}
-        className="absolute top-2 right-2 bg-white p-1 rounded-full shadow-md"
-        disabled={refreshing}
-        title="Refresh AI Recommendation"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth="1.5"
-          stroke="currentColor"
-          className={`h-3 w-3 cursor-pointer ${refreshing ? 'animate-spin' : ''}`}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
-          />
-        </svg>
-      </button>
       <pre className="whitespace-pre-wrap">
         {aiRecommendation
           ? typeof aiRecommendation === 'string'

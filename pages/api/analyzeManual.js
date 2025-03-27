@@ -14,26 +14,29 @@ export default async function handler(req, res) {
 
     if (!receipts || !Array.isArray(receipts) || receipts.length === 0) {
       // Handle case with no receipts
-      prompt = `
-        Analyze the owner's manual available at the following URL: ${url}.
-        There are no maintenance receipts provided. Based on the vehicle's mileage (${mileage} miles):
-        - If the mileage is less than 1000, assume the vehicle is new and recommend starting with the initial maintenance tasks from the owner's manual.
-        - If the mileage is higher than 1000, assume the vehicle has just been purchased recently and recommend an appropriate checkup for the vehicle's mileage.
-        Your output should be concise and informative, no more than 200 characters. For example: "Vehicle just purchased, recommend to check...".
+      prompt = ` You are an maintenance expert. You need to do this tasks in order: 
+        -Based on the owner manual, that you can find here :  url_ownermanual = ${url}.
+        Extract the maintenance schedule, and create a table of maintenance with columns Categories | Frequency (in miles, 1 year = 15000 miles) | LastMileageDone | NextMileageComing.
+        -Fill the columns 'Categories', 'Frequency' with the maintenance schedule. Be very exhaustive.
+        Now , the current mileage for the vehicle is currentMileage =  ${mileage} miles.
+
+        -Your output is a global checkup adapted to the currentMileage for this vehicle (url_ownermanual) as such:
+        "No maintenance history yet. Global checkup for your mileage : [action + category adapted to this mileage]". The output should be anything else, the table is for you to get the right information. The output is a snapshot for the vehicle's owner
       `;
     } else {
       // Handle case with receipts
-      prompt = ` You are an maintenance expert.
-        Based on the owner manual, that you can find at thir url : ${url}.
-        The history of what has been done to the vehicle (to know what is mising, or to adjust the frequency of some maintenance tasks) : 
-        ${JSON.stringify(receipts.map((r) => ({ title: r.title, mileage: r.mileage })), null, 2)},
-        And the current mileage of the vehicle : ${mileage} miles.
-        You need to tell the owner what he is gonna have to do next, to be sure that his vehicle is safe, and completely up-to-date with the owner manual.
-        Your primary tool is the user manual, what should be done at this stage, then you can adjust with the real history of maintenance of the vehicle 
-        (to adjust mileage of regular maintenance task for example). Obviously, you can't recommend a task at mileage inferior to the current one!
-        Your output should follow this exact format:
-      "- To do: [Task name other than oil change] ([Mileage] miles). Recommended (check/inspect): [Task name] at [Mileage] miles.
-      - Next oil change: at [Mileage] miles" (based on current mileage, last known oil change, and the frequency specified in the owner's manual).
+      prompt = ` You are an maintenance expert. You need to do this tasks in order: 
+        -Based on the owner manual, that you can find here :  url_ownermanual = ${url}.
+        Extract the maintenance schedule, and create a table of maintenance with columns Categories | Frequency (in miles, 1 year = 15000 miles) | LastMileageDone | NextMileageComing.
+        -Fill the columns 'Categories', 'Frequency' with the maintenance schedule. Be very exhaustive.
+        -Now, we gonna fill the column 'LastMileageDone' by interpreting the maintenance history from the receipts : 
+        ${JSON.stringify(receipts.map((r) => ({ title: r.title, mileage: r.mileage })), null, 2)}. If you don't find any information for a category, you can leave it blank.
+        -Finally, fill the column 'NextMileageComing' by calculating the next mileage by adding the corresponding frequency to the 'LastMileageDone'. Again, if 'LastMileageDone' is blank, leave this blank as well.
+        Now , the current mileage for the vehicle is currentMileage =  ${mileage} miles.
+        -Your output is this three information (don't display anything else,; it's a snapshot ofr the owner):
+        1. Select one category that is the closest superior to currentMileage (compare column 'NextMileageComing' with 'currentMileage'). Like this : "Most urgent to come : [Category] at [value in 'NextMileageComing'] miles."
+        2. Add a warning for all maintenance missing history : list of all categories with blank value in column 'NextMileageComing (so called blank_categories). Like this "Caution, no history found, you should check : [list of blank_categories]."
+        3. Maintenance grade. grade =  count of non empty categories in 'NextMileageComing' / count of all categories . Like this "Maintenance Grade : [grade]" as a percentage.
       `;
     }
 
