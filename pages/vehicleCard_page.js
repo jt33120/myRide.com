@@ -1080,7 +1080,8 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
       setAuthenticatedUser(currentUser);
       if (!currentUser) {
-        setShowLoginModal(true); // Show login modal if user is not signed in
+        setShowLoginModal(false); // Ensure login modal is not shown
+        router.push('/Welcome_page'); // Redirect to Welcome_page on logout
       }
     });
 
