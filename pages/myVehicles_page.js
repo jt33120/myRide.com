@@ -169,20 +169,6 @@ const MyGarage = () => {
     setCurrentIndexes((prev) => ({ ...prev, [vehicleId]: index }));
   };
 
-  const handleNextImage = (vehicleId, totalImages) => {
-    setCurrentIndexes((prev) => ({
-      ...prev,
-      [vehicleId]: (prev[vehicleId] + 1) % totalImages,
-    }));
-  };
-
-  const handlePrevImage = (vehicleId, totalImages) => {
-    setCurrentIndexes((prev) => ({
-      ...prev,
-      [vehicleId]: (prev[vehicleId] - 1 + totalImages) % totalImages,
-    }));
-  };
-
   const handleDeleteVehicle = async (vehicleId) => {
     const user = auth.currentUser;
     if (!user) return;
@@ -241,6 +227,11 @@ const MyGarage = () => {
     router.push(`/vehicleCard_page?id=${vehicleId}`);
   };
 
+  const isVideo = (url) => {
+    const videoExtensions = ['.mp4', '.webm', '.ogg'];
+    return videoExtensions.some((ext) => url.toLowerCase().endsWith(ext));
+  };
+
   if (loading) return <p>Loading...</p>;
 
   return (
@@ -295,41 +286,21 @@ const MyGarage = () => {
               <div className="carousel-container relative mb-4 w-48 h-48">
                 <div className="carousel-images overflow-hidden w-full h-full">
                   {vehicle.images.length > 0 && (
-                    <Image
-                      src={vehicle.images[currentIndexes[vehicle.id] || 0]} 
-                      alt={`${vehicle.make} ${vehicle.model}`}
-                      width={200}
-                      height={200}
-                      className="w-full h-full object-cover rounded-lg"
-                    />
+                    isVideo(vehicle.images[currentIndexes[vehicle.id] || 0]) ? (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-200 rounded-lg">
+                        <p className="text-gray-500">Video Preview</p>
+                      </div>
+                    ) : (
+                      <Image
+                        src={vehicle.images[currentIndexes[vehicle.id] || 0]} 
+                        alt={`${vehicle.make} ${vehicle.model}`}
+                        width={200}
+                        height={200}
+                        className="w-full h-full object-cover rounded-lg"
+                      />
+                    )
                   )}
                 </div>
-
-                {/* Navigation Arrows */}
-                {vehicle.images.length > 1 && (
-                  <>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handlePrevImage(vehicle.id, vehicle.images.length);
-                      }}
-                      className="absolute top-1/2 left-2 transform -translate-y-1/2 bg-gray-200 p-1 rounded-full hover:bg-gray-300"
-                      title="Previous Image"
-                    >
-                      ‹
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleNextImage(vehicle.id, vehicle.images.length);
-                      }}
-                      className="absolute top-1/2 right-2 transform -translate-y-1/2 bg-gray-200 p-1 rounded-full hover:bg-gray-300"
-                      title="Next Image"
-                    >
-                      ›
-                    </button>
-                  </>
-                )}
 
                 {/* Dot navigation */}
                 <div className="carousel-dots absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-2">

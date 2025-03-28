@@ -34,11 +34,9 @@ const ImageCarousel = ({ imageUrls }) => {
           {imageUrls.map((url, index) => (
             <div key={index} className="w-full h-[50vh] relative">
               {isVideo(url) ? (
-                <video
-                  src={url}
-                  controls
-                  className="rounded-lg shadow-lg object-cover w-full h-full"
-                />
+                <div className="w-full h-full flex items-center justify-center bg-gray-200 rounded-lg">
+                  <p className="text-gray-500">Video Preview</p>
+                </div>
               ) : (
                 <Image
                   src={url}
