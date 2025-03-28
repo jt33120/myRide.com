@@ -35,7 +35,7 @@ export default async function handler(req, res) {
         Now , the current mileage for the vehicle is currentMileage =  ${mileage} miles.
         -Your output is this three information (don't display anything else,; it's a snapshot ofr the owner):
         1. Select one category that is the closest superior to currentMileage (compare column 'NextMileageComing' with 'currentMileage'). Like this : "Most urgent to come : [Category] at [value in 'NextMileageComing'] miles."
-        2. Add a warning for all maintenance missing history : list of all categories with blank value in column 'NextMileageComing (so called blank_categories). Like this "Caution, no history found, you should check : [list of blank_categories]."
+        2. Add a warning for all maintenance missing history : list of all categories with blank value in column 'NextMileageComing (so called blank_categories). Like this "Caution, no history found for : [list of blank_categories]. We recommend checking them"
         3. Maintenance grade. grade =  count of non empty categories in 'NextMileageComing' / count of all categories . Like this "Maintenance Grade : [grade]" as a percentage.
       `;
     }

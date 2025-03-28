@@ -27,10 +27,6 @@ const ImageCarousel = ({ imageUrls }) => {
     return videoExtensions.some((ext) => url.toLowerCase().endsWith(ext));
   };
 
-  const getVideoThumbnail = (url) => {
-    return `${url}#t=0.5`; // Use the first frame of the video as the thumbnail
-  };
-
   return (
     <div className="carousel-container mb-6">
       {imageUrls.length > 0 ? (
@@ -38,34 +34,11 @@ const ImageCarousel = ({ imageUrls }) => {
           {imageUrls.map((url, index) => (
             <div key={index} className="w-full h-[50vh] relative">
               {isVideo(url) ? (
-                <div
-                  className="relative w-full h-full cursor-pointer"
-                  onClick={() => window.open(url, "_blank")}
-                >
-                  <Image
-                    src={getVideoThumbnail(url)}
-                    alt={`Video Thumbnail ${index + 1}`}
-                    width={800}
-                    height={450}
-                    className="rounded-lg shadow-lg object-cover w-full h-full"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="white"
-                      viewBox="0 0 24 24"
-                      strokeWidth="1.5"
-                      stroke="currentColor"
-                      className="h-16 w-16"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M5.25 5.25v13.5l13.5-6.75-13.5-6.75z"
-                      />
-                    </svg>
-                  </div>
-                </div>
+                <video
+                  src={url}
+                  controls
+                  className="rounded-lg shadow-lg object-cover w-full h-full"
+                />
               ) : (
                 <Image
                   src={url}
@@ -1571,8 +1544,8 @@ const handleRefreshRecommendation = async () => {
       <h3 className="text-md font-bold text-blue-500">
         Maintenance Recommendation
       </h3>
-      <p className="text-xs text-gray-500">(Current Mileage: {vehicleData.mileage })</p>
-      {isOwner && (
+      <p className="text-xs text-gray-500">(Current Mileage: {vehicleData.mileage})</p>
+      {isOwner && !vehicleData.ownerManual && (
         <button
           onClick={() => setShowOwnerManualModal(true)}
           className="bg-purple-500 text-xs text-white px-2 py-1 rounded-md hover:bg-blue-600"
