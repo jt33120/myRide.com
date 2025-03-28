@@ -103,12 +103,15 @@ const NavBar = () => {
 
       <div className="profile-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         {userProfile?.profileImage ? (
-          <img
+          <Image
             src={userProfile.profileImage}
             alt="Profile"
+            width={32}
+            height={32}
             className="w-8 h-8 rounded-full object-cover"
             onClick={() => setMenuOpen(!menuOpen)}
             style={{ cursor: 'pointer' }}
+            priority
           />
         ) : (
           <Image

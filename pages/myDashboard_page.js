@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
-import { auth, db, storage } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { ref, getDownloadURL } from 'firebase/storage'; // For fetching the image URL from Firebase Storage
+
 import PrivateRoute from '../components/PrivateRoute';
 
 const Dashboard = () => {
@@ -22,19 +22,6 @@ const Dashboard = () => {
           setFirstName(userDoc.data().firstName); // Set the first name from Firestore
 
           // Check if profile picture URL exists in Firestore
-          const userProfilePicture = userDoc.data().profileImage;
-          if (userProfilePicture) {
-            setProfilePicture(userProfilePicture); // Set the profile picture from Firestore
-          } else {
-            // Fetch the profile picture from Firebase Storage if not found in Firestore
-            const storageRef = ref(storage, `members/${user.uid}/profilepicture.png`);
-            try {
-              const url = await getDownloadURL(storageRef); // Fetch the URL of the profile picture
-              setProfilePicture(url); // Set the profile picture from Firebase Storage
-            } catch (error) {
-              console.log('Error fetching profile picture:', error);
-            }
-          }
         } else {
           console.log("No such document!");
         }
