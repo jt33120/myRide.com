@@ -12,6 +12,7 @@ const MyGarage = () => {
   const [sumType, setSumType] = useState('Current Value'); // Default to "Current Value"
   const [, setGarageReceipts] = useState([]); // Store all receipts across vehicles
   const router = useRouter();
+  const [currentIndexes, setCurrentIndexes] = useState({}); // Track current index for each vehicle
 
   // Firebase storage instance
   const storage = getStorage();
@@ -164,10 +165,22 @@ const MyGarage = () => {
     setSumType(sumTypes[nextIndex]);
   };
 
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const handleDotClick = (vehicleId, index) => {
+    setCurrentIndexes((prev) => ({ ...prev, [vehicleId]: index }));
+  };
 
-  const handleDotClick = (index) => {
-    setCurrentIndex(index);
+  const handleNextImage = (vehicleId, totalImages) => {
+    setCurrentIndexes((prev) => ({
+      ...prev,
+      [vehicleId]: (prev[vehicleId] + 1) % totalImages,
+    }));
+  };
+
+  const handlePrevImage = (vehicleId, totalImages) => {
+    setCurrentIndexes((prev) => ({
+      ...prev,
+      [vehicleId]: (prev[vehicleId] - 1 + totalImages) % totalImages,
+    }));
   };
 
   const handleDeleteVehicle = async (vehicleId) => {
@@ -283,7 +296,7 @@ const MyGarage = () => {
                 <div className="carousel-images overflow-hidden w-full h-full">
                   {vehicle.images.length > 0 && (
                     <Image
-                      src={vehicle.images[currentIndex]} 
+                      src={vehicle.images[currentIndexes[vehicle.id] || 0]} 
                       alt={`${vehicle.make} ${vehicle.model}`}
                       width={200}
                       height={200}
@@ -292,13 +305,46 @@ const MyGarage = () => {
                   )}
                 </div>
 
+                {/* Navigation Arrows */}
+                {vehicle.images.length > 1 && (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePrevImage(vehicle.id, vehicle.images.length);
+                      }}
+                      className="absolute top-1/2 left-2 transform -translate-y-1/2 bg-gray-200 p-1 rounded-full hover:bg-gray-300"
+                      title="Previous Image"
+                    >
+                      ‹
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleNextImage(vehicle.id, vehicle.images.length);
+                      }}
+                      className="absolute top-1/2 right-2 transform -translate-y-1/2 bg-gray-200 p-1 rounded-full hover:bg-gray-300"
+                      title="Next Image"
+                    >
+                      ›
+                    </button>
+                  </>
+                )}
+
                 {/* Dot navigation */}
                 <div className="carousel-dots absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-2">
                   {vehicle.images.map((_, index) => (
                     <button
                       key={index}
-                      onClick={() => handleDotClick(index)}
-                      className={`w-3 h-3 rounded-full ${currentIndex === index ? 'bg-purple-500' : 'bg-gray-300'}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDotClick(vehicle.id, index);
+                      }}
+                      className={`w-3 h-3 rounded-full ${
+                        (currentIndexes[vehicle.id] || 0) === index
+                          ? 'bg-purple-500'
+                          : 'bg-gray-300'
+                      }`}
                     ></button>
                   ))}
                 </div>
