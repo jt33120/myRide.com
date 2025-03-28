@@ -46,14 +46,17 @@ const MyGarage = () => {
       imageList.items.map((imageRef) => getDownloadURL(imageRef))
     );
 
+    // Filter out "vehicleVideo" from the image URLs
+    const filteredImageUrls = imageUrls.filter((url) => !url.includes("vehicleVideo"));
+
     // Move the "front" image to the first position
-    const frontImageIndex = imageUrls.findIndex(url => url.includes("front"));
+    const frontImageIndex = filteredImageUrls.findIndex(url => url.includes("front"));
     if (frontImageIndex > -1) {
-      const [frontImage] = imageUrls.splice(frontImageIndex, 1);
-      imageUrls.unshift(frontImage);
+      const [frontImage] = filteredImageUrls.splice(frontImageIndex, 1);
+      filteredImageUrls.unshift(frontImage);
     }
 
-    return imageUrls;
+    return filteredImageUrls;
   }, [storage]);
 
   const fetchVehicles = async (vehicleIds) => {
@@ -227,11 +230,6 @@ const MyGarage = () => {
     router.push(`/vehicleCard_page?id=${vehicleId}`);
   };
 
-  const isVideo = (url) => {
-    const videoExtensions = ['.mp4', '.webm', '.ogg'];
-    return videoExtensions.some((ext) => url.toLowerCase().endsWith(ext));
-  };
-
   if (loading) return <p>Loading...</p>;
 
   return (
@@ -286,13 +284,9 @@ const MyGarage = () => {
               <div className="carousel-container relative mb-4 w-48 h-48">
                 <div className="carousel-images overflow-hidden w-full h-full">
                   {vehicle.images.length > 0 && (
-                    isVideo(vehicle.images[currentIndexes[vehicle.id] || 0]) ? (
-                      <div className="w-full h-full flex items-center justify-center bg-gray-200 rounded-lg">
-                        <p className="text-gray-500">Video Preview</p>
-                      </div>
-                    ) : (
+                    !vehicle.images[currentIndexes[vehicle.id] || 0].includes("vehicleVideo") && (
                       <Image
-                        src={vehicle.images[currentIndexes[vehicle.id] || 0]} 
+                        src={vehicle.images[currentIndexes[vehicle.id] || 0]}
                         alt={`${vehicle.make} ${vehicle.model}`}
                         width={200}
                         height={200}
