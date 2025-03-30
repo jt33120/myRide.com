@@ -22,7 +22,8 @@ export default async function handler(req, res) {
     We know that they did: ${title} at mileage=${mileage} miles.
     The current table is:
     ${JSON.stringify(table, null, 2)}
-    Without modifying the two first columns, try to see if you can update the third column (LastTimeDone) for some tasks that are related/appear in the title, by filling them with mileage (a number). 
+    Without modifying the two first columns, try to see if you can update the third column (LastTimeDone) for some tasks that are related/appear in the title, by filling them with  mileage=${mileage} (a number). 
+    For example, if the receipt contains oil change, probably means that he did an oil change so you can update the corresponding field, ok ? Sometimes, there are several tasks in one receipt.
     If this is the case, you also need to update the last column (NextTimeToDo), as such: NextTimeToDo = LastTimeDone + Frequency.
     Your output is simply the JSON table, nothing else, updated with the information from the new receipt. No comments, nothing, so I can process it as a JSON file.`;
 

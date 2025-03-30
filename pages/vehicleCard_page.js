@@ -343,7 +343,7 @@ const ReceiptForm = ({ id, onClose, receiptTitle, setReceiptTitle, receiptDate, 
           className="bg-purple-700 text-white px-6 py-2 rounded-full w-full hover:bg-purple-800"
           disabled={uploading}
         >
-          {uploading ? <div className="loader"></div> : isEditing ? 'Update' : 'Save'}
+          {uploading ? <div className="loader animate-spin"></div> : isEditing ? 'Update' : 'Save'}
         </button>
       </div>
     </div>
@@ -865,7 +865,7 @@ const VehicleCardPage = () => {
     const parsedMileage = receiptMileage === 'Unknown' ? null : parseFloat(receiptMileage);
   
     setUploading(true); // Show loading spinner
-    const receiptId = receiptTitle.replace(/\s+/g, '-').toLowerCase();
+    const receiptId = editingReceipt?.id || receiptTitle.replace(/\s+/g, '-').toLowerCase(); // Use existing receipt ID if editing
   
     try {
       // Upload files to Firebase Storage
@@ -885,7 +885,6 @@ const VehicleCardPage = () => {
             async () => {
               try {
                 const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                console.log(`File uploaded successfully: ${fileName}, URL: ${downloadURL}`);
                 resolve(downloadURL);
               } catch (error) {
                 console.error(`Error retrieving download URL for file ${fileName}:`, error);
@@ -907,7 +906,7 @@ const VehicleCardPage = () => {
   
       console.log('All download URLs:', downloadURLs);
   
-      // Save receipt data to Firestore
+      // Save or update receipt data in Firestore
       const receiptRef = doc(db, `listing/${id}/receipts`, receiptId);
       const receiptDateObj = new Date(receiptDate);
   
@@ -924,7 +923,7 @@ const VehicleCardPage = () => {
         mileage: parsedMileage,
         price: parsedPrice,
         urls: downloadURLs, // Ensure URLs are saved here
-      });
+      }, { merge: true }); // Merge to update existing receipt
   
       // Call the updateMaintenanceTable API
       console.log("Calling updateMaintenanceTable API...");
@@ -1211,7 +1210,7 @@ const handleUpdateReceipt = async () => {
 const handleRefreshRecommendation = async () => {
   if (!vehicleData?.ownerManual || receipts.length === 0) return; // Refresh only if receipts exist
 
-  setRefreshing(true);
+  setRefreshing(true); // Show loading spinner for AI recommendation
   try {
     const updatedReceipts = await getDocs(collection(db, `listing/${id}/receipts`));
     const updatedReceiptsData = updatedReceipts.docs.map((doc) => ({
@@ -1229,7 +1228,7 @@ const handleRefreshRecommendation = async () => {
   } catch (error) {
     console.error('Error refreshing AI recommendation:', error);
   } finally {
-    setRefreshing(false);
+    setRefreshing(false); // Hide loading spinner for AI recommendation
   }
 };
 
@@ -1650,13 +1649,17 @@ const handleRefreshRecommendation = async () => {
 
     {/* AI Recommendation Box */}
     <div className="mt-4 bg-gray-100 p-4 rounded-lg border border-gray-300 text-sm overflow-auto relative">
-      <pre className="whitespace-pre-wrap">
-        {aiRecommendation
-          ? typeof aiRecommendation === 'string'
-            ? aiRecommendation
-            : JSON.stringify(aiRecommendation, null, 2)
-          : "No AI recommendation available."}
-      </pre>
+      {refreshing ? (
+        <div className="loader animate-spin mx-auto"></div>
+      ) : (
+        <pre className="whitespace-pre-wrap">
+          {aiRecommendation
+            ? typeof aiRecommendation === 'string'
+              ? aiRecommendation
+              : JSON.stringify(aiRecommendation, null, 2)
+            : "No AI recommendation available."}
+        </pre>
+      )}
     </div>
 
     {/* Receipt History Section */}
