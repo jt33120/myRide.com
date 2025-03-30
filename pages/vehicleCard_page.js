@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { auth, db, storage } from '../lib/firebase';
 import { doc, getDoc, collection, getDocs, query, where, addDoc, deleteDoc, setDoc } from 'firebase/firestore';
-import { ref, listAll, getDownloadURL, uploadBytesResumable, deleteObject } from 'firebase/storage';
+import { ref, listAll, getDownloadURL, uploadBytesResumable, deleteObject, uploadString } from 'firebase/storage';
 import Slider from 'react-slick';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
@@ -16,7 +16,6 @@ const ImageCarousel = ({ imageUrls }) => {
     dots: true,
     infinite: true,
     speed: 500,
-    slidesToShow: 1, // Show only one image per slide
     slidesToScroll: 1,
     autoplay: true,
     autoplaySpeed: 5000,
@@ -353,29 +352,64 @@ const ReceiptForm = ({ id, onClose, receiptTitle, setReceiptTitle, receiptDate, 
 
 const OwnerManualModal = ({ onClose, vehicleId }) => {
   const [manualUrl, setManualUrl] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSaveOwnerManual = async () => {
+  const handleSyncOwnerManual = async () => {
     if (!manualUrl) {
-      setError('Please provide a URL for the owner manual.');
+      alert("Please enter a valid URL");
       return;
     }
 
-    setUploading(true);
-    setError('');
+    setLoading(true);
 
     try {
-      const vehicleRef = doc(db, 'listing', vehicleId);
-      await setDoc(vehicleRef, { ownerManual: manualUrl }, { merge: true });
+      // Save the URL to Firestore
+      await setDoc(doc(db, "listing", vehicleId), { ownerManual: manualUrl }, { merge: true });
+      alert("URL saved successfully!");
 
-      alert('Owner manual URL saved successfully!');
-      setOwnerManualUrl(manualUrl); // Update state with new URL
-      onClose(); // Close the modal
+      // Fetch vehicle data from Firestore
+      const docRef = doc(db, "listing", vehicleId);
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) {
+        throw new Error("No vehicle data found in Firestore.");
+      }
+
+      const vehicleData = docSnap.data();
+      const { ownerManual, year, make, model, vehicleType: type } = vehicleData;
+
+      if (!ownerManual || !year || !make || !model || !type) {
+        throw new Error("Incomplete vehicle data. Please check the database.");
+      }
+
+      // Send data to AI
+      const response = await fetch("/api/getMaintenanceFrequency", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ year, make, model, type, url: ownerManual }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error response:", errorData);
+        throw new Error(errorData.error || "Failed to get AI response");
+      }
+
+      const data = await response.json();
+      console.log("AI Response:", data);
+
+      // Save AI response to Firebase Storage
+      const storagePath = `listing/${vehicleId}/docs/maintenanceTable.json`;
+      const storageRef = ref(storage, storagePath);
+
+      await uploadString(storageRef, JSON.stringify(data.response), "raw");
+      alert(`AI response saved successfully to: ${storagePath}`);
     } catch (error) {
-      console.error('owner manual URL:', error);
+      console.error("Error:", error);
+      alert("Failed to process: " + error.message);
     } finally {
-      setUploading(false);
+      setLoading(false);
+      onClose(); // Close the modal after processing
     }
   };
 
@@ -396,13 +430,12 @@ const OwnerManualModal = ({ onClose, vehicleId }) => {
           onChange={(e) => setManualUrl(e.target.value)}
           className="border border-gray-300 p-2 rounded-md w-full mb-4"
         />
-        {error && <p className="text-red-500 mb-4">{error}</p>}
         <button
-          onClick={handleSaveOwnerManual}
+          onClick={handleSyncOwnerManual}
           className="bg-purple-700 text-white px-6 py-2 rounded-full w-full hover:bg-purple-800"
-          disabled={uploading}
+          disabled={loading}
         >
-          {uploading ? 'Saving...' : 'Save'}
+          {loading ? 'Processing...' : 'Save & Sync'}
         </button>
       </div>
     </div>
@@ -593,12 +626,12 @@ const VehicleCardPage = () => {
 
         const vehicleData = vehicleDoc.data();
         const ownerManual = vehicleData.ownerManual;
-        const currentMileage = vehicleData.mileage;
+        const currentMileage = vehicleData.mileage; // Correctly fetch current mileage
         if (!ownerManual) {
           throw new Error('Owner manual URL not available.');
         }
         setOwnerManualUrl(ownerManual);
-        setCurrentMileage(currentMileage);
+        setCurrentMileage(currentMileage); // Set current mileage in state
 
         // Fetch receipts
         const receiptsRef = collection(db, `listing/${id}/receipts`);
@@ -614,12 +647,8 @@ const VehicleCardPage = () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            url: ownerManual,
-            mileage: currentMileage,
-            receipts: receiptsData.map((r) => ({
-              title: r.title,
-              mileage: r.mileage || 'Unknown',
-            })),
+            vehicleId: id, // Pass the correct vehicleId
+            currentMileage, // Pass the correct currentMileage
           }),
         });
 
@@ -629,7 +658,7 @@ const VehicleCardPage = () => {
           throw new Error(analyzeData.error || 'Failed to fetch AI recommendations.');
         }
 
-        setAIRecommendation(analyzeData.recommendations || 'No recommendations available.');
+        setAIRecommendation(analyzeData.recommendation || 'No recommendations available.');
       } catch (error) {
         console.error('Error fetching recommendations:', error);
         setAIRecommendation('Failed to fetch recommendations.');
@@ -640,6 +669,7 @@ const VehicleCardPage = () => {
 
     fetchRecommendations();
   }, [id]);
+
   const handleSumBoxClick = () => {
     const sumTypes = ['Total Spent', 'Without Purchase Price', 'Repair', 'Scheduled Maintenance', 'Cosmetic Mods', 'Performance Mods'];
     const currentIndex = sumTypes.indexOf(sumType);
@@ -834,7 +864,7 @@ const VehicleCardPage = () => {
   
     const parsedMileage = receiptMileage === 'Unknown' ? null : parseFloat(receiptMileage);
   
-    setUploading(true);
+    setUploading(true); // Show loading spinner
     const receiptId = receiptTitle.replace(/\s+/g, '-').toLowerCase();
   
     try {
@@ -896,9 +926,35 @@ const VehicleCardPage = () => {
         urls: downloadURLs, // Ensure URLs are saved here
       });
   
+      // Call the updateMaintenanceTable API
+      console.log("Calling updateMaintenanceTable API...");
+      const maintenanceTableRef = ref(storage, `listing/${id}/docs/maintenanceTable.json`);
+      const maintenanceTableUrl = await getDownloadURL(maintenanceTableRef);
+      const maintenanceTableResponse = await fetch(maintenanceTableUrl);
+      const maintenanceTable = await maintenanceTableResponse.json();
+  
+      const apiResponse = await fetch("/api/updateMaintenanceTable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: receiptTitle,
+          mileage: parsedMileage,
+          table: maintenanceTable,
+          vehicleId: id,
+        }),
+      });
+  
+      if (!apiResponse.ok) {
+        const errorData = await apiResponse.json();
+        console.error("Error updating maintenance table:", errorData);
+        throw new Error(errorData.error || "Failed to update maintenance table");
+      }
+  
+      console.log("Maintenance table updated successfully.");
+  
       handleRefreshRecommendation();
   
-      setUploading(false);
+      setUploading(false); // Hide loading spinner
       setReceiptTitle('');
       setReceiptDate('');
       setReceiptCategory('');
@@ -907,10 +963,11 @@ const VehicleCardPage = () => {
       setReceiptFiles([]);
       setShowReceiptForm(false);
       console.log('Receipt uploaded successfully.');
-      router.reload();
+  
+      router.reload(); // Refresh the page
     } catch (error) {
-      console.error('Error uploading receipt files:', error);
-      setUploading(false);
+      console.error('Error uploading receipt files or updating maintenance table:', error);
+      setUploading(false); // Hide loading spinner
     }
   };
   
@@ -1114,13 +1171,38 @@ const handleUpdateReceipt = async () => {
     const receiptRef = doc(db, `listing/${id}/receipts`, receiptId);
     await setDoc(receiptRef, updatedData, { merge: true });
 
-    // Refresh recommendations
+    // Call the updateMaintenanceTable API
+    console.log("Calling updateMaintenanceTable API...");
+    const maintenanceTableRef = ref(storage, `listing/${id}/docs/maintenanceTable.json`);
+    const maintenanceTableUrl = await getDownloadURL(maintenanceTableRef);
+    const maintenanceTableResponse = await fetch(maintenanceTableUrl);
+    const maintenanceTable = await maintenanceTableResponse.json();
+
+    const apiResponse = await fetch("/api/updateMaintenanceTable", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: updatedData.title,
+        mileage: updatedData.mileage,
+        table: maintenanceTable,
+        vehicleId: id,
+      }),
+    });
+
+    if (!apiResponse.ok) {
+      const errorData = await apiResponse.json();
+      console.error("Error updating maintenance table:", errorData);
+      throw new Error(errorData.error || "Failed to update maintenance table");
+    }
+
+    console.log("Maintenance table updated successfully.");
+
     handleRefreshRecommendation();
 
     // Refresh the page automatically
     router.reload();
   } catch (error) {
-    console.error('Error updating receipt:', error);
+    console.error('Error updating receipt or maintenance table:', error);
   } finally {
     setShowEditReceiptForm(false);
   }
@@ -1559,7 +1641,7 @@ const handleRefreshRecommendation = async () => {
       {isOwner && !vehicleData.ownerManual && (
         <button
           onClick={() => setShowOwnerManualModal(true)}
-          className="bg-purple-500 text-xs text-white px-2 py-1 rounded-md hover:bg-blue-600"
+          className="bg-gradient-to-r from-purple-500 to-pink-700 text-white font-semibold px-6 py-2 rounded shadow-md hover:from-blue-600 hover:to-blue-800 transition duration-300"
         >
           Sync Owner Manual
         </button>
