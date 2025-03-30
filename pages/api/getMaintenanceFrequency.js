@@ -51,8 +51,6 @@ Fill the first column with the name of the following tasks:
 - Oil Filter Replacement
 - Spark Plug Replacement
 - Engine Air Filter Replacement
-- Cabin Air Filter Replacement
-- Tire Rotation
 - Brake Pad Replacement
 - Brake Fluid Flush
 - Coolant Replacement
@@ -61,7 +59,7 @@ Fill the first column with the name of the following tasks:
 - Power Steering Fluid Check
 - Timing Belt/Chain Inspection
 - Suspension & Shocks Inspection
-- Wheel Alignment
+- Tires Inspection
 
 Please fill the second column with the frequency in miles or years (just write the number, e.g., 15000 for miles or 2Y for years, be systematic). Your output should be the JSON table, nothing else.`,
     };
