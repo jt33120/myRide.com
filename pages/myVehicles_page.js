@@ -9,7 +9,7 @@ const MyGarage = () => {
   const [firstName, setFirstName] = useState('');
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [sumType, setSumType] = useState('Current Value'); // Default to "Current Value"
+  const [sumType, setSumType] = useState("Garage's value"); // Default to "Current Value"
   const [, setGarageReceipts] = useState([]); // Store all receipts across vehicles
   const router = useRouter();
   const [currentIndexes, setCurrentIndexes] = useState({}); // Track current index for each vehicle
@@ -112,49 +112,49 @@ const MyGarage = () => {
 
   const calculateGarageSum = (type) => {
     switch (type) {
-      case 'Current Value':
+      case "Garage's value":
         // Sum of AI-estimated prices across all vehicles
         return vehicles.reduce((sum, vehicle) => sum + (vehicle.ai_estimated_price || 0), 0);
-      case 'Total Spent':
+      case "Garage's total cost":
         // Sum of purchase price (boughtAt) and all receipts across all vehicles
         return vehicles.reduce((sum, vehicle) => {
           const vehicleReceiptsTotal = vehicle.receipts.reduce((rSum, receipt) => rSum + (receipt.price || 0), 0);
           return sum + vehicle.boughtAt + vehicleReceiptsTotal;
         }, 0);
-      case 'Only Purchase Price':
+      case "Garage's purchase cost":
         // Sum of purchase price (boughtAt) across all vehicles
         return vehicles.reduce((sum, vehicle) => sum + vehicle.boughtAt, 0);
-      case 'Repair':
+      case 'Cost in Repair':
         // Sum of purchase price and all receipts in the "Repair" category across all vehicles
         return vehicles.reduce((sum, vehicle) => {
           const repairReceiptsTotal = vehicle.receipts
             .filter(receipt => receipt.category === 'Repair')
             .reduce((rSum, receipt) => rSum + (receipt.price || 0), 0);
-          return sum + vehicle.boughtAt + repairReceiptsTotal;
+          return sum + repairReceiptsTotal;
         }, 0);
-      case 'Scheduled Maintenance':
+      case 'Cost in Scheduled Maintenance':
         // Sum of purchase price and all receipts in the "Scheduled Maintenance" category across all vehicles
         return vehicles.reduce((sum, vehicle) => {
           const maintenanceReceiptsTotal = vehicle.receipts
             .filter(receipt => receipt.category === 'Scheduled Maintenance')
             .reduce((rSum, receipt) => rSum + (receipt.price || 0), 0);
-          return sum + vehicle.boughtAt + maintenanceReceiptsTotal;
+          return sum + maintenanceReceiptsTotal;
         }, 0);
-      case 'Cosmetic Mods':
+      case 'Cost in Cosmetic Mods':
         // Sum of purchase price and all receipts in the "Cosmetic Mods" category across all vehicles
         return vehicles.reduce((sum, vehicle) => {
           const cosmeticReceiptsTotal = vehicle.receipts
             .filter(receipt => receipt.category === 'Cosmetic Mods')
             .reduce((rSum, receipt) => rSum + (receipt.price || 0), 0);
-          return sum + vehicle.boughtAt + cosmeticReceiptsTotal;
+          return sum + cosmeticReceiptsTotal;
         }, 0);
-      case 'Performance Mods':
+      case 'Cost in Performance Mods':
         // Sum of purchase price and all receipts in the "Performance Mods" category across all vehicles
         return vehicles.reduce((sum, vehicle) => {
           const performanceReceiptsTotal = vehicle.receipts
             .filter(receipt => receipt.category === 'Performance Mods')
             .reduce((rSum, receipt) => rSum + (receipt.price || 0), 0);
-          return sum + vehicle.boughtAt + performanceReceiptsTotal;
+          return sum + performanceReceiptsTotal;
         }, 0);
       default:
         return 0;
@@ -162,7 +162,7 @@ const MyGarage = () => {
   };
 
   const handleSumBoxClick = () => {
-    const sumTypes = ['Current Value', 'Total Spent', 'Only Purchase Price', 'Repair', 'Scheduled Maintenance', 'Cosmetic Mods', 'Performance Mods'];
+    const sumTypes = ["Garage's Value", "Garage's total cost", "Garage's purchase cost", 'Cost in Repair', 'Cost in Scheduled Maintenance', 'Cost in Cosmetic Mods', 'Cost in Performance Mods'];
     const currentIndex = sumTypes.indexOf(sumType);
     const nextIndex = (currentIndex + 1) % sumTypes.length;
     setSumType(sumTypes[nextIndex]);
