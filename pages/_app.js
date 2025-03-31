@@ -48,6 +48,37 @@ function MyApp({ Component, pageProps }) {
     }
   }, [authChecked, user, router]);
 
+  useEffect(() => {
+    let timeoutId;
+
+    const logoutUser = () => {
+      auth.signOut().then(() => {
+        console.log('User logged out due to inactivity.');
+        router.push('/login_page'); // Redirect to login page
+      });
+    };
+
+    const resetTimeout = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(logoutUser, 24 * 60 * 60 * 1000); // 30 minutes of inactivity
+    };
+
+    const activityEvents = ['mousemove', 'keydown', 'click', 'scroll'];
+
+    activityEvents.forEach((event) =>
+      window.addEventListener(event, resetTimeout)
+    );
+
+    resetTimeout(); // Start the timeout on mount
+
+    return () => {
+      clearTimeout(timeoutId);
+      activityEvents.forEach((event) =>
+        window.removeEventListener(event, resetTimeout)
+      );
+    };
+  }, []);
+
   if (!authChecked) {
     return <div>Loading...</div>;
   }
