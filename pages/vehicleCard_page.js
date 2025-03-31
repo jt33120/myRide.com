@@ -1934,7 +1934,7 @@ const handleRefreshRecommendation = async () => {
         </div>
       </section>
       <div>
-          <p>Here, we gonna add classic marketplace options, but also AI guidelines and estimation of your vehicle value, based on the information and maintenance provided!</p>
+          <p>Here, we gonna add classic marketplace options, but also pro vehicle evaluation (it cost $300 a month, we need more members first !). We will improve the AI, digitalize your docs, use AI to retrieve the info automatically. We will use AI to create a 3D version of your vehicle!</p>
         </div>
 
       {showReceiptForm && (
