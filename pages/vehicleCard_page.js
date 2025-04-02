@@ -234,9 +234,14 @@ const ReceiptForm = ({ id, onClose, receiptTitle, setReceiptTitle, receiptDate, 
       setReceiptPrice('');
       setReceiptFiles([]);
       onClose();
+
+      // Refresh the page after successful save
+      window.location.reload();
     } catch (error) {
       console.error('Error saving receipt:', error);
       alert('Failed to save receipt. Please try again.');
+    } finally {
+      setUploading(false); // Hide loading indicator
     }
   };
 
@@ -1601,7 +1606,7 @@ const handleRefreshRecommendation = async () => {
                   "uid", "imageUrls", "CreatedAt", "RightImage", "RearImage", "OtherImage", "year", "ai_estimated_price",
                   "RightfrontWheelImage", "FrontImage", "DashboardImage", "RightrearWheelImage", "vehicleType", "createdAt",
                   "EngineBayImage", "LeftrearWheelImage", "city", "state", "zip","boughtAt","recommendation",
-                  "description", "cosmeticDefaults", "maintenance_recommendation","aftermarketMods", "vin", "title", "ownerManual", "model", "make", "mileage","updatedAt"
+                  "description", "cosmeticDefaults", "marketfetch_estimation","maintenance_recommendation","aftermarketMods", "vin", "title", "ownerManual", "model", "make", "mileage","updatedAt"
                 ].includes(key) &&
                 typeof value !== "boolean" &&  // Exclude boolean fields since they're already displayed
                 !(typeof value === 'string' && value.includes("https://firebasestorage"))

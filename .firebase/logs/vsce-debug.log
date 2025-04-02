@@ -109,3 +109,6 @@
 [info] [Firebase Plugin] Stopping Data Connect toolkit
 [debug] [2025-03-31T12:55:21.689Z] [Firebase Plugin] Activating Firebase extension.
 [debug] [2025-03-31T12:55:28.777Z] [Firebase Plugin] VSCode notification server listening on port 40001
+[info] [Firebase Plugin] Stopping Data Connect toolkit
+[debug] [2025-04-02T01:44:16.439Z] [Firebase Plugin] Activating Firebase extension.
+[debug] [2025-04-02T01:44:19.996Z] [Firebase Plugin] VSCode notification server listening on port 40001
