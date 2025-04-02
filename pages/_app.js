@@ -25,10 +25,9 @@ function MyApp({ Component, pageProps }) {
           router.push(redirectUrl); // Redirect to the intended page or dashboard
         }
       } else {
-        // Redirect to login with the current page as the redirect parameter
-        if (!['/Welcome_page', '/login_page', '/signup_page'].includes(router.pathname)) {
-          const redirectUrl = router.asPath;
-          router.push(`/login_page?redirect=${encodeURIComponent(redirectUrl)}`);
+        // Redirect to Welcome_page if not logged in
+        if (router.pathname !== '/Welcome_page' && router.pathname !== '/login_page') {
+          router.push('/Welcome_page');
         }
       }
     });
@@ -41,9 +40,8 @@ function MyApp({ Component, pageProps }) {
       if (user && ['/Welcome_page', '/login_page', '/signup_page'].includes(router.pathname)) {
         const redirectUrl = router.query.redirect || '/myDashboard_page';
         router.push(redirectUrl); // Redirect to the intended page or dashboard
-      } else if (!user && !['/Welcome_page', '/login_page', '/signup_page'].includes(router.pathname)) {
-        const redirectUrl = router.asPath;
-        router.push(`/login_page?redirect=${encodeURIComponent(redirectUrl)}`);
+      } else if (!user && router.pathname !== '/Welcome_page' && router.pathname !== '/login_page') {
+        router.push('/Welcome_page'); // Redirect to Welcome_page if not logged in
       }
     }
   }, [authChecked, user, router]);

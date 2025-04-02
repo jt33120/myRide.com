@@ -8,16 +8,22 @@ service cloud.firestore {
       allow read: if request.auth == null || request.auth != null; // Allow anyone to read
       
       // Allow public access to the invitationCode field
-      allow get: if resource.data.invitationcode != null;
+      allow get: if resource.data.invitationCode != null;
     }
 
     // Listing collection: Only authenticated users can read, and only the owner can write
     match /listing/{vehicleId} {
       allow read: if request.auth != null; // Authenticated users can read
-      allow write: if request.auth != null; // Authenticated users can write
+      allow write: if request.auth != null && request.auth.uid == resource.data.uid; // Only the owner can write
 
       // Protect sensitive fields like VIN
       allow get: if request.auth != null && (resource.data.hideVin == false || request.auth.uid == resource.data.uid);
+
+      // Receipts subcollection under listing: Only the owner can write
+      match /receipts/{receiptId} {
+        allow read: if request.auth != null; // Authenticated users can read
+        allow write: if request.auth != null && request.auth.uid == get(/databases/$(database)/documents/listing/$(vehicleId)).data.uid; // Owner of the listing can write receipts
+      }
     }
 
     // Conversations collection: Only participants can read/write
@@ -28,19 +34,6 @@ service cloud.firestore {
       match /messages/{messageId} {
         allow read, write: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
       }
-    }
-
-    // Receipts subcollection under listing: Only the owner can write
-    match /listing/{vehicleId}/receipts/{receiptId} {
-      allow read: if request.auth != null; // Authenticated users can read
-      allow write: if request.auth != null && request.auth.uid == resource.data.uid; // Only the owner can write
-    }
-
-    // Reviews subcollection under listing: Authenticated users can write, but only the author can modify/delete
-    match /listing/{vehicleId}/reviews/{reviewId} {
-      allow create: if request.auth != null; // Any authenticated user can write a review
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.uid; // Only the author can modify/delete
-      allow read: if request.auth != null; // Authenticated users can read reviews
     }
   }
 }

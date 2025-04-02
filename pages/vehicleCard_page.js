@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { auth, db, storage } from '../lib/firebase';
-import { doc, getDoc, collection, getDocs, query, where, addDoc, deleteDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, query, where, addDoc, deleteDoc, setDoc, setLogLevel } from 'firebase/firestore';
 import { ref, listAll, getDownloadURL, uploadBytesResumable, deleteObject, uploadString } from 'firebase/storage';
 import Slider from 'react-slick';
 import 'slick-carousel/slick/slick.css';
@@ -10,6 +10,8 @@ import Image from "next/image";
 import { Line } from 'react-chartjs-2';
 import 'chart.js/auto';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import {ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const ImageCarousel = ({ imageUrls }) => {
   const settings = {
@@ -58,6 +60,7 @@ const ImageCarousel = ({ imageUrls }) => {
                   className="rounded-lg shadow-lg cursor-pointer"
                   onClick={() => window.open(url, "_blank")}
                   style={{ objectFit: "cover", width: "100%", height: "100%" }}
+                  priority={index === 0} // Add priority to the first image
                 />
               )}
             </div>
@@ -76,26 +79,29 @@ const ReceiptForm = ({ id, onClose, receiptTitle, setReceiptTitle, receiptDate, 
 
   const validateForm = () => {
     const newErrors = {};
-  
+
+    // Ensure receiptDate is a string before validation
+    const receiptDateString = receiptDate ? String(receiptDate) : '';
+
     // Required field checks
     if (!receiptTitle.trim()) newErrors.receiptTitle = "Receipt title is required.";
-    if (!receiptDate.trim()) newErrors.receiptDate = "Receipt date is required.";
+    if (!receiptDateString.trim()) newErrors.receiptDate = "Receipt date is required.";
     if (!receiptCategory.trim()) newErrors.receiptCategory = "Receipt category is required.";
-  
+
     // Handle mileage - check if it's a number or 'Unknown'
     if (receiptMileage === undefined || receiptMileage === null || (receiptMileage !== 'Unknown' && isNaN(Number(receiptMileage)))) {
       newErrors.receiptMileage = "Mileage must be a valid number or 'Unknown'.";
     } else if (receiptMileage !== 'Unknown' && Number(receiptMileage) < 0) {
       newErrors.receiptMileage = "Mileage cannot be negative.";
     }
-  
+
     // Price validation
     if (receiptPrice === undefined || receiptPrice === null || isNaN(Number(receiptPrice))) {
       newErrors.receiptPrice = "Price must be a valid number.";
     } else if (Number(receiptPrice) <= 0) {
       newErrors.receiptPrice = "Price must be greater than 0.";
     }
-  
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -451,7 +457,6 @@ const LoginModal = ({ onClose, onLoginSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleLogin = async () => {
@@ -519,6 +524,9 @@ const LoginModal = ({ onClose, onLoginSuccess }) => {
   );
 };
 
+// Enable Firestore debug logging
+setLogLevel("debug");
+
 const VehicleCardPage = () => {
   const [vehicleData, setVehicleData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -559,6 +567,16 @@ const VehicleCardPage = () => {
 
   const [authenticatedUser, setAuthenticatedUser] = useState(null); // Track the authenticated user
   const [showLoginModal, setShowLoginModal] = useState(false); // State for login modal
+
+  const toggleHideVin = async () => {
+    try {
+      const vehicleRef = doc(db, 'listing', id);
+      await setDoc(vehicleRef, { hideVin: !hideVin }, { merge: true });
+      setHideVin((prev) => !prev); // Toggle the state locally
+    } catch (error) {
+      console.error('Error toggling VIN visibility:', error);
+    }
+  };
 
   const handleAskAi = async () => {
     if (!aiQuestion.trim()) return;
@@ -780,40 +798,51 @@ const VehicleCardPage = () => {
 
   useEffect(() => {
     if (!id) return;
-  
+
     const fetchVehicleData = async () => {
       setLoading(true);
       try {
+        console.log('Fetching vehicle data for ID:', id);
         const vehicleRef = doc(db, 'listing', id);
         const vehicleDoc = await getDoc(vehicleRef);
-  
+
         if (vehicleDoc.exists()) {
           const vehicle = vehicleDoc.data();
+          console.log('Vehicle data fetched successfully:', vehicle);
           setVehicleData(vehicle);
-  
+
+          // Initialize hideVin state from Firestore
+          setHideVin(vehicle.hideVin || false);
+
           const user = auth.currentUser;
           if (user && vehicle.uid === user.uid) {
             setIsOwner(true);
           }
-  
+
+          console.log('Fetching owner data for UID:', vehicle.uid);
           const userRef = doc(db, 'members', vehicle.uid);
           const userSnap = await getDoc(userRef);
           if (userSnap.exists()) {
             setOwnerName(userSnap.data().firstName);
+          } else {
+            console.warn('Owner data not found for UID:', vehicle.uid);
           }
-  
+
+          console.log('Fetching receipts for vehicle ID:', id);
           const receiptsRef = collection(db, `listing/${id}/receipts`);
           const receiptsSnapshot = await getDocs(receiptsRef);
           const sortedReceipts = receiptsSnapshot.docs
             .map(doc => ({ id: doc.id, ...doc.data() }))
             .sort((a, b) => b.date.seconds - a.date.seconds); // Sort by date, most recent first
           setReceipts(sortedReceipts);
-  
+
+          console.log('Fetching photos for vehicle ID:', id);
           const folderRef = ref(storage, `listing/${id}/photos/`);
           const result = await listAll(folderRef);
           const urls = await Promise.all(result.items.map(fileRef => getDownloadURL(fileRef)));
           setImageUrls(urls);
-  
+
+          console.log('Fetching documents for vehicle ID:', id);
           const documentsRef = collection(db, `listing/${id}/docs`);
           const documentsSnapshot = await getDocs(documentsRef);
           const existingDocs = documentsSnapshot.docs.map(doc => doc.data());
@@ -825,24 +854,16 @@ const VehicleCardPage = () => {
             inspection: inspectionDoc ? inspectionDoc.url : null,
             registration: registrationDoc ? registrationDoc.url : null,
           });
-
-
-          // Generate upcoming maintenance if ownerManual exists
-
-
-          // Set current mileage from Firestore
-          setCurrentMileage(vehicle.mileage);
-          setHideVin(vehicle.hideVin || false); // Set initial VIN visibility state
         } else {
-          console.log("No such document!");
+          console.error('Vehicle not found for ID:', id);
         }
       } catch (error) {
-        console.error("Error fetching vehicle data:", error);
+        console.error('Error fetching vehicle data:', error);
       } finally {
         setLoading(false);
       }
     };
-  
+
     fetchVehicleData();
   }, [id]);
 
@@ -870,9 +891,11 @@ const VehicleCardPage = () => {
     const parsedMileage = receiptMileage === 'Unknown' ? null : parseFloat(receiptMileage);
   
     setUploading(true); // Show loading spinner
-    const receiptId = editingReceipt?.id || receiptTitle.replace(/\s+/g, '-').toLowerCase(); // Use existing receipt ID if editing
   
     try {
+      //  generate a new id in case the field title has been modified
+      const receiptId = doc(collection(db, `listing/${id}/receipts`)).id;
+  
       // Upload files to Firebase Storage
       const uploadPromises = Array.from(receiptFiles).map(async (file, index) => {
         const fileName = `${receiptId}-${index}`;
@@ -902,15 +925,6 @@ const VehicleCardPage = () => {
   
       const downloadURLs = await Promise.all(uploadPromises);
   
-      if (!downloadURLs || downloadURLs.length === 0) {
-        console.error('No URLs were generated for the uploaded files.');
-        alert('Failed to upload files. Please try again.');
-        setUploading(false);
-        return;
-      }
-  
-      console.log('All download URLs:', downloadURLs);
-  
       // Save or update receipt data in Firestore
       const receiptRef = doc(db, `listing/${id}/receipts`, receiptId);
       const receiptDateObj = new Date(receiptDate);
@@ -927,54 +941,21 @@ const VehicleCardPage = () => {
         category: receiptCategory,
         mileage: parsedMileage,
         price: parsedPrice,
-        urls: downloadURLs, // Ensure URLs are saved here
+        urls: downloadURLs,
       }, { merge: true }); // Merge to update existing receipt
   
-      // Call the updateMaintenanceTable API
-      console.log("Calling updateMaintenanceTable API...");
-      const maintenanceTableRef = ref(storage, `listing/${id}/docs/maintenanceTable.json`);
-      const maintenanceTableUrl = await getDownloadURL(maintenanceTableRef);
-      const maintenanceTableResponse = await fetch(maintenanceTableUrl);
-      const maintenanceTable = await maintenanceTableResponse.json();
-  
-      const apiResponse = await fetch("/api/updateMaintenanceTable", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: receiptTitle,
-          mileage: parsedMileage,
-          table: maintenanceTable,
-          vehicleId: id,
-        }),
-      });
-  
-      if (!apiResponse.ok) {
-        const errorData = await apiResponse.json();
-        console.error("Error updating maintenance table:", errorData);
-        throw new Error(errorData.error || "Failed to update maintenance table");
-      }
-  
-      console.log("Maintenance table updated successfully.");
-  
-      handleRefreshRecommendation();
-  
-      setUploading(false); // Hide loading spinner
-      setReceiptTitle('');
-      setReceiptDate('');
-      setReceiptCategory('');
-      setReceiptMileage('');
-      setReceiptPrice('');
-      setReceiptFiles([]);
-      setShowReceiptForm(false);
       console.log('Receipt uploaded successfully.');
   
-      router.reload(); // Refresh the page
+      await handleRefreshRecommendation(); // Trigger AI recommendation refresh
+  
+      // Refresh the page
+      router.reload();
     } catch (error) {
-      console.error('Error uploading receipt files or updating maintenance table:', error);
+      console.error('Error uploading receipt files or updating Firestore:', error);
+    } finally {
       setUploading(false); // Hide loading spinner
     }
   };
-  
 
   const handleReceiptDelete = async (receiptId, receiptUrls) => {
     try {
@@ -1006,6 +987,13 @@ const VehicleCardPage = () => {
   useEffect(() => {
     if (!id) return;
 
+/*************  ✨ Codeium Command ⭐  *************/
+  /**
+   * Fetches all receipts from Firestore for the given listing ID.
+   * Sorts the receipts by date in descending order (most recent first).
+   * Updates the `receipts` state with the sorted receipts.
+   */
+/******  7912109b-2875-4b87-9d03-96a8380b7e55  *******/
     const fetchReceipts = async () => {
       const receiptsRef = collection(db, `listing/${id}/receipts`);
       const receiptsSnapshot = await getDocs(receiptsRef);
@@ -1017,6 +1005,74 @@ const VehicleCardPage = () => {
 
     fetchReceipts();
   }, [id]);
+
+  const handleEditReceipt = (receipt) => {
+    setEditingReceipt(receipt); // Pass the entire receipt object, including its ID
+    setShowEditReceiptForm(true);
+  };
+  
+  const handleUpdateReceipt = async () => {
+    const newErrors = {};
+  
+    // Validate mileage
+    if (editingReceipt.mileage === undefined || editingReceipt.mileage === null || editingReceipt.mileage === "") {
+      newErrors.mileage = "Mileage is required.";
+    } else if (editingReceipt.mileage !== "Unknown" && isNaN(Number(editingReceipt.mileage))) {
+      newErrors.mileage = "Enter a valid number for mileage or 'Unknown'.";
+    }
+  
+    // Validate price
+    if (editingReceipt.price === undefined || editingReceipt.price === null || editingReceipt.price === "") {
+      newErrors.price = "Price is required.";
+    } else if (isNaN(Number(editingReceipt.price))) {
+      newErrors.price = "Enter a valid number for price.";
+    }
+  
+    setErrors(newErrors);
+  
+    if (Object.keys(newErrors).length > 0) {
+      return;
+    }
+  
+    try {
+      // Delete the old receipt using handleReceiptDelete
+      console.log("Deleting old receipt...");
+      await handleReceiptDelete(editingReceipt.id);
+  
+      // Prepare updated data for the new receipt
+      const updatedData = {
+        title: editingReceipt.title,
+        date: editingReceipt.date ? new Date(editingReceipt.date) : null,
+        category: editingReceipt.category,
+        mileage: editingReceipt.mileage,
+        price: editingReceipt.price,
+        files: editingReceipt.files,
+      };
+  
+      // Upload the new receipt using handleReceiptUpload
+      console.log("Uploading new receipt...");
+      await handleReceiptUpload(updatedData);
+  
+      console.log("Receipt updated successfully.");
+      router.reload();
+    } catch (error) {
+      console.error("Error updating receipt:", error);
+    } finally {
+      setShowEditReceiptForm(false);
+    }
+  };
+  
+  const handleRefreshRecommendation = async () => {
+    try {
+      console.log("Refreshing AI recommendation...");
+      const recommendation = await fetch(`/api/refreshRecommendation?id=${id}`);
+      const data = await recommendation.json();
+      setAIRecommendation(data);
+      console.log("AI recommendation refreshed:", data);
+    } catch (error) {
+      console.error("Error refreshing AI recommendation:", error);
+    }
+  };
 
 const [uploadingDocType, setUploadingDocType] = useState(null); // State to track which document is uploading
 
@@ -1091,180 +1147,6 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
     setUploadingDocType(null);
   }
 };
-
-const handleEditReceipt = (receipt) => {
-  setEditingReceipt({
-    ...receipt,
-    date: receipt.date.seconds ? new Date(receipt.date.seconds * 1000).toISOString().split('T')[0] : '',
-  });
-  setShowEditReceiptForm(true);
-};
-
-const handleUpdateReceipt = async () => {
-  const newErrors = {};
-
-  // Validate mileage
-  if (editingReceipt.mileage === undefined || editingReceipt.mileage === null || editingReceipt.mileage === "") {
-    newErrors.mileage = "Mileage is required.";
-  } else if (editingReceipt.mileage !== "Unknown" && isNaN(Number(editingReceipt.mileage))) {
-    newErrors.mileage = "Enter a valid number for mileage or 'Unknown'.";
-  }
-
-  // Validate price
-  if (editingReceipt.price === undefined || editingReceipt.price === null || editingReceipt.price === "") {
-    newErrors.price = "Price is required.";
-  } else if (isNaN(Number(editingReceipt.price))) {
-    newErrors.price = "Enter a valid number for price.";
-  }
-
-  setErrors(newErrors); // Use setErrors to update the errors state
-
-  // Stop if there are validation errors
-  if (Object.keys(newErrors).length > 0) {
-    return;
-  }
-
-  console.log('handleUpdateReceipt called');
-  const { id: receiptId, files, ...updatedData } = editingReceipt;
-
-  // Parse date if provided
-  if (updatedData.date) {
-    const receiptDateObj = new Date(updatedData.date);
-    if (isNaN(receiptDateObj.getTime())) {
-      setErrors((prevErrors) => ({ ...prevErrors, date: "Invalid receipt date." }));
-      return;
-    }
-    updatedData.date = receiptDateObj;
-  }
-
-  try {
-    // Check if new files are provided
-    let downloadURLs = [];
-    if (files && files.length > 0) {
-      const uploadPromises = Array.from(files).map(async (file, index) => {
-        const fileName = `${receiptId}-${index}`;
-        const storageRef = ref(storage, `listing/${id}/docs/receipts/${fileName}`);
-        const uploadTask = uploadBytesResumable(storageRef, file);
-
-        return new Promise((resolve, reject) => {
-          uploadTask.on(
-            'state_changed',
-            null,
-            (error) => reject(error),
-            async () => {
-              try {
-                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                resolve(downloadURL);
-              } catch (error) {
-                reject(error);
-              }
-            }
-          );
-        });
-      });
-
-      downloadURLs = await Promise.all(uploadPromises);
-    }
-
-    // Add the new file URLs to the updated data
-    if (downloadURLs.length > 0) {
-      updatedData.urls = downloadURLs;
-    }
-
-    // Update the receipt document in Firestore
-    const receiptRef = doc(db, `listing/${id}/receipts`, receiptId);
-    await setDoc(receiptRef, updatedData, { merge: true });
-
-    // Call the updateMaintenanceTable API
-    console.log("Calling updateMaintenanceTable API...");
-    const maintenanceTableRef = ref(storage, `listing/${id}/docs/maintenanceTable.json`);
-    const maintenanceTableUrl = await getDownloadURL(maintenanceTableRef);
-    const maintenanceTableResponse = await fetch(maintenanceTableUrl);
-    const maintenanceTable = await maintenanceTableResponse.json();
-
-    const apiResponse = await fetch("/api/updateMaintenanceTable", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: updatedData.title,
-        mileage: updatedData.mileage,
-        table: maintenanceTable,
-        vehicleId: id,
-      }),
-    });
-
-    if (!apiResponse.ok) {
-      const errorData = await apiResponse.json();
-      console.error("Error updating maintenance table:", errorData);
-      throw new Error(errorData.error || "Failed to update maintenance table");
-    }
-
-    console.log("Maintenance table updated successfully.");
-
-    handleRefreshRecommendation();
-
-    // Refresh the page automatically
-    router.reload();
-  } catch (error) {
-    console.error('Error updating receipt or maintenance table:', error);
-  } finally {
-    setShowEditReceiptForm(false);
-  }
-};
-
-const handleRefreshRecommendation = async () => {
-  if (!vehicleData?.ownerManual || receipts.length === 0) return; // Refresh only if receipts exist
-
-  setRefreshing(true); // Show loading spinner for AI recommendation
-  try {
-    const updatedReceipts = await getDocs(collection(db, `listing/${id}/receipts`));
-    const updatedReceiptsData = updatedReceipts.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
-    if (updatedReceiptsData.length > receipts.length) {
-      const recommendations = await generateUpcomingMaintenance(vehicleData.ownerManual, updatedReceiptsData);
-      const vehicleRef = doc(db, 'listing', id);
-      await setDoc(vehicleRef, { maintenance_recommendation: recommendations }, { merge: true });
-      setReceipts(updatedReceiptsData); // Update the receipts state
-      setAIRecommendation(recommendations); // Update the local state
-    }
-  } catch (error) {
-    console.error('Error refreshing AI recommendation:', error);
-  } finally {
-    setRefreshing(false); // Hide loading spinner for AI recommendation
-  }
-};
-
-  // Add missing function to generate upcoming maintenance
-  const generateUpcomingMaintenance = async (ownerManualUrl, receipts) => {
-    try {
-      const response = await fetch('/api/analyzeManual', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: ownerManualUrl,
-          mileage: vehicleData?.mileage || 'Unknown', // Include current mileage
-          receipts: receipts.map((r) => ({
-            title: r.title,
-            mileage: r.mileage || 'Unknown',
-          })),
-        }),
-      });
-  
-      const data = await response.json();
-  
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate upcoming maintenance.');
-      }
-  
-      return data.recommendations || 'No recommendations available.';
-    } catch (error) {
-      console.error('Error generating upcoming maintenance:', error);
-      return 'Failed to generate recommendations.';
-    }
-  };
 
   // Fetch AI estimation for the vehicle's current market value
   const fetchAiEstimation = async () => {
@@ -1353,16 +1235,6 @@ const handleRefreshRecommendation = async () => {
     }
   }, [vehicleData]);
 
-  const toggleHideVin = async () => {
-    try {
-      const vehicleRef = doc(db, 'listing', id);
-      await setDoc(vehicleRef, { hideVin: !hideVin }, { merge: true });
-      setHideVin(!hideVin);
-    } catch (error) {
-      console.error('Error toggling VIN visibility:', error);
-    }
-  };
-
   const handleShare = async () => {
     try {
       // Fetch the current user's firstName from Firebase
@@ -1438,6 +1310,7 @@ const handleRefreshRecommendation = async () => {
 
   return (
     <div className="min-h-screen p-6 bg-gray-100 text-black relative">
+      <ToastContainer />
       <button
         onClick={() => router.push('/myVehicles_page')}
         className="return-button"
@@ -1574,9 +1447,45 @@ const handleRefreshRecommendation = async () => {
               {isOwner && (
                 <button
                   onClick={toggleHideVin}
-                  className="ml-2 text-sm text-blue-500 hover:underline"
+                  className="ml-2 text-sm text-blue-500 hover:underline flex items-center"
                 >
-                  {hideVin ? "Unhide" : "Hide"}
+                  {hideVin ? (
+                    <>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth="1.5"
+                        stroke="currentColor"
+                        className="w-4 h-4 mr-1"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"
+                        />
+                      </svg>
+                      Unhide
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth="1.5"
+                        stroke="currentColor"
+                        className="w-4 h-4 mr-1"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"
+                        />
+                      </svg>
+                      Hide
+                    </>
+                  )}
                 </button>
               )}
             </p>
@@ -1964,12 +1873,12 @@ const handleRefreshRecommendation = async () => {
 
       {showEditReceiptForm && (
         <ReceiptForm
-          id={id} // Pass the vehicle ID to the ReceiptForm
+          id={id}
           onClose={() => setShowEditReceiptForm(false)}
           onSave={handleUpdateReceipt}
           receiptTitle={editingReceipt?.title || ''}
           setReceiptTitle={(value) => setEditingReceipt((prev) => ({ ...prev, title: value }))}
-          receiptDate={editingReceipt?.date || ''}
+          receiptDate={editingReceipt?.date ? new Date(editingReceipt.date.seconds * 1000).toISOString().split('T')[0] : ''}
           setReceiptDate={(value) => setEditingReceipt((prev) => ({ ...prev, date: value }))}
           receiptCategory={editingReceipt?.category || ''}
           setReceiptCategory={(value) => setEditingReceipt((prev) => ({ ...prev, category: value }))}
@@ -1978,7 +1887,7 @@ const handleRefreshRecommendation = async () => {
           receiptPrice={editingReceipt?.price || ''}
           setReceiptPrice={(value) => setEditingReceipt((prev) => ({ ...prev, price: value }))}
           setReceiptFiles={(files) => setEditingReceipt((prev) => ({ ...prev, files }))}
-          receiptFiles={editingReceipt?.urls || []} // Pass the existing URLs as receiptFiles
+          receiptFiles={editingReceipt?.urls || []}
           uploading={uploading}
           isEditing={true}
         />
