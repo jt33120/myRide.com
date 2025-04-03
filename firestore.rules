@@ -37,3 +37,45 @@ service cloud.firestore {
     }
   }
 }
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow authenticated users to upload and download files
+    match /members/{uid}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    match /members/{uid}/profilepicture.png {
+      allow write: if request.auth != null && request.auth.uid == uid;
+      allow read: if true; // Public read access
+    }
+
+    match /listing/{vehicleId}/{allPaths=**} {
+      allow read: if request.auth != null; // Allow authenticated users to read files
+      allow write: if request.auth != null;
+    }
+
+    // Listing photos: Only the owner can write, authenticated users can read
+    match /listing/{vehicleId}/photos/{fileName} {
+      allow read: if request.auth != null; // Authenticated users can read
+      allow write: if request.auth != null && request.auth.uid == resource.metadata.ownerId; // Only the owner can write
+    }
+
+    // Listing documents: Only the owner can read/write
+    match /listing/{vehicleId}/docs/{allPaths=**} {
+      allow write: if request.auth != null && request.auth.uid == resource.metadata.ownerId;
+      allow read: if request.auth != null && request.auth.uid == resource.metadata.ownerId; // Ensure only the owner can read
+    }
+
+    // Public files (e.g., icons): Publicly readable
+    match /public/{allPaths=**} {
+      allow read;
+    }
+
+    // Maintenance table: Only the owner can read/write
+    match /listing/{vehicleId}/maintenance/{allPaths=**} {
+      allow write: if request.auth != null && request.auth.uid == resource.metadata.ownerId;
+      allow read: if request.auth != null && request.auth.uid == resource.metadata.ownerId; // Ensure only the owner can read
+    }
+  }
+}
