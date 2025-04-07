@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { ref, getDownloadURL } from "firebase/storage";
+import { storage } from "../lib/firebase";
 
 export default function DebugPage() {
   const [vehicleDetails, setVehicleDetails] = useState({
@@ -9,6 +11,8 @@ export default function DebugPage() {
   });
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [tableData, setTableData] = useState(null);
+  const [error, setError] = useState(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -54,6 +58,33 @@ export default function DebugPage() {
     printWindow.document.close();
     printWindow.print();
   };
+
+  useEffect(() => {
+    const fetchTable = async () => {
+      try {
+        const storagePath = `listing/vehicleId123/docs/maintenanceTable.json`; // Replace 'vehicleId123' with the actual vehicle ID
+        const storageRef = ref(storage, storagePath);
+        const downloadURL = await getDownloadURL(storageRef);
+
+        const response = await fetch(downloadURL);
+        const data = await response.json();
+        setTableData(data);
+      } catch (err) {
+        console.error("Error fetching table:", err);
+        setError("Failed to fetch the table.");
+      }
+    };
+
+    fetchTable();
+  }, []);
+
+  if (error) {
+    return <div>{error}</div>;
+  }
+
+  if (!tableData) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="flex flex-col items-center p-4">
@@ -120,6 +151,7 @@ export default function DebugPage() {
           ))}
         </div>
       )}
+      <pre>{JSON.stringify(tableData, null, 2)}</pre>
     </div>
   );
 }

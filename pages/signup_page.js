@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { auth, db, storage } from "../lib/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { collection, query, where, getDocs, doc, setDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { useRouter } from "next/router";
 import "react-datepicker/dist/react-datepicker.css";
@@ -11,7 +11,6 @@ import Link from 'next/link'; // Import Link for navigation
 export default function SignUp() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [invitationcode, setinvitationcode] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [middleName, setMiddleName] = useState("");
@@ -28,7 +27,6 @@ export default function SignUp() {
     email: "",
     password: "",
     phoneNumber: "",
-    invitationcode: "",
   });
   const [formError, setFormError] = useState(""); // State for form-level error message
   const router = useRouter();
@@ -46,19 +44,6 @@ export default function SignUp() {
     return /^\d{10}$/.test(phoneNumber);
   };
 
-  const validateinvitationcode = async (code) => {
-    if (!code) return false;
-    try {
-      // Query the members collection to check if any document has the given invitation code
-      const inviteQuery = query(collection(db, "members"), where("invitationcode", "==", code));
-      const inviteSnapshot = await getDocs(inviteQuery);
-      return !inviteSnapshot.empty; // Return true if the code exists
-    } catch (error) {
-      console.error("Error validating invitation code:", error);
-      return false;
-    }
-  };
-
   const handleSignUp = async () => {
     setLoading(true);
     setErrors({}); // Reset errors
@@ -68,7 +53,6 @@ export default function SignUp() {
     const phoneValid = validatePhoneNumber(phoneNumber);
     const profilePictureValid = !!image; // Ensure profile picture is uploaded
     const dateOfBirthValid = !!dob && !isNaN(new Date(dob).getTime()); // Ensure date of birth is valid
-    const invitationcodeValid = await validateinvitationcode(invitationcode); // Validate the invitation code
 
     // Set error messages for empty or invalid fields
     setErrors({
@@ -79,11 +63,10 @@ export default function SignUp() {
       email: email ? (emailValid ? "" : "Invalid email format.") : "This field is mandatory.",
       password: password ? (passwordValid ? "" : "Password must be at least 6 characters.") : "This field is mandatory.",
       phoneNumber: phoneNumber ? (phoneValid ? "" : "Phone number must be 10 digits.") : "This field is mandatory.",
-      invitationcode: invitationcode ? (invitationcodeValid ? "" : "Invalid invitation code.") : "Invitation code is mandatory.", // Add error for missing or invalid invitation code
     });
 
     // Check if any field is invalid
-    if (!firstName || !lastName || !dateOfBirthValid || !profilePictureValid || !emailValid || !passwordValid || !phoneValid || !invitationcodeValid) {
+    if (!firstName || !lastName || !dateOfBirthValid || !profilePictureValid || !emailValid || !passwordValid || !phoneValid) {
       setFormError("Fields are missing or incorrect, please check.");
       setLoading(false);
       return;
@@ -94,18 +77,19 @@ export default function SignUp() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Use the user's UID as the invitation code
-      const newinvitationcode = `MYRIDE-SP-${user.uid}`;
-
-      // Get inviter's UID from the entered invitation code
-      let inviter = null;
-      if (invitationcodeValid) {
-        const inviteQuery = query(collection(db, "members"), where("invitationcode", "==", invitationcode));
-        const inviteSnapshot = await getDocs(inviteQuery);
-        if (!inviteSnapshot.empty) {
-          inviter = inviteSnapshot.docs[0].id; // Extract inviter's UID
-        }
-      }
+      // Automatically set the inviter field to "frenchy"
+      const userData = {
+        firstName,
+        lastName,
+        middleName,
+        dob,
+        email,
+        phoneNumber,
+        inviter: "frenchy", // Set inviter to "frenchy"
+        rating: 5, // Initialize rating at 5
+        vehicles: [], // Initialize an empty vehicles array
+        createdAt: new Date(),
+      };
 
       // Upload profile picture to Firebase Storage
       const profilePicRef = ref(storage, `members/${user.uid}/profilepicture.png`);
@@ -121,18 +105,8 @@ export default function SignUp() {
 
             // Save user data to Firestore
             await setDoc(doc(db, "members", user.uid), {
-              firstName,
-              lastName,
-              middleName,
-              dob,
-              email,
-              phoneNumber,
+              ...userData,
               profileImage: downloadURL,
-              invitationcode: newinvitationcode,
-              inviter: inviter || null, // Save inviter's UID if available
-              rating: 5, // Initialize rating at 5
-              vehicles: [], // Initialize an empty vehicles array
-              createdAt: new Date(),
             });
 
             resolve();
@@ -180,7 +154,7 @@ export default function SignUp() {
           Sign in!
         </Link>
       </p>
-      <h2>Register</h2>
+      <h2 className="text-3xl font-bold text-center mb-6">Register</h2>
       {error && <p className="text-red-500">{error}</p>}
 
       {/* Form Fields */}
@@ -193,7 +167,7 @@ export default function SignUp() {
             setFirstName(e.target.value);
             setErrors({ ...errors, firstName: e.target.value ? "" : "This field is mandatory." });
           }}
-          className="border border-gray-300 p-2 rounded-md w-full mb-2"
+          className="border border-gray-300 p-3 rounded-md w-full mb-4"
         />
         {errors.firstName && <p className="text-red-500 text-sm">{errors.firstName}</p>}
       </div>
@@ -206,7 +180,7 @@ export default function SignUp() {
             setLastName(e.target.value);
             setErrors({ ...errors, lastName: e.target.value ? "" : "This field is mandatory." });
           }}
-          className="border border-gray-300 p-2 rounded-md w-full mb-2"
+          className="border border-gray-300 p-3 rounded-md w-full mb-4"
         />
         {errors.lastName && <p className="text-red-500 text-sm">{errors.lastName}</p>}
       </div>
@@ -216,7 +190,7 @@ export default function SignUp() {
           type="text"
           value={middleName}
           onChange={(e) => setMiddleName(e.target.value)}
-          className="border border-gray-300 p-2 rounded-md w-full mb-2"
+          className="border border-gray-300 p-3 rounded-md w-full mb-4"
         />
       </div>
       <div className="form-section">
@@ -242,7 +216,7 @@ export default function SignUp() {
               }));
             }
           }}
-          className="border border-gray-300 p-2 rounded-md w-full mb-2"
+          className="border border-gray-300 p-3 rounded-md w-full mb-4"
         />
         {errors.dateOfBirth && <p className="text-red-500 text-sm">{errors.dateOfBirth}</p>}
       </div>
@@ -256,7 +230,7 @@ export default function SignUp() {
             setPhoneNumber(e.target.value);
             setErrors({ ...errors, phoneNumber: validatePhoneNumber(e.target.value) ? "" : "Phone number must be 10 digits." });
           }}
-          className="border border-gray-300 p-2 rounded-md w-full mb-2"
+          className="border border-gray-300 p-3 rounded-md w-full mb-4"
           required
         />
         {errors.phoneNumber && <p className="text-red-500 text-sm">{errors.phoneNumber}</p>}
@@ -271,7 +245,7 @@ export default function SignUp() {
             setEmail(e.target.value);
             setErrors({ ...errors, email: validateEmail(e.target.value) ? "" : "Invalid email format." });
           }}
-          className="border border-gray-300 p-2 rounded-md w-full mb-2"
+          className="border border-gray-300 p-3 rounded-md w-full mb-4"
           required
         />
         {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
@@ -286,33 +260,19 @@ export default function SignUp() {
             setPassword(e.target.value);
             setErrors({ ...errors, password: validatePassword(e.target.value) ? "" : "Password must be at least 6 characters." });
           }}
-          className="border border-gray-300 p-2 rounded-md w-full mb-2"
+          className="border border-gray-300 p-3 rounded-md w-full mb-4"
           required
         />
         {errors.password && <p className="text-red-500 text-sm">{errors.password}</p>}
       </div>
       <div className="form-section">
-        <label className="form-label">Invite Code</label>
-        <input
-          type="text"
-          placeholder="Invite Code"
-          value={invitationcode}
-          onChange={(e) => {
-            setinvitationcode(e.target.value);
-            setErrors((prevErrors) => ({ ...prevErrors, invitationcode: "" })); // Clear error when input is not blank
-          }}
-          className="border border-gray-300 p-2 rounded-md w-full mb-2"
-        />
-        {errors.invitationcode && <p className="text-red-500 text-sm">{errors.invitationcode}</p>}
-      </div>
-      <div className="form-section">
         <label className="form-label">Profile Picture *</label>
-        <p className="text-xs text-gray-500"> If you can cropped it to square format for the moment...</p>
+        <p className="text-xs text-gray-500"> If you can crop it to square format for the moment...</p>
         <input
           type="file"
           onChange={handleImageChange}
           accept="image/*"
-          className="border border-gray-300 p-2 rounded-md w-full mb-2"
+          className="border border-gray-300 p-3 rounded-md w-full mb-4"
           required
         />
         {errors.profileImage && <p className="text-red-500 text-sm">{errors.profileImage}</p>}
@@ -320,12 +280,16 @@ export default function SignUp() {
 
       {/* Register Button */}
       {formError && <p className="text-red-500 text-sm mb-4">{formError}</p>} {/* Display form-level error */}
-      <button onClick={handleSignUp} disabled={loading}>
+      <button
+        onClick={handleSignUp}
+        disabled={loading}
+        className="w-full py-3 rounded-md text-white font-semibold bg-gradient-to-r from-pink-500 to-purple-700 hover:from-pink-600 hover:to-purple-800 transition-all"
+      >
         {loading ? "Registering..." : "Register"}
       </button>
   
       <p className="text-sm mt-5 text-center text-gray-500">
-        To come : cropping tool ID verification and phone confirmation will be required later.
+        To come: cropping tool, ID verification, and phone confirmation will be required later.
       </p>
     </div>
   );

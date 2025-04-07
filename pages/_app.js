@@ -26,7 +26,7 @@ function MyApp({ Component, pageProps }) {
         }
       } else {
         // Redirect to Welcome_page if not logged in
-        if (router.pathname !== '/Welcome_page' && router.pathname !== '/login_page') {
+        if (router.pathname === '/') {
           router.push('/Welcome_page');
         }
       }
@@ -40,7 +40,7 @@ function MyApp({ Component, pageProps }) {
       if (user && ['/Welcome_page', '/login_page', '/signup_page'].includes(router.pathname)) {
         const redirectUrl = router.query.redirect || '/myDashboard_page';
         router.push(redirectUrl); // Redirect to the intended page or dashboard
-      } else if (!user && router.pathname !== '/Welcome_page' && router.pathname !== '/login_page') {
+      } else if (!user && router.pathname === '/') {
         router.push('/Welcome_page'); // Redirect to Welcome_page if not logged in
       }
     }

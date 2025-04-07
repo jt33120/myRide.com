@@ -76,6 +76,7 @@ const ImageCarousel = ({ imageUrls }) => {
 const ReceiptForm = ({ id, onClose, receiptTitle, setReceiptTitle, receiptDate, setReceiptDate, receiptCategory, setReceiptCategory, receiptMileage, setReceiptMileage, receiptFiles = [], setReceiptFiles, receiptPrice, setReceiptPrice, uploading, isEditing = false }) => {
   const [errors, setErrors] = useState({});
   const [newFiles, setNewFiles] = useState([]); // Track newly added files
+  const [setLoading] = useState(false); // Add loading state
 
   const validateForm = () => {
     const newErrors = {};
@@ -90,7 +91,7 @@ const ReceiptForm = ({ id, onClose, receiptTitle, setReceiptTitle, receiptDate, 
 
     // Handle mileage - check if it's a number or 'Unknown'
     if (receiptMileage === undefined || receiptMileage === null || (receiptMileage !== 'Unknown' && isNaN(Number(receiptMileage)))) {
-      newErrors.receiptMileage = "Mileage must be a valid number or 'Unknown'.";
+      newErrors.receiptMileage = "Mileage must be a valid number.";
     } else if (receiptMileage !== 'Unknown' && Number(receiptMileage) < 0) {
       newErrors.receiptMileage = "Mileage cannot be negative.";
     }
@@ -98,8 +99,8 @@ const ReceiptForm = ({ id, onClose, receiptTitle, setReceiptTitle, receiptDate, 
     // Price validation
     if (receiptPrice === undefined || receiptPrice === null || isNaN(Number(receiptPrice))) {
       newErrors.receiptPrice = "Price must be a valid number.";
-    } else if (Number(receiptPrice) <= 0) {
-      newErrors.receiptPrice = "Price must be greater than 0.";
+    } else if (Number(receiptPrice) < 0) {
+      newErrors.receiptPrice = "They paid you for that? Price must be greater than 0.";
     }
 
     setErrors(newErrors);
@@ -171,7 +172,7 @@ const ReceiptForm = ({ id, onClose, receiptTitle, setReceiptTitle, receiptDate, 
     }
   };
 
-  const updateMaintenanceAndRecommendation = async (receiptData) => {
+  const updateMaintenanceTable = async (receiptData) => {
     try {
       console.log("Updating maintenance table...");
       const updateResponse = await fetch(`/api/updateMaintenanceTable`, {
@@ -186,9 +187,19 @@ const ReceiptForm = ({ id, onClose, receiptTitle, setReceiptTitle, receiptDate, 
       if (!updateResponse.ok) {
         throw new Error("Failed to update maintenance table.");
       }
-      console.log("Maintenance table updated successfully.");
 
-      console.log("Fetching AI recommendation...");
+      toast.success("Maintenance table successfully updated."); // Show success message
+      console.log("Maintenance table updated successfully.");
+    } catch (error) {
+      console.error("Error updating maintenance table:", error);
+      toast.error("Failed to update maintenance table. Please try again."); // Show error message
+      throw error; // Rethrow to stop further execution
+    }
+  };
+
+  const generateAIRecommendation = async (receiptData) => {
+    try {
+      console.log("Generating AI recommendations...");
       const analyzeResponse = await fetch(`/api/analyzeManual`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -199,19 +210,39 @@ const ReceiptForm = ({ id, onClose, receiptTitle, setReceiptTitle, receiptDate, 
       });
 
       if (!analyzeResponse.ok) {
-        throw new Error("Failed to fetch AI recommendation.");
+        throw new Error("Failed to generate AI recommendations.");
       }
 
       const recommendationData = await analyzeResponse.json();
       console.log("AI recommendation fetched:", recommendationData.recommendation);
 
-      // Save the recommendation in Firebase
+      // Save the recommendation in Firestore
       const recommendationRef = doc(db, `listing/${id}`);
       await setDoc(recommendationRef, { aiRecommendation: recommendationData.recommendation }, { merge: true });
 
+      toast.success("AI recommendation successfully updated."); // Show success message
       console.log("AI recommendation saved successfully.");
     } catch (error) {
-      console.error("Error updating maintenance table or fetching recommendation:", error);
+      console.error("Error generating AI recommendation:", error);
+      toast.error("Failed to generate AI recommendation. Please try again."); // Show error message
+      throw error; // Rethrow to stop further execution
+    }
+  };
+
+  const updateMaintenanceAndRecommendation = async (receiptData) => {
+    try {
+      setLoading(true); // Start loading spinner
+
+      // Step 1: Update the maintenance table
+      await updateMaintenanceTable(receiptData);
+
+      // Step 2: Generate AI recommendations
+      await generateAIRecommendation(receiptData);
+
+      setLoading(false); // Stop loading spinner
+    } catch (error) {
+      console.error("Error during maintenance table or AI recommendation update:", error);
+      setLoading(false); // Stop loading spinner on error
     }
   };
 
@@ -1066,7 +1097,7 @@ const VehicleCardPage = () => {
   
       console.log('Receipt uploaded successfully.');
   
-      await handleRefreshRecommendation(); // Trigger AI recommendation refresh
+      await updateMaintenanceAndRecommendation({ mileage: parsedMileage }); // Trigger AI recommendation refresh
   
       // Refresh the page
       router.reload();
@@ -1149,6 +1180,7 @@ const handleUpdateReceipt = async () => {
   }
 
   try {
+    setLoading(true); // Start loading spinner
     // Delete the old receipt using handleReceiptDelete with receipt URLs
     console.log("Deleting old receipt...");
     await handleReceiptDelete(editingReceipt.id, editingReceipt.files);
@@ -1229,47 +1261,8 @@ const handleUpdateReceipt = async () => {
   } catch (error) {
     console.error("Error updating receipt:", error);
   } finally {
+    setLoading(false); // Stop loading spinner
     setShowEditReceiptForm(false);
-  }
-};
-
-const handleRefreshRecommendation = async () => {
-  try {
-    console.log("Updating maintenance table...");
-
-    // Step 1: Update the maintenance table
-    const updateResponse = await fetch(`/api/updateMaintenanceTable`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ vehicleId: id, currentMileage: vehicleData.mileage }),
-    });
-
-    if (!updateResponse.ok) {
-      throw new Error("Failed to update maintenance table.");
-    }
-    toast.success("Maintenance table successfully updated."); // Show success message
-    console.log("Maintenance table updated successfully.");
-
-    // Step 2: Generate AI recommendations
-    console.log("Generating AI recommendations...");
-    const analyzeResponse = await fetch(`/api/analyzeManual`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ vehicleId: id, currentMileage: vehicleData.mileage }),
-    });
-
-    if (!analyzeResponse.ok) {
-      throw new Error("Failed to generate AI recommendations.");
-    }
-
-    const recommendationData = await analyzeResponse.json();
-    setAIRecommendation(recommendationData.recommendation);
-
-    toast.success("Maintenance recommendation successfully generated."); // Show success message
-    console.log("AI recommendation refreshed:", recommendationData.recommendation);
-  } catch (error) {
-    console.error("Error refreshing AI recommendation:", error);
-    toast.error("Failed to refresh AI recommendation. Please try again."); // Show error message
   }
 };
 
@@ -1507,6 +1500,8 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
 
   if (!vehicleData) return <p>Vehicle not found.</p>;
 
+  const renderBoolean = (value) => (value ? "Yes" : "No");
+
   return (
     <div className="min-h-screen p-6 bg-gray-100 text-black relative">
       <ToastContainer />
@@ -1699,8 +1694,7 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
                 .filter(([key, value]) => typeof value === "boolean" && key !== "hideVin")
                 .map(([key, value]) => (
                   <div key={key} className="flex items-center space-x-2">
-                    <input type="checkbox" checked={value} readOnly className="w-4 h-4" />
-                    <label>{key.charAt(0).toUpperCase() + key.slice(1)}</label>
+                    <label>{key.charAt(0).toUpperCase() + key.slice(1)}: {renderBoolean(value)}</label>
                   </div>
                 ))}
             </div>
@@ -1714,7 +1708,7 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
                   "uid", "imageUrls", "CreatedAt", "RightImage", "RearImage", "OtherImage", "year", "ai_estimated_price",
                   "RightfrontWheelImage", "FrontImage", "DashboardImage", "RightrearWheelImage", "vehicleType", "createdAt",
                   "EngineBayImage", "LeftrearWheelImage", "city", "state", "zip","boughtAt","recommendation",
-                  "description", "cosmeticDefaults", "marketfetch_estimation","maintenance_recommendation","aftermarketMods", "vin", "title", "ownerManual", "model", "make", "mileage","updatedAt"
+                  "description", "cosmeticDefaults", "marketfetch_estimation","aiRecommendation","aftermarketMods", "vin", "title", "ownerManual", "model", "make", "mileage","updatedAt"
                 ].includes(key) &&
                 typeof value !== "boolean" &&  // Exclude boolean fields since they're already displayed
                 !(typeof value === 'string' && value.includes("https://firebasestorage"))

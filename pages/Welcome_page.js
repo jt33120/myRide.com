@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
+import Link from 'next/link';
 
 export default function WelcomePage() {
   const router = useRouter();
@@ -71,12 +72,9 @@ export default function WelcomePage() {
 
       {/* Sign-Up Button */}
       <div className="mt-10 text-center">
-        <button 
-          className="btn w-60" 
-          onClick={() => router.push("/signup_page")}
-        >
-          Sign Up 🚀
-        </button>
+        <Link href="/signup_page">
+          <button className="btn w-60">Sign Up 🚀</button>
+        </Link>
       </div>
 
       {/* Already a member? Sign in Link */}
