@@ -329,3 +329,23 @@
 .carousel-dot:hover {
   background-color: #7e22ce; /* Darker purple on hover */
 }
+
+/* Document Icon Styles */
+.document-icon {
+  display: inline-block;
+  padding: 10px;
+  border-radius: 8px;
+  text-align: center;
+  cursor: default;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.document-icon.clickable {
+  cursor: pointer;
+  background-color: #f3f3f3; /* Light gray background for clickable state */
+}
+
+.document-icon.clickable:hover {
+  background-color: #e0e0e0; /* Slightly darker gray on hover */
+  transform: scale(1.05); /* Slight zoom effect */
+}

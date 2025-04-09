@@ -76,7 +76,6 @@ const ImageCarousel = ({ imageUrls }) => {
 const ReceiptForm = ({ id, onClose, receiptTitle, setReceiptTitle, receiptDate, setReceiptDate, receiptCategory, setReceiptCategory, receiptMileage, setReceiptMileage, receiptFiles = [], setReceiptFiles, receiptPrice, setReceiptPrice, uploading, isEditing = false }) => {
   const [errors, setErrors] = useState({});
   const [newFiles, setNewFiles] = useState([]); // Track newly added files
-  const [setLoading] = useState(false); // Add loading state
 
   const validateForm = () => {
     const newErrors = {};
@@ -231,18 +230,15 @@ const ReceiptForm = ({ id, onClose, receiptTitle, setReceiptTitle, receiptDate, 
 
   const updateMaintenanceAndRecommendation = async (receiptData) => {
     try {
-      setLoading(true); // Start loading spinner
 
       // Step 1: Update the maintenance table
       await updateMaintenanceTable(receiptData);
 
       // Step 2: Generate AI recommendations
       await generateAIRecommendation(receiptData);
-
-      setLoading(false); // Stop loading spinner
+; // Stop loading spinner
     } catch (error) {
-      console.error("Error during maintenance table or AI recommendation update:", error);
-      setLoading(false); // Stop loading spinner on error
+      console.error("Error during maintenance table or AI recommendation update:", error);; // Stop loading spinner on error
     }
   };
 
@@ -514,15 +510,11 @@ const ReceiptForm = ({ id, onClose, receiptTitle, setReceiptTitle, receiptDate, 
 
 const OwnerManualModal = ({ onClose, vehicleId }) => {
   const [manualUrl, setManualUrl] = useState('');
-  const [loading, setLoading] = useState(false);
-
   const handleSyncOwnerManual = async () => {
     if (!manualUrl) {
       alert("Please enter a valid URL");
       return;
     }
-
-    setLoading(true);
 
     try {
       // Save the URL to Firestore
@@ -570,7 +562,6 @@ const OwnerManualModal = ({ onClose, vehicleId }) => {
       console.error("Error:", error);
       alert("Failed to process: " + error.message);
     } finally {
-      setLoading(false);
       onClose(); // Close the modal after processing
     }
   };
@@ -611,7 +602,6 @@ const LoginModal = ({ onClose, onLoginSuccess }) => {
   const router = useRouter();
 
   const handleLogin = async () => {
-    setLoading(true);
     setError('');
     try {
       await signInWithEmailAndPassword(auth, email, password);
@@ -622,7 +612,6 @@ const LoginModal = ({ onClose, onLoginSuccess }) => {
       console.error('Login error:', err);
       setError('Invalid email or password. Please try again.');
     } finally {
-      setLoading(false);
     }
   };
 
@@ -680,7 +669,6 @@ setLogLevel("debug");
 
 const VehicleCardPage = () => {
   const [vehicleData, setVehicleData] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [receipts, setReceipts] = useState([]);
@@ -788,7 +776,6 @@ const VehicleCardPage = () => {
     if (!id) return;
 
     const fetchRecommendations = async () => {
-      setLoading(true);
       try {
         // Fetch vehicle data
         const vehicleRef = doc(db, 'listing', id);
@@ -837,7 +824,6 @@ const VehicleCardPage = () => {
         console.error('Error fetching recommendations:', error);
         setAIRecommendation('Failed to fetch recommendations.');
       } finally {
-        setLoading(false);
       }
     };
 
@@ -951,7 +937,6 @@ const VehicleCardPage = () => {
     if (!id) return;
 
     const fetchVehicleData = async () => {
-      setLoading(true);
       try {
         console.log('Fetching vehicle data for ID:', id);
         const vehicleRef = doc(db, 'listing', id);
@@ -1011,7 +996,6 @@ const VehicleCardPage = () => {
       } catch (error) {
         console.error('Error fetching vehicle data:', error);
       } finally {
-        setLoading(false);
       }
     };
 
@@ -1179,8 +1163,7 @@ const handleUpdateReceipt = async () => {
     return;
   }
 
-  try {
-    setLoading(true); // Start loading spinner
+  try {// Start loading spinner
     // Delete the old receipt using handleReceiptDelete with receipt URLs
     console.log("Deleting old receipt...");
     await handleReceiptDelete(editingReceipt.id, editingReceipt.files);
@@ -1260,8 +1243,7 @@ const handleUpdateReceipt = async () => {
     router.reload();
   } catch (error) {
     console.error("Error updating receipt:", error);
-  } finally {
-    setLoading(false); // Stop loading spinner
+  } finally {// Stop loading spinner
     setShowEditReceiptForm(false);
   }
 };
@@ -1496,11 +1478,15 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
     );
   }
 
-  if (loading) return <p>Loading vehicle details...</p>;
 
   if (!vehicleData) return <p>Vehicle not found.</p>;
 
   const renderBoolean = (value) => (value ? "Yes" : "No");
+
+  const handleAddDocument = (type) => {
+    console.log(`Adding document of type: ${type}`);
+    document.getElementById(type).click(); // Trigger the file input click
+  };
 
   return (
     <div className="min-h-screen p-6 bg-gray-100 text-black relative">
@@ -1793,7 +1779,7 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
             <div className="flex items-center space-x-2">
             <button
               onClick={() => handleEditReceipt(receipt)}
-              className="text-purple-600 hover:text-green-800"
+              className="text-purple-600 hover:text-purple-800"
               title="Edit Receipt"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
@@ -1861,6 +1847,9 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
                 style={{
                   objectFit: "cover",
                   filter: documentExists ? 'none' : 'grayscale(100%)',
+                }}
+                onClick={() => {
+                  if (!documentExists) handleAddDocument(docType);
                 }}
               />
               {documentExists && (

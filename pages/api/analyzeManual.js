@@ -24,15 +24,14 @@ export default async function handler(req, res) {
 
     console.log("Sending data to OpenAI for recommendation...");
 
-    const prompt = `You are an API to analyze a maintenance table and provide recommendations. The owner provided the following table:
+    const prompt = `You are an API to analyze a maintenance table and provide recommendations based on it. You are integrate in a whole app so your goal is to display consistant messages. The owner provided the following table:
     ${JSON.stringify(maintenanceTable, null, 2)}
     The current mileage of the vehicle is ${currentMileage} miles.
 
-    Your output is this three information (don't display anything else, it's a snapshot for the owner):
-    1. Among  the categories that has the NextTimeToDo value > ${currentMileage} (compare column 'NextTimeToDo' with ${currentMileage}), retrieve the minimal one as such : "Most urgent to come: [Category] at [value in 'NextTimeToDo'] miles". Obviously, the recommendation has to be for a mileage > ${currentMileage}).
-    2. Add a warning for all maintenance missing history: list of all categories with blank value in column 'NextTimeToDo' (so-called blank_categories). Like this: "No history found for: [list of blank_categories]. We recommend checking them."
-    3. Maintenance grade. grade = count of non-empty categories in 'NextTimeToDo' / count of all categories. Like this: "Maintenance Grade: [grade]" as a percentage.`;
-
+    Your output are these pieces of information (don't display anything else, it's a snapshot for the owner):
+    1. Get the category (first column) with the smallest value in NextTimeToDo  that is still above ${currentMileage} (basically, filter to get categories with a value > ${currentMileage} in NextTimeTodo, and then get the minimum of this filtered set, the closest to the current mileage in NextTimeToDo). Display a message as such : "Most urgent to come: [Category] at [value in 'NextTimeToDo'] miles". Obviously, the recommendation has to be for a mileage > ${currentMileage}).
+    2. Add a warning for all maintenance missing history: list of all categories with blank value in column 'NextTimeToDo' (so-called blank_categories). Like this: "No history found for: [list of blank_categories]. We recommend checking them."`;
+//     3. Maintenance grade. grade = count of non-empty categories in 'NextTimeToDo' / count of all categories. Like this: "Maintenance Grade: [grade]" as a percentage.
     const aiResponse = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
