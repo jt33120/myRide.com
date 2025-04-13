@@ -6,7 +6,6 @@ import { getStorage, ref, listAll, getDownloadURL, deleteObject } from 'firebase
 import Image from 'next/image';
 import Navbar from '../components/Navbar'; // Import Navbar component
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
-import { getLastUpdateDate, updateAiEstimatedValue } from "../lib/aiUtils"; // Assume utility functions exist
 
 // Register chart.js components
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
