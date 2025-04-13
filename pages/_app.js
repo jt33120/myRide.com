@@ -20,7 +20,7 @@ function MyApp({ Component, pageProps }) {
       if (user) {
         // Redirect only if the user is on public pages
         if (['/Welcome_page', '/login_page', '/signup_page'].includes(router.pathname)) {
-          const redirectUrl = router.query.redirect || '/myDashboard_page';
+          const redirectUrl = router.query.redirect || '/myVehicles_page';
           router.push(redirectUrl); // Redirect to the intended page or dashboard
         }
       } else {
@@ -37,7 +37,7 @@ function MyApp({ Component, pageProps }) {
   useEffect(() => {
     if (authChecked) {
       if (user && ['/Welcome_page', '/login_page', '/signup_page'].includes(router.pathname)) {
-        const redirectUrl = router.query.redirect || '/myDashboard_page';
+        const redirectUrl = router.query.redirect || '/myVehicles_page';
         router.push(redirectUrl); // Redirect to the intended page or dashboard
       } else if (!user && router.pathname === '/') {
         router.push('/Welcome_page'); // Redirect to Welcome_page if not logged in
