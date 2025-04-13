@@ -334,7 +334,6 @@ const MyGarage = () => {
     updateEstimatedValues(); // Ensure the array is updated at most once a day
   }, []);
 
-
   const updateEstimatedValuesOncePerDay = async () => {
     try {
       const user = auth.currentUser;
@@ -377,7 +376,6 @@ const MyGarage = () => {
                 title: vehicleData.title || 'Unknown',
                 aftermarketMods: vehicleData.aftermarketMods || 'Unknown',
                 cosmeticDefaults: vehicleData.cosmeticDefaults || 'Unknown',
-                receipts: vehicleData.receipts || [], // Include receipts if available
               }),
             });
 

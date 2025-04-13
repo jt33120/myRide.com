@@ -243,6 +243,49 @@ const ReceiptForm = ({ id, onClose, receiptTitle, setReceiptTitle, receiptDate, 
     }
   };
 
+  const updateAiEstimationForToday = async () => {
+    try {
+      const currentDate = new Date();
+      const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(currentDate.getDate()).padStart(2, '0')}/${currentDate.getFullYear()}`;
+
+      const response = await fetch('/api/aiEstimator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          make: vehicleData.make,
+          model: vehicleData.model,
+          year: vehicleData.year,
+          mileage: vehicleData.mileage || 'Unknown',
+          color: vehicleData.color || 'Unknown',
+          city: vehicleData.city || 'Unknown',
+          zip: vehicleData.zip || 'Unknown',
+          state: vehicleData.state || 'Unknown',
+          title: vehicleData.title || 'Unknown',
+          aftermarketMods: vehicleData.aftermarketMods || 'Unknown',
+          cosmeticDefaults: vehicleData.cosmeticDefaults || 'Unknown',
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok && data.estimation) {
+        const numericEstimation = parseFloat(data.estimation.replace(/[^0-9.]/g, '')); // Extract numeric value
+        if (!isNaN(numericEstimation)) {
+          const newEntry = `${numericEstimation}-${formattedDate}`;
+          const vehicleRef = doc(db, 'listing', id);
+
+          // Overwrite today's estimation
+          await updateDoc(vehicleRef, {
+            ai_estimated_value: arrayUnion(newEntry),
+          });
+        }
+      } else {
+        console.error('Failed to fetch AI estimation:', data.error || 'Unknown error');
+      }
+    } catch (error) {
+      console.error('Error updating AI estimation for today:', error);
+    }
+  };
+
   const handleSave = async () => {
     if (!validateForm()) return;
 
@@ -299,6 +342,9 @@ const ReceiptForm = ({ id, onClose, receiptTitle, setReceiptTitle, receiptDate, 
 
       // Update maintenance table and fetch recommendation
       await updateMaintenanceAndRecommendation(receiptData);
+
+      // Update AI estimation for today after receipt upload
+      await updateAiEstimationForToday();
 
       // Reset form state
       setNewFiles([]);
@@ -377,6 +423,9 @@ const ReceiptForm = ({ id, onClose, receiptTitle, setReceiptTitle, receiptDate, 
 
       // Update maintenance table and fetch recommendation
       await updateMaintenanceAndRecommendation(receiptData);
+
+      // Update AI estimation for today after receipt upload
+      await updateAiEstimationForToday();
 
       // Reset form state
       setNewFiles([]);
@@ -1084,6 +1133,9 @@ const VehicleCardPage = () => {
   
       await updateMaintenanceAndRecommendation({ mileage: parsedMileage }); // Trigger AI recommendation refresh
   
+      // Update AI estimation for today after receipt upload
+      await updateAiEstimationForToday();
+  
       // Refresh the page
       router.reload();
     } catch (error) {
@@ -1409,12 +1461,6 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
   
       return fileDate < today; // Return true if the date is due
     };
-
-  useEffect(() => {
-    if (vehicleData) {
-      fetchAiEstimation();
-    }
-  }, [vehicleData]);
 
   const handleShare = async () => {
     try {
