@@ -1,10 +1,66 @@
-.navbar {
+/* Top Navbar */
+.navbar-top {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end; /* Align items to the right */
   align-items: center;
   padding: 10px 20px;
-  background-color: #000000;
-  border-bottom: 1px solid #ddd;
+  background-color: transparent; /* Transparent background */
+  border-bottom: 1px solid rgba(255, 255, 255, 0); /* Subtle border for separation */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+}
+
+/* Bottom Navbar */
+.navbar-bottom {
+  display: flex;
+  justify-content: space-between; /* Dynamically space icons evenly */
+  align-items: center;
+  padding: 10px 20px; /* Adjust padding for better spacing */
+  background-color: white; /* White background */
+  border-top: 1px solid #eaeaea; /* Light border for separation */
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+}
+
+/* Bottom Navbar Buttons */
+.navbar-bottom button {
+  flex: 1; /* Ensure buttons take equal space */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0px 0;
+  margin: 0 10px; /* Add margin between buttons */
+}
+
+/* Shared styles for nav links */
+.nav-menu a {
+  text-decoration: none;
+  color: #eaeaea; /* Light text for top navbar */
+  padding: 10px 15px;
+  border-radius: 5px;
+  transition: all 0.3s ease;
+}
+
+.nav-menu a:hover {
+  background: #6c5ce7; /* Purple highlight */
+  color: white;
+}
+
+/* Bottom navbar link styles */
+.navbar-bottom a {
+  color: #6c5ce7; /* Purple text for bottom navbar */
+}
+
+.navbar-bottom a:hover {
+  color: #4b4bff; /* Darker purple on hover */
 }
 
 /* Navigation menu */
@@ -14,24 +70,18 @@
   gap: 20px;
 }
 
-/* Style for nav links */
-.nav-menu a {
+/* Ensure the discussion link has proper styling */
+.nav-menu a.discussion-link {
   text-decoration: none;
-  color: white;
+  color: #eaeaea; /* Light text for night mode */
   padding: 10px 15px;
   border-radius: 5px;
   transition: all 0.3s ease;
 }
 
-/* Hover effect - purple background */
-.nav-menu a:hover {
-  background: #e42fee;
-  color: white;
-}
-
 /* Selected (active) page - text turns purple */
 .nav-menu a.active {
-  color: #e42fee;
+  color: #a29bfe; /* Soft purple for active links */
   font-weight: bold;
 }
 
@@ -51,7 +101,7 @@
   position: absolute;
   top: 50px;
   right: 0;
-  background: rgb(0, 0, 0);
+  background: rgba(26, 26, 46, 0.9); /* Semi-transparent dark background */
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   border-radius: 5px;
   padding: 10px;
@@ -69,22 +119,36 @@
   background: none;
   width: 100%;
   cursor: pointer;
-  color: white;
+  color: #eaeaea; /* Light text for night mode */
 }
 
 /* Hover effect in dropdown */
 .dropdown-menu a:hover,
 .dropdown-menu button:hover {
-  background: #e42fee;
+  background: #6c5ce7; /* Purple highlight */
 }
+
 /* Add styles for the donation link */
 .donation-link {
   font-size: 12px;
-  color: #777; /* Light grey for subtlety */
-  margin-left: 10px; /* Add space between the logo and link */
+  color: #a29bfe; /* Subtle purple for donation link */
+  margin-left: 10px;
   text-decoration: none;
 }
 
 .donation-link:hover {
-  color: #e42fee; /* Purple hover effect */
+  color: #6c5ce7; /* Purple hover effect */
+}
+
+/* Profile Picture */
+.navbar-top .profile-container {
+  position: relative;
+  cursor: pointer;
+}
+
+.navbar-top .profile-icon {
+  border-radius: 50%;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
 }

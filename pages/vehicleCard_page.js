@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { auth, db, storage } from '../lib/firebase';
-import { doc, getDoc, collection, getDocs, query, where, addDoc, deleteDoc, setDoc, setLogLevel } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, query, where, addDoc, deleteDoc, setDoc, setLogLevel, updateDoc, arrayUnion } from 'firebase/firestore';
 import { ref, listAll, getDownloadURL, uploadBytesResumable, deleteObject, uploadString } from 'firebase/storage';
 import Slider from 'react-slick';
 import 'slick-carousel/slick/slick.css';
@@ -12,6 +12,7 @@ import 'chart.js/auto';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import Navbar from "../components/Navbar";
 
 const ImageCarousel = ({ imageUrls }) => {
   const settings = {
@@ -1356,7 +1357,13 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
         const vehicleRef = doc(db, 'listing', id);
         const numericEstimation = parseFloat(estimation.replace(/[^0-9.]/g, '')); // Extract numeric value
         if (!isNaN(numericEstimation)) {
-          await setDoc(vehicleRef, { ai_estimated_price: numericEstimation }, { merge: true });
+          const currentDate = new Date();
+          const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(currentDate.getDate()).padStart(2, '0')}/${currentDate.getFullYear()}`;
+          const newEntry = `${numericEstimation}-${formattedDate}`; // Format: value-MM/DD/YYYY
+
+          await updateDoc(vehicleRef, {
+            ai_estimated_value: arrayUnion(newEntry), // Append the new entry to the array
+          });
         }
       } else {
         console.error('Error fetching AI estimation:', data.error);
@@ -1489,14 +1496,52 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
   };
 
   return (
-    <div className="min-h-screen p-6 bg-gray-100 text-black relative">
+    <div className="min-h-screen pt-20 p-6 bg-gray-100 text-black relative">
+      <Navbar
+        leftContent={
+          <button
+            onClick={() => router.push("/myVehicles_page")}
+            className="bg-gray-200 p-2 rounded-full shadow-md hover:bg-gray-300"
+            title="Go Back"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth="1.5"
+              stroke="currentColor"
+              className="h-6 w-6 text-gray-600"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15.75 19.5 8.25 12l7.5-7.5"
+              />
+            </svg>
+          </button>
+        }
+      />
       <ToastContainer />
-      <button
-        onClick={() => router.push('/myVehicles_page')}
-        className="return-button"
-        title="Back to Dashboard"
+            {/* Return Button */}
+            <button
+        onClick={() => router.push("/myVehicles_page")}
+        className="absolute top-4 left-4 bg-gray-200 p-2 rounded-full shadow-md hover:bg-gray-300 z-50" // Increased z-index
+        title="Go Back"
       >
-        ⏎
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth="1.5"
+          stroke="currentColor"
+          className="h-6 w-6 text-gray-600"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M15.75 19.5 8.25 12l7.5-7.5"
+          />
+        </svg>
       </button>
 
       <ImageCarousel imageUrls={imageUrls} />
@@ -1691,7 +1736,7 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
             {Object.entries(vehicleData)
               .filter(([key, value]) => 
                 ![
-                  "uid", "imageUrls", "CreatedAt", "RightImage", "RearImage", "OtherImage", "year", "ai_estimated_price",
+                  "uid", "imageUrls", "CreatedAt", "RightImage", "RearImage", "OtherImage", "year", "ai_estimated_value",
                   "RightfrontWheelImage", "FrontImage", "DashboardImage", "RightrearWheelImage", "vehicleType", "createdAt",
                   "EngineBayImage", "LeftrearWheelImage", "city", "state", "zip","boughtAt","recommendation",
                   "description", "cosmeticDefaults", "marketfetch_estimation","aiRecommendation","aftermarketMods", "vin", "title", "ownerManual", "model", "make", "mileage","updatedAt"
@@ -1808,7 +1853,7 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
           {isOwner && (
           <button
             onClick={() => setShowReceiptForm(true)}
-            className="bg-purple-700 text-white text-sm px-4 py-1 mt-2 rounded-full hover:bg-blue-600"
+            className="bg-purple-700 text-white text-sm px-4 py-1 mt-2 rounded-2xl hover:bg-blue-600"
           >
             + Receipt
           </button>
@@ -1993,6 +2038,53 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
           )}
           {isOwner && (
             <div className="flex justify-around mt-0">
+              {vehicleData.onMarketplace ? (
+                // Red button to remove the vehicle from the marketplace
+                <button
+                  onClick={async () => {
+                    try {
+                      const marketplaceRef = doc(db, "on_marketplace", id);
+                      await deleteDoc(marketplaceRef);
+                      alert("Vehicle removed from marketplace.");
+                      refreshPage(); // Reload the page to reflect changes
+                    } catch (error) {
+                      console.error("Error removing vehicle from marketplace:", error);
+                      alert("Failed to remove vehicle from marketplace.");
+                    }
+                  }}
+                  className="bg-red-600 text-white px-6 py-2 rounded-2xl hover:bg-red-700"
+                >
+                  Remove from Marketplace
+                </button>
+              ) : (
+                // Green button to add the vehicle to the marketplace
+                <button
+                  onClick={async () => {
+                    const price = prompt("Enter the price for the vehicle:");
+                    if (!price || isNaN(price)) {
+                      alert("Please enter a valid number for the price.");
+                      return;
+                    }
+
+                    try {
+                      const marketplaceRef = doc(db, "on_marketplace", id);
+                      await setDoc(marketplaceRef, {
+                        listedAt: new Date(),
+                        price: parseFloat(price),
+                        status: "listed",
+                      });
+                      alert("Vehicle added to marketplace.");
+                      refreshPage(); // Reload the page to reflect changes
+                    } catch (error) {
+                      console.error("Error adding vehicle to marketplace:", error);
+                      alert("Failed to add vehicle to marketplace.");
+                    }
+                  }}
+                  className="bg-green-600 text-white px-6 py-2 rounded-2xl hover:bg-green-700"
+                >
+                  Add to Marketplace
+                </button>
+              )}
             </div>
           )}
           <div className="mt-4 p-4 bg-white rounded-lg shadow-md border border-gray-300">

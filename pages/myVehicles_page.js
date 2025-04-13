@@ -1,21 +1,92 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { auth, db } from '../lib/firebase';
-import { doc, getDoc, collection, getDocs, deleteDoc, updateDoc, arrayRemove } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, deleteDoc, updateDoc, arrayRemove, arrayUnion } from 'firebase/firestore';
 import { getStorage, ref, listAll, getDownloadURL, deleteObject } from 'firebase/storage';
 import Image from 'next/image';
+import Navbar from '../components/Navbar'; // Import Navbar component
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
+import { getLastUpdateDate, updateAiEstimatedValue } from "../lib/aiUtils"; // Assume utility functions exist
+
+// Register chart.js components
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
 const MyGarage = () => {
   const [firstName, setFirstName] = useState('');
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [sumType, setSumType] = useState("Garage's value"); // Default to "Current Value"
-  const [, setGarageReceipts] = useState([]); // Store all receipts across vehicles
+  const [sumType, setSumType] = useState("Garage's Estimated Value"); // Default to "Garage's Estimated Value"
   const router = useRouter();
   const [currentIndexes, setCurrentIndexes] = useState({}); // Track current index for each vehicle
 
   // Firebase storage instance
   const storage = getStorage();
+
+  const [sumOptions] = useState([
+    "Garage's Estimated Value",
+    "Garage's total cost",
+    "Garage's purchase cost",
+    "Cost in Repair",
+    "Cost in Scheduled Maintenance",
+    "Cost in Cosmetic Mods",
+    "Cost in Performance Mods",
+  ]);
+  const [dropdownOpen, setDropdownOpen] = useState(false); // Track dropdown visibility
+
+  const fetchGarageEstimatedValue = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user) return 0;
+
+      const userDocRef = doc(db, 'members', user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists()) {
+        const vehicleIds = userDoc.data().vehicles || [];
+        let totalValue = 0;
+
+        for (const vehicleId of vehicleIds) {
+          const vehicleDocRef = doc(db, 'listing', vehicleId);
+          const vehicleDoc = await getDoc(vehicleDocRef);
+
+          if (vehicleDoc.exists()) {
+            const priceHistory = vehicleDoc.data().ai_estimated_value || [];
+            if (priceHistory.length > 0) {
+              const lastEntry = priceHistory[priceHistory.length - 1]; // Get the last string in the array
+              const [value] = lastEntry.split("-"); // Extract the value before the first "-"
+              totalValue += parseFloat(value) || 0; // Convert to number and sum
+            }
+          }
+        }
+
+        return totalValue;
+      }
+    } catch (error) {
+      console.error("Error fetching garage estimated value:", error);
+    }
+    return 0;
+  };
+
+  const [garageValue, setGarageValue] = useState(0); // Initialize with 0 to avoid NaN
+
+  useEffect(() => {
+    const fetchAndSetGarageValue = async () => {
+      const value = await fetchGarageEstimatedValue();
+      setGarageValue(value); // Store the total sum of values
+    };
+
+    fetchAndSetGarageValue(); // Fetch the value immediately on page load
+  }, []); // Run only once when the component mounts
+
+  useEffect(() => {
+    if (sumType === "Garage's Estimated Value") {
+    }
+  }, [sumType, garageValue]);
+
+  const handleSumTypeSelect = (type) => {
+    setSumType(type);
+    setDropdownOpen(false); // Close the dropdown after selection
+  };
 
   // Fetch user's first name and vehicle IDs from Firestore
   useEffect(() => {
@@ -91,7 +162,7 @@ const MyGarage = () => {
               year: vehicleData.year,
               images: images,
               boughtAt: vehicleData.boughtAt || 0, // Ensure default value
-              ai_estimated_price: vehicleData.ai_estimated_price || 0, // Ensure default value
+              ai_estimated_value: vehicleData.ai_estimated_value || 0, // Ensure default value
               receipts,
             };
           } else {
@@ -102,7 +173,6 @@ const MyGarage = () => {
       );
 
       setVehicles(vehicleList.filter(Boolean)); // Filter out null values
-      setGarageReceipts(allReceipts); // Store all receipts
     } catch (error) {
       console.error("Error fetching vehicles:", error);
     } finally {
@@ -112,9 +182,8 @@ const MyGarage = () => {
 
   const calculateGarageSum = (type) => {
     switch (type) {
-      case "Garage's value":
-        // Sum of AI-estimated prices across all vehicles
-        return vehicles.reduce((sum, vehicle) => sum + (vehicle.ai_estimated_price || 0), 0);
+      case "Garage's Estimated Value":
+        return garageValue; // Use the pre-fetched total value
       case "Garage's total cost":
         // Sum of purchase price (boughtAt) and all receipts across all vehicles
         return vehicles.reduce((sum, vehicle) => {
@@ -159,13 +228,6 @@ const MyGarage = () => {
       default:
         return 0;
     }
-  };
-
-  const handleSumBoxClick = () => {
-    const sumTypes = ["Garage's Value", "Garage's total cost", "Garage's purchase cost", 'Cost in Repair', 'Cost in Scheduled Maintenance', 'Cost in Cosmetic Mods', 'Cost in Performance Mods'];
-    const currentIndex = sumTypes.indexOf(sumType);
-    const nextIndex = (currentIndex + 1) % sumTypes.length;
-    setSumType(sumTypes[nextIndex]);
   };
 
   const handleDotClick = (vehicleId, index) => {
@@ -230,111 +292,283 @@ const MyGarage = () => {
     router.push(`/vehicleCard_page?id=${vehicleId}`);
   };
 
+  const updateEstimatedValues = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const userDocRef = doc(db, 'members', user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists()) {
+        const vehicleIds = userDoc.data().vehicles || [];
+        const currentDate = new Date();
+        const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(currentDate.getDate()).padStart(2, '0')}/${currentDate.getFullYear()}`;
+
+        for (const vehicleId of vehicleIds) {
+          const vehicleDocRef = doc(db, 'listing', vehicleId);
+          const vehicleDoc = await getDoc(vehicleDocRef);
+
+          if (vehicleDoc.exists()) {
+            const vehicleData = vehicleDoc.data();
+            const priceHistory = vehicleData.ai_estimated_value || [];
+            const lastEntry = priceHistory[priceHistory.length - 1] || '';
+            const [, lastDate] = lastEntry.split('-');
+
+            // Update only if the last update was not today
+            if (lastDate !== formattedDate) {
+              const newValue = vehicleData.ai_estimated_value || 0; // Use the current estimated price
+              const newEntry = `${newValue}-${formattedDate}`;
+              await updateDoc(vehicleDocRef, {
+                ai_estimated_value: arrayUnion(newEntry),
+              });
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error updating estimated values:", error);
+    }
+  };
+
+  useEffect(() => {
+    updateEstimatedValues(); // Ensure the array is updated at most once a day
+  }, []);
+
+  const updateEstimatedValuesOncePerDay = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const userDocRef = doc(db, 'members', user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists()) {
+        const vehicleIds = userDoc.data().vehicles || [];
+        const currentDate = new Date();
+        const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(currentDate.getDate()).padStart(2, '0')}/${currentDate.getFullYear()}`;
+
+        for (const vehicleId of vehicleIds) {
+          const vehicleDocRef = doc(db, 'listing', vehicleId);
+          const vehicleDoc = await getDoc(vehicleDocRef);
+
+          if (vehicleDoc.exists()) {
+            const vehicleData = vehicleDoc.data();
+            const aiValues = Array.isArray(vehicleData.ai_estimated_value) ? vehicleData.ai_estimated_value : [];
+
+            // Skip if `ai_estimated_value` already updated today
+            if (aiValues.some(entry => entry.includes(`-${formattedDate}`))) {
+              continue;
+            }
+
+            // Fetch AI estimation from the API
+            const response = await fetch('/api/aiEstimator', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                make: vehicleData.make,
+                model: vehicleData.model,
+                year: vehicleData.year,
+                mileage: vehicleData.mileage || 'Unknown',
+                color: vehicleData.color || 'Unknown',
+                city: vehicleData.city || 'Unknown',
+                zip: vehicleData.zip || 'Unknown',
+                state: vehicleData.state || 'Unknown',
+                title: vehicleData.title || 'Unknown',
+                aftermarketMods: vehicleData.aftermarketMods || 'Unknown',
+                cosmeticDefaults: vehicleData.cosmeticDefaults || 'Unknown',
+                receipts: vehicleData.receipts || [], // Include receipts if available
+              }),
+            });
+
+            const data = await response.json();
+            if (response.ok && data.estimation) {
+              const numericEstimation = parseFloat(data.estimation.replace(/[^0-9.]/g, '')); // Extract numeric value
+              if (!isNaN(numericEstimation)) {
+                const newEntry = `${numericEstimation}-${formattedDate}`;
+                await updateDoc(vehicleDocRef, {
+                  ai_estimated_value: arrayUnion(newEntry), // Append the new entry
+                });
+              }
+            } else {
+              console.error(`Failed to fetch AI estimation for vehicle ${vehicleId}:`, data.error || 'Unknown error');
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error updating AI estimations for vehicles:', error);
+    }
+  };
+
+  useEffect(() => {
+    const updateDailyAIValues = async () => {
+      const today = new Date().toISOString().split("T")[0]; // Get current date in YYYY-MM-DD format
+      const lastUpdateDate = getLastUpdateDate(); // Fetch last update date from storage or API
+
+      if (lastUpdateDate !== today) {
+        await updateEstimatedValuesOncePerDay(); // Update AI estimation
+        localStorage.setItem("lastUpdateDate", today); // Save today's date as the last update date
+      }
+    };
+
+    updateDailyAIValues(); // Call the function to ensure daily updates
+  }, []);
+
+  useEffect(() => {
+    const today = new Date().toISOString().split("T")[0]; // Get current date in YYYY-MM-DD format
+    const lastUpdateDate = getLastUpdateDate(); // Fetch last update date from storage or API
+
+    if (lastUpdateDate !== today) {
+      updateAiEstimatedValue(); // Update AI estimation
+      // Save today's date as the last update date
+      localStorage.setItem("lastUpdateDate", today);
+    }
+  }, []);
+
   if (loading) return <p>Loading...</p>;
 
   return (
-    <div className="min-h-screen p-6 bg-gray-100 text-black relative">
-      {/* Exit Button */}
-      <button 
-        onClick={() => router.push('/myDashboard_page')}
-        className="absolute top-4 left-4 bg-none border-none text-xl text-gray-600 cursor-pointer"
-        title="Back to Dashboard"
-      >
-        ⏎
-      </button>
-
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">{firstName ? `${firstName}'s Garage` : "Loading..."}</h1>
-        <div
-          className="absolute top-4 right-4 bg-white p-2 rounded-lg shadow-md border border-gray-300 cursor-pointer"
-          onClick={handleSumBoxClick}
-        >
-          <p className="text-xs text-gray-500">{sumType}</p>
-          <p className="text-md">${Number(calculateGarageSum(sumType)).toFixed(2)}</p>
-        </div>
-      </div>
-
-      {vehicles.length === 0 ? (
-        <div className="text-center">
-          <p className="text-gray-600 text-lg mb-4">No vehicle yet? Add one!</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {vehicles.map((vehicle) => (
-            <div
-              key={vehicle.id}
-              className="bg-white p-2 rounded-lg shadow-md relative flex flex-col"
-              onClick={(event) => handleCardClick(vehicle.id, event)} // Handle card click
-            >
-              {/* Delete Button */}
-              <div className="absolute top-2 left-2 justify-start z-50 delete-button">
-                <button
-                  onClick={() => handleDeleteVehicle(vehicle.id)}
-                  className="bg-purple-500 text-white p-1 rounded-full hover:bg-purple-600 focus:outline-none"
-                  title="Delete Vehicle"
+    <div className="min-h-screen flex flex-col">
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto pt-20 pb-24 p-6 bg-gray-100 text-black">
+        {/* Added `pt-20` for top padding and `pb-24` for bottom padding */}
+        <div className="flex flex-col items-center mb-6">
+          <h1 className="text-3xl font-bold mb-4">{firstName ? `${firstName}'s Garage` : "Loading..."}</h1>
+          
+          {/* Sum Display */}
+          <div className="w-full max-w-md text-center">
+            <div className="flex items-center justify-center space-x-2">
+              <p className="text-sm text-gray-500">{sumType}</p>
+              <button
+                onClick={() => setDropdownOpen((prev) => !prev)}
+                className="p-1 hover:bg-gray-100 rounded-full transition"
+                title="Select Sum Type"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth="1.5"
+                  stroke="currentColor"
+                  className="w-5 h-5"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                  </svg>
-
-                </button>
-              </div>
-
-              {/* Carousel */}
-              <div className="carousel-container relative mb-4 w-48 h-48">
-                <div className="carousel-images overflow-hidden w-full h-full">
-                  {vehicle.images.length > 0 && (
-                    !vehicle.images[currentIndexes[vehicle.id] || 0].includes("vehicleVideo") && (
-                      <Image
-                        src={vehicle.images[currentIndexes[vehicle.id] || 0]}
-                        alt={`${vehicle.make} ${vehicle.model}`}
-                        width={200}
-                        height={200}
-                        className="w-full h-full object-cover rounded-lg"
-                      />
-                    )
-                  )}
-                </div>
-
-                {/* Dot navigation */}
-                <div className="carousel-dots absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-2">
-                  {vehicle.images.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDotClick(vehicle.id, index);
-                      }}
-                      className={`w-3 h-3 rounded-full ${
-                        (currentIndexes[vehicle.id] || 0) === index
-                          ? 'bg-purple-500'
-                          : 'bg-gray-300'
-                      }`}
-                    ></button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Vehicle info */}
-              <div className="text-center">
-                <h2 className="text-xl font-semibold">
-                {vehicle.year} {vehicle.make} {vehicle.model} 
-                </h2>
-              </div>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                </svg>
+              </button>
             </div>
-          ))}
+            {dropdownOpen && (
+              <div className="absolute mt-2 w-48 bg-white shadow-lg rounded-md border border-gray-200 z-10 text-sm">
+                {sumOptions.map((option) => (
+                  <button
+                    key={option}
+                    onClick={() => handleSumTypeSelect(option)}
+                    className={`block w-full text-left px-4 py-2 text-gray-600 hover:bg-gray-100 ${
+                      sumType === option ? "font-bold text-purple-700" : ""
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center justify-center mt-2">
+              <p className="text-5xl font-extrabold">${Number(calculateGarageSum(sumType)).toFixed(2)}</p>
+            </div>
+          </div>
         </div>
-      )}
+
+        {vehicles.length === 0 ? (
+          <div className="text-center">
+            <p className="text-gray-600 text-lg mb-4">No vehicle yet? Add one!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {vehicles.map((vehicle) => (
+              <div
+                key={vehicle.id}
+                className="bg-white p-2 rounded-lg shadow-md relative flex flex-col"
+                onClick={(event) => handleCardClick(vehicle.id, event)} // Handle card click
+              >
+                {/* Delete Button */}
+                <div className="absolute top-2 left-2 justify-start z-50 delete-button">
+                  <button
+                    onClick={() => handleDeleteVehicle(vehicle.id)}
+                    className="bg-purple-500 text-white p-1 rounded-full hover:bg-purple-600 focus:outline-none"
+                    title="Delete Vehicle"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Carousel */}
+                <div className="carousel-container relative mb-4 w-48 h-48">
+                  <div className="carousel-images overflow-hidden w-full h-full">
+                    {vehicle.images.length > 0 && (
+                      !vehicle.images[currentIndexes[vehicle.id] || 0].includes("vehicleVideo") && (
+                        <Image
+                          src={vehicle.images[currentIndexes[vehicle.id] || 0]}
+                          alt={`${vehicle.make} ${vehicle.model}`}
+                          width={200}
+                          height={200}
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                      )
+                    )}
+                  </div>
+
+                  {/* Dot navigation */}
+                  <div className="carousel-dots absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                    {vehicle.images.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDotClick(vehicle.id, index);
+                        }}
+                        className={`w-3 h-3 rounded-full ${
+                          (currentIndexes[vehicle.id] || 0) === index
+                            ? 'bg-purple-500'
+                            : 'bg-gray-300'
+                        }`}
+                      ></button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Vehicle info */}
+                <div className="text-center">
+                  <h2 className="text-xl font-semibold">
+                  {vehicle.year} {vehicle.make} {vehicle.model} 
+                  </h2>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Add Vehicle Button */}
-      <div className="text-center mt-6">
-        <button
-          className="bg-purple-700 text-white px-6 py-2 rounded-full hover:bg-purple-800"
-          onClick={() => router.push("/addVehicle_page")}
+      <button
+        className="fixed bottom-16 right-4 bg-gradient-to-r from-purple-500 to-purple-700 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:scale-105 transition-transform"
+        onClick={() => router.push("/addVehicle_page")}
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth="1.5"
+          stroke="currentColor"
+          className="w-6 h-6"
         >
-          ➕ Add Vehicle
-        </button>
-      </div>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+      </button>
+
+      {/* Navbar */}
+      <Navbar />
     </div>
   );
 };

@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { auth, db, storage } from '../lib/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { doc, setDoc, updateDoc, arrayUnion } from 'firebase/firestore'; // Add updateDoc and arrayUnion
+import Navbar from "../components/Navbar";
 
 const usStates = [
   "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
@@ -329,6 +330,30 @@ const AddVehiclePage = () => {
 
   return (
     <div className="min-h-screen p-6 bg-gray-100 text-black">
+      <Navbar
+        leftContent={
+          <button
+            onClick={() => router.push("/myVehicles_page")}
+            className="bg-gray-200 p-2 rounded-full shadow-md hover:bg-gray-300"
+            title="Go Back"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth="1.5"
+              stroke="currentColor"
+              className="h-6 w-6 text-gray-600"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15.75 19.5 8.25 12l7.5-7.5"
+              />
+            </svg>
+          </button>
+        }
+      />
       <h1 className="text-3xl font-bold mb-6 text-center">Add Vehicle</h1>
       <div className="form-container">
         {currentSection === 1 && (

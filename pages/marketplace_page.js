@@ -1,16 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
-import { db } from "../lib/firebase";
+import { db, storage } from "../lib/firebase";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
+import { ref, listAll, getDownloadURL } from "firebase/storage";
+import Image from "next/image";
 import { useRouter } from "next/router";
-import { getStorage, ref, listAll, getDownloadURL } from "firebase/storage";
-import Image from 'next/image';
 
 export default function MarketplacePage() {
   const [vehicles, setVehicles] = useState([]);
   const router = useRouter();
-
-  // Firebase storage instance
-  const storage = getStorage();
 
   const fetchVehicleImages = useCallback(async (vehicleId) => {
     const imagesRef = ref(storage, `listing/${vehicleId}/photos`);
@@ -19,119 +16,146 @@ export default function MarketplacePage() {
       imageList.items.map((imageRef) => getDownloadURL(imageRef))
     );
 
-    // Move the "front" image to the first position
-    const frontImageIndex = imageUrls.findIndex(url => url.includes("front"));
+    const frontImageIndex = imageUrls.findIndex((url) => url.includes("front"));
     if (frontImageIndex > -1) {
       const [frontImage] = imageUrls.splice(frontImageIndex, 1);
       imageUrls.unshift(frontImage);
     }
 
     return imageUrls;
-  }, [storage]);
+  }, []);
+
+  const fetchSellerProfile = async (uid) => {
+    if (!uid) return { profilePicture: "/default-profile.png", firstName: "Unknown Seller", rating: 0 };
+
+    try {
+      const userRef = doc(db, "members", uid);
+      const userSnap = await getDoc(userRef);
+
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        const profilePictureRef = ref(storage, `members/${uid}/profilepicture.png`);
+        const profilePicture = await getDownloadURL(profilePictureRef).catch(() => "/default-profile.png");
+        const firstName = userData.firstName || "Unknown Seller";
+        const rating = userData.rating || 0;
+        return { profilePicture, firstName, rating };
+      }
+    } catch (error) {
+      console.error("Error fetching seller profile:", error);
+    }
+
+    return { profilePicture: "/default-profile.png", firstName: "Unknown Seller", rating: 0 };
+  };
 
   useEffect(() => {
     async function fetchVehicles() {
       const marketplaceRef = collection(db, "on_marketplace");
       const marketplaceSnapshot = await getDocs(marketplaceRef);
       let vehicleList = [];
-  
+
       for (const vehicleDoc of marketplaceSnapshot.docs) {
         const vehicleId = vehicleDoc.id;
         const vehicleRef = doc(db, "listing", vehicleId);
         const vehicleSnap = await getDoc(vehicleRef);
-  
+
         if (vehicleSnap.exists()) {
           const vehicleData = vehicleSnap.data();
-          const marketplaceData = vehicleDoc.data(); // Fetch data from "on_marketplace" collection
-  
-          let ownerName = "Unknown Seller";
-          if (vehicleData.uid) {
-            const ownerRef = doc(db, "members", vehicleData.uid);
-            const ownerSnap = await getDoc(ownerRef);
-            if (ownerSnap.exists()) {
-              ownerName = ownerSnap.data().firstName || "Unknown Seller";
-            }
-          }
-  
-          // Fetch images from Firebase Storage
+          const marketplaceData = vehicleDoc.data();
+
+          const { profilePicture, firstName, rating } = await fetchSellerProfile(vehicleData.uid);
+
           const images = await fetchVehicleImages(vehicleId);
-  
+
           vehicleList.push({
             id: vehicleId,
             make: vehicleData.make || "Unknown Make",
             model: vehicleData.model || "Unknown Model",
             year: vehicleData.year || "Unknown Year",
-            owner: ownerName,
-            images: images, // Set the fetched images
-            price: marketplaceData.price || "N/A", // Fetch price from "on_marketplace"
+            owner: firstName,
+            profilePicture,
+            rating,
+            images,
+            price: marketplaceData.price || "N/A",
           });
         }
       }
       setVehicles(vehicleList);
     }
-  
+
     fetchVehicles();
   }, [fetchVehicleImages]);
 
-  const [currentIndex, setCurrentIndex] = useState(0);
-
-  const handleDotClick = (index) => {
-    setCurrentIndex(index);
+  const renderStars = (rating) => {
+    const stars = [];
+    for (let i = 0; i < 5; i++) {
+      stars.push(
+        <svg
+          key={i}
+          xmlns="http://www.w3.org/2000/svg"
+          fill={i < rating ? "currentColor" : "none"}
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          className="w-4 h-4 text-yellow-500"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l2.122 6.564a1 1 0 0 0 .95.69h6.905c.969 0 1.371 1.24.588 1.81l-5.588 4.06a1 1 0 0 0-.364 1.118l2.122 6.564c.3.921-.755 1.688-1.54 1.118l-5.588-4.06a1 1 0 0 0-1.176 0l-5.588 4.06c-.784.57-1.838-.197-1.54-1.118l2.122-6.564a1 1 0 0 0-.364-1.118L2.34 11.99c-.783-.57-.38-1.81.588-1.81h6.905a1 1 0 0 0 .95-.69l2.122-6.564z"
+          />
+        </svg>
+      );
+    }
+    return stars;
   };
 
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Marketplace</h1>
-  
-      {/* AI Prompt Placeholder */}
-      <div className="mb-4">
-        <p className="text-gray-600 text-lg">No filters anymore, a simple AI prompt is coming soon!</p>
-      </div>
-  
-      {/* Display Vehicles */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="min-h-screen pt-20 px-6 bg-gray-100 text-black">
+      <h1 className="page-heading">Marketplace</h1>
+      <p className="page-subheading">
+        No filters anymore, a simple AI prompt is coming soon! An invitation
+        will be required to access the marketplace. Vehicle details will be
+        AI-verified to protect the buyer by ensuring they are pre-verified.
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {vehicles.map((vehicle) => (
           <div
             key={vehicle.id}
-            className="p-4 border rounded-lg shadow-md cursor-pointer hover:shadow-lg transition flex items-center"
+            className="card cursor-pointer hover:shadow-lg transition"
             onClick={() => router.push(`/vehicleCard_page?id=${vehicle.id}`)}
           >
-            {/* Carousel on the left */}
-            <div className="carousel-container relative mr-4 w-48 h-48">
-              <div className="carousel-images overflow-hidden w-full h-full">
-                {vehicle.images.length > 0 && (
-                  <Image
-                    src={vehicle.images[currentIndex]} 
-                    alt={`${vehicle.make} ${vehicle.model}`}
-                    width={200}
-                    height={200}
-                    className="w-full h-full object-cover rounded-lg"
-                  />
-                )}
-              </div>
-  
-              {/* Dot navigation */}
-              <div className="carousel-dots absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-2">
-                {vehicle.images.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleDotClick(index)}
-                    className={`w-3 h-3 rounded-full ${currentIndex === index ? 'bg-purple-500' : 'bg-gray-300'}`}
-                  ></button>
-                ))}
-              </div>
+            <div className="relative">
+              <Image
+                src={vehicle.images[0] || "/default-vehicle.png"}
+                alt={`${vehicle.make} ${vehicle.model}`}
+                width={400}
+                height={300}
+                className="w-full h-48 object-cover rounded-t-lg"
+              />
             </div>
-  
-            {/* Vehicle info on the right */}
-            <div className="ml-4">
-              <h2 className="text-lg font-semibold">{vehicle.make} {vehicle.model}</h2>
-              <p className="text-gray-600">Year: {vehicle.year}</p>
-              <p className="text-purple-500 xl font-bold text-600"> ${vehicle.price}</p> {/* Display price */}
-              <p className="text-gray-500 text-sm">By {vehicle.owner}</p>
+            <div className="p-4">
+              <h2 className="card-title text-lg font-bold">
+                {vehicle.year} {vehicle.make} {vehicle.model}
+              </h2>
+              <p className="card-description text-sm text-gray-500">
+                ${vehicle.price}
+              </p>
+              <p className="card-description text-sm text-gray-500">
+                Seller: {vehicle.owner}
+              </p>
+              <div className="flex items-center space-x-2 mt-2">
+                <Image
+                  src={vehicle.profilePicture}
+                  alt="Seller Profile"
+                  width={32}
+                  height={32}
+                  className="rounded-full"
+                />
+                <div className="flex">{renderStars(vehicle.rating)}</div>
+              </div>
             </div>
           </div>
         ))}
       </div>
     </div>
   );
-};
+}

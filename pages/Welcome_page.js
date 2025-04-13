@@ -71,9 +71,9 @@ export default function WelcomePage() {
       </div>
 
       {/* Sign-Up Button */}
-      <div className="mt-10 text-center">
+      <div className="mt-6 flex justify-center">
         <Link href="/signup_page">
-          <button className="btn w-60">Sign Up 🚀</button>
+          <button className="button-main">Sign Up 🚀</button>
         </Link>
       </div>
 

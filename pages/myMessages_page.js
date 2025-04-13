@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { auth, db, storage } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { ref, getDownloadURL } from 'firebase/storage';
-import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -55,7 +54,6 @@ const MyMessages = () => {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const user = auth.currentUser;
-  const router = useRouter();
 
   useEffect(() => {
     const fetchConversationsAsync = async () => {
@@ -73,45 +71,41 @@ const MyMessages = () => {
     fetchConversationsAsync();
   }, [user]);
 
-  if (loading) return <div className="p-4 text-center">Loading messages...</div>;
+  if (loading) return <div className="text-center text-gray-500">Loading messages...</div>;
 
   return (
-    <div className="min-h-screen p-6 bg-gray-100 text-black relative">
-      {/* Exit Button */}
-      <button 
-        onClick={() => router.push('/myDashboard_page')}
-        className="absolute top-4 left-4 bg-none border-none text-xl text-gray-600 cursor-pointer"
-        title="Back to Dashboard"
-      >
-        ⏎
-      </button>
-      <h2 className="text-2xl font-bold mb-4">My Messages</h2>
+    <div className="min-h-screen p-5 bg-gray-100 text-black">
+      <h2 className="page-heading">My Messages</h2>
       {conversations.length === 0 ? (
         <p className="text-gray-500">No conversations yet.</p>
       ) : (
-        <div className="space-y-4">
+        <div className="space-between-boxes">
           {conversations.map((conversation) => (
             <Link key={conversation.id} href={`/chat_page?conversationId=${conversation.id}`} passHref>
-              <div className="p-4 border rounded-lg shadow-md cursor-pointer hover:shadow-lg transition">
-                <h3 className="text-lg font-semibold">{conversation.vehicleTitle}</h3>
-                <div className="flex items-center space-x-2">
-                  {conversation.profilePictureUrl && (
-                    <Image
-                      src={conversation.profilePictureUrl}
-                      alt={`${conversation.otherUserName}'s profile picture`}
-                      width={32}
-                      height={32}
-                      className="rounded-full"
-                    />
-                  )}
-                  <p className="text-gray-600">Chat with <b>{conversation.otherUserName}</b></p>
+              <div className="card cursor-pointer hover:shadow-lg transition">
+                <div className="card-content">
+                  <h3 className="card-title">{conversation.vehicleTitle}</h3>
+                  <div className="flex items-center space-x-2 mt-2">
+                    {conversation.profilePictureUrl && (
+                      <Image
+                        src={conversation.profilePictureUrl}
+                        alt={`${conversation.otherUserName}'s profile picture`}
+                        width={32}
+                        height={32}
+                        className="rounded-full"
+                      />
+                    )}
+                    <p className="card-description">
+                      Chat with <b>{conversation.otherUserName}</b>
+                    </p>
+                  </div>
                 </div>
               </div>
             </Link>
           ))}
         </div>
       )}
-      <div className="mt-8 text-center text-gray-500">
+      <div className="text-center text-gray-500 mt-8">
         To come: preview of the last messages, groups, etc!
       </div>
     </div>

@@ -1,52 +1,51 @@
+import axios from "axios";
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { year, make, model, color } = req.body;
+  const { vehicleDetails } = req.body;
 
-  if (!year || !make || !model || !color) {
-    return res.status(400).json({ error: "Missing required fields" });
+  if (!vehicleDetails || !vehicleDetails.make || !vehicleDetails.year || !vehicleDetails.model || !vehicleDetails.color) {
+    return res.status(400).json({ error: "Missing required vehicle details (make, year, model, color)." });
   }
 
   try {
-    const prompts = [
-      `A front view of a ${color} ${year} ${make} ${model} car, taken in a professional photoshoot style on a plain white background.`,
-      `A right side view of a ${color} ${year} ${make} ${model} car, taken in a professional photoshoot style on a plain white background.`,
-      `A front 3/4 view of a ${color} ${year} ${make} ${model} car, taken in a professional photoshoot style on a plain white background.`,
-    ];
+    // Generate the prompt
+    const prompt = `Create a packaging style image "Hot Wheels" like a collectible figure. The figurine is a ${vehicleDetails.color.toUpperCase()} ${vehicleDetails.make.toUpperCase()} ${vehicleDetails.model.toUpperCase()} from ${vehicleDetails.year}. 
+    The box is made of molded transparent plastic, inserted in a cardboard background that is a hot-wheel like flames and packaging with a minimalist and clean look. The vehicle is represented in the form of a stylized 3D figurine, a cartoon but realistic style that is placed in a recess in the center-left, left-side view.
+    The image should depict a figurine-like version of this vehicle.
+    The vehicle is displayed in a left side view, perfectly centered so you can see the whole vehicle. The image should be well-reproduced in a professional style, making it look like a real miniature figurine of the vehicule.`;
 
-    const images = [];
+    console.log("Generated prompt for OpenAI:", prompt);
 
-    for (const prompt of prompts) {
-      console.log("Generating image with prompt:", prompt); // Debug log
-
-      const response = await fetch("https://api.openai.com/v1/images/generations", {
-        method: "POST",
+    // Call OpenAI API using axios
+    const aiResponse = await axios.post(
+      "https://api.openai.com/v1/images/generations",
+      {
+        prompt,
+        n: 1, // Generate one image
+        size: "1024x1024", // Set the image size
+      },
+      {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, // Ensure this is set in your .env.local file
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, // Use the OpenAI API key
         },
-        body: JSON.stringify({
-          prompt,
-          n: 1,
-          size: "512x512",
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error.message || "Failed to generate image");
       }
+    );
 
-      const data = await response.json();
-      images.push(data.data[0].url);
-    }
+    const aiImageUrl = aiResponse.data.data[0].url; // Extract the image URL
+    console.log("AI-generated image URL:", aiImageUrl);
 
-    console.log("Images generated successfully:", images); // Debug log
-    res.status(200).json({ images });
+    res.status(200).json({ aiImageUrl });
   } catch (error) {
-    console.error("Error generating images:", error.message); // Log error message
-    res.status(500).json({ error: error.message || "Failed to generate images" });
+    console.error("Error generating AI image:", error.message);
+
+    // Log the full error for debugging
+    console.error("Full error details:", error);
+
+    res.status(500).json({ error: `Failed to generate AI image: ${error.message}` });
   }
 }

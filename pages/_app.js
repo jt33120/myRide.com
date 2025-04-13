@@ -5,7 +5,6 @@ import Layout from '../components/Layout';
 import Head from 'next/head';
 import '../styles/globals.css';
 import '../styles/Navbar.css';
-import '../styles/Footer.css';
 import { UserProvider } from '../context/UserContext';
 
 function MyApp({ Component, pageProps }) {
