@@ -330,3 +330,5 @@
 [debug] [2025-04-13T21:34:50.616Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects pageSize=1000
 [debug] [2025-04-13T21:34:51.122Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects 200
 [debug] [2025-04-13T21:34:51.122Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects [omitted]
+[info] [Firebase Plugin] Stopping Data Connect toolkit
+[debug] [2025-04-13T22:25:30.166Z] [Firebase Plugin] Activating Firebase extension.
