@@ -5,7 +5,6 @@ import { doc, setDoc } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { useRouter } from "next/router";
 import "react-datepicker/dist/react-datepicker.css";
-import styles from '../styles/Auth.module.css';
 import Link from 'next/link'; // Import Link for navigation
 
 export default function SignUp() {
@@ -17,7 +16,6 @@ export default function SignUp() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [dob, setDob] = useState(null);
   const [image, setImage] = useState(null);
-  const [error] = useState("");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({
     firstName: "",
@@ -147,150 +145,152 @@ export default function SignUp() {
   };
 
   return (
-    <div className={styles.authContainer}>
-      <p className="text-center mb-4">
-        Already have an account?{' '}
-        <Link href="/login_page" className="text-blue-500 hover:underline">
-          Sign in!
-        </Link>
-      </p>
-      <h2 className="text-3xl font-bold text-center mb-6">Register</h2>
-      {error && <p className="text-red-500">{error}</p>}
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="form-container">
+        <p className="text-center mb-4">
+          Already have an account?{' '}
+          <Link href="/login_page" className="text-blue-500 hover:underline">
+            Sign in!
+          </Link>
+        </p>
+        <h2 className="text-3xl font-bold text-center mb-6">Register</h2>
+        {error && <p className="text-red-500">{error}</p>}
 
-      {/* Form Fields */}
-      <div className="form-section">
-        <label className="form-label">First Name *</label>
-        <input
-          type="text"
-          value={firstName}
-          onChange={(e) => {
-            setFirstName(e.target.value);
-            setErrors({ ...errors, firstName: e.target.value ? "" : "This field is mandatory." });
-          }}
-          className="border border-gray-300 p-3 rounded-md w-full mb-4"
-        />
-        {errors.firstName && <p className="text-red-500 text-sm">{errors.firstName}</p>}
-      </div>
-      <div className="form-section">
-        <label className="form-label">Last Name *</label>
-        <input
-          type="text"
-          value={lastName}
-          onChange={(e) => {
-            setLastName(e.target.value);
-            setErrors({ ...errors, lastName: e.target.value ? "" : "This field is mandatory." });
-          }}
-          className="border border-gray-300 p-3 rounded-md w-full mb-4"
-        />
-        {errors.lastName && <p className="text-red-500 text-sm">{errors.lastName}</p>}
-      </div>
-      <div className="form-section">
-        <label className="form-label">Middle Name</label>
-        <input
-          type="text"
-          value={middleName}
-          onChange={(e) => setMiddleName(e.target.value)}
-          className="border border-gray-300 p-3 rounded-md w-full mb-4"
-        />
-      </div>
-      <div className="form-section">
-        <label className="form-label">Date of Birth *</label>
-        <input
-          type="date"
-          value={dob ? dob : ""} // Ensure valid date format or empty string
-          onChange={(e) => {
-            const inputDate = e.target.value;
-            const parsedDate = new Date(inputDate);
+        {/* Form Fields */}
+        <div className="form-section">
+          <label className="form-label">First Name *</label>
+          <input
+            type="text"
+            value={firstName}
+            onChange={(e) => {
+              setFirstName(e.target.value);
+              setErrors({ ...errors, firstName: e.target.value ? "" : "This field is mandatory." });
+            }}
+            className="border border-gray-300 p-3 rounded-md w-full mb-4"
+          />
+          {errors.firstName && <p className="text-red-500 text-sm">{errors.firstName}</p>}
+        </div>
+        <div className="form-section">
+          <label className="form-label">Last Name *</label>
+          <input
+            type="text"
+            value={lastName}
+            onChange={(e) => {
+              setLastName(e.target.value);
+              setErrors({ ...errors, lastName: e.target.value ? "" : "This field is mandatory." });
+            }}
+            className="border border-gray-300 p-3 rounded-md w-full mb-4"
+          />
+          {errors.lastName && <p className="text-red-500 text-sm">{errors.lastName}</p>}
+        </div>
+        <div className="form-section">
+          <label className="form-label">Middle Name</label>
+          <input
+            type="text"
+            value={middleName}
+            onChange={(e) => setMiddleName(e.target.value)}
+            className="border border-gray-300 p-3 rounded-md w-full mb-4"
+          />
+        </div>
+        <div className="form-section">
+          <label className="form-label">Date of Birth *</label>
+          <input
+            type="date"
+            value={dob ? dob : ""} // Ensure valid date format or empty string
+            onChange={(e) => {
+              const inputDate = e.target.value;
+              const parsedDate = new Date(inputDate);
 
-            if (!isNaN(parsedDate.getTime())) {
-              setDob(inputDate); // Set valid date
-              setErrors((prevErrors) => ({
-                ...prevErrors,
-                dateOfBirth: "", // Clear error if date is valid
-              }));
-            } else {
-              setDob(""); // Reset date if invalid
-              setErrors((prevErrors) => ({
-                ...prevErrors,
-                dateOfBirth: "Invalid date format. Please use the date picker.",
-              }));
-            }
-          }}
-          className="border border-gray-300 p-3 rounded-md w-full mb-4"
-        />
-        {errors.dateOfBirth && <p className="text-red-500 text-sm">{errors.dateOfBirth}</p>}
-      </div>
-      <div className="form-section">
-        <label className="form-label">Phone Number *</label>
-        <input
-          type="text"
-          placeholder="Phone Number"
-          value={phoneNumber}
-          onChange={(e) => {
-            setPhoneNumber(e.target.value);
-            setErrors({ ...errors, phoneNumber: validatePhoneNumber(e.target.value) ? "" : "Phone number must be 10 digits." });
-          }}
-          className="border border-gray-300 p-3 rounded-md w-full mb-4"
-          required
-        />
-        {errors.phoneNumber && <p className="text-red-500 text-sm">{errors.phoneNumber}</p>}
-      </div>
-      <div className="form-section">
-        <label className="form-label">Email *</label>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => {
-            setEmail(e.target.value);
-            setErrors({ ...errors, email: validateEmail(e.target.value) ? "" : "Invalid email format." });
-          }}
-          className="border border-gray-300 p-3 rounded-md w-full mb-4"
-          required
-        />
-        {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
-      </div>
-      <div className="form-section">
-        <label className="form-label">Password *</label>
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => {
-            setPassword(e.target.value);
-            setErrors({ ...errors, password: validatePassword(e.target.value) ? "" : "Password must be at least 6 characters." });
-          }}
-          className="border border-gray-300 p-3 rounded-md w-full mb-4"
-          required
-        />
-        {errors.password && <p className="text-red-500 text-sm">{errors.password}</p>}
-      </div>
-      <div className="form-section">
-        <label className="form-label">Profile Picture *</label>
-        <p className="text-xs text-gray-500"> If you can crop it to square format for the moment...</p>
-        <input
-          type="file"
-          onChange={handleImageChange}
-          accept="image/*"
-          className="border border-gray-300 p-3 rounded-md w-full mb-4"
-          required
-        />
-        {errors.profileImage && <p className="text-red-500 text-sm">{errors.profileImage}</p>}
-      </div>
+              if (!isNaN(parsedDate.getTime())) {
+                setDob(inputDate); // Set valid date
+                setErrors((prevErrors) => ({
+                  ...prevErrors,
+                  dateOfBirth: "", // Clear error if date is valid
+                }));
+              } else {
+                setDob(""); // Reset date if invalid
+                setErrors((prevErrors) => ({
+                  ...prevErrors,
+                  dateOfBirth: "Invalid date format. Please use the date picker.",
+                }));
+              }
+            }}
+            className="border border-gray-300 p-3 rounded-md w-full mb-4"
+          />
+          {errors.dateOfBirth && <p className="text-red-500 text-sm">{errors.dateOfBirth}</p>}
+        </div>
+        <div className="form-section">
+          <label className="form-label">Phone Number *</label>
+          <input
+            type="text"
+            placeholder="Phone Number"
+            value={phoneNumber}
+            onChange={(e) => {
+              setPhoneNumber(e.target.value);
+              setErrors({ ...errors, phoneNumber: validatePhoneNumber(e.target.value) ? "" : "Phone number must be 10 digits." });
+            }}
+            className="border border-gray-300 p-3 rounded-md w-full mb-4"
+            required
+          />
+          {errors.phoneNumber && <p className="text-red-500 text-sm">{errors.phoneNumber}</p>}
+        </div>
+        <div className="form-section">
+          <label className="form-label">Email *</label>
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setErrors({ ...errors, email: validateEmail(e.target.value) ? "" : "Invalid email format." });
+            }}
+            className="border border-gray-300 p-3 rounded-md w-full mb-4"
+            required
+          />
+          {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
+        </div>
+        <div className="form-section">
+          <label className="form-label">Password *</label>
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setErrors({ ...errors, password: validatePassword(e.target.value) ? "" : "Password must be at least 6 characters." });
+            }}
+            className="border border-gray-300 p-3 rounded-md w-full mb-4"
+            required
+          />
+          {errors.password && <p className="text-red-500 text-sm">{errors.password}</p>}
+        </div>
+        <div className="form-section">
+          <label className="form-label">Profile Picture *</label>
+          <p className="text-xs text-gray-500"> If you can crop it to square format for the moment...</p>
+          <input
+            type="file"
+            onChange={handleImageChange}
+            accept="image/*"
+            className="border border-gray-300 p-3 rounded-md w-full mb-4"
+            required
+          />
+          {errors.profileImage && <p className="text-red-500 text-sm">{errors.profileImage}</p>}
+        </div>
 
-      {/* Register Button */}
-      {formError && <p className="text-red-500 text-sm mb-4">{formError}</p>} {/* Display form-level error */}
-      <button
-        onClick={handleSignUp}
-        disabled={loading}
-        className="w-full py-3 rounded-md text-white font-semibold bg-gradient-to-r from-pink-500 to-purple-700 hover:from-pink-600 hover:to-purple-800 transition-all"
-      >
-        {loading ? "Registering..." : "Register"}
-      </button>
-  
-      <p className="text-sm mt-5 text-center text-gray-500">
-        To come: cropping tool, ID verification, and phone confirmation will be required later.
-      </p>
+        {/* Register Button */}
+        {formError && <p className="text-red-500 text-sm mb-4">{formError}</p>} {/* Display form-level error */}
+        <button
+          onClick={handleSignUp}
+          disabled={loading}
+          className="w-full py-3 rounded-md text-white font-semibold bg-gradient-to-r from-pink-500 to-purple-700 hover:from-pink-600 hover:to-purple-800 transition-all"
+        >
+          {loading ? "Registering..." : "Register"}
+        </button>
+    
+        <p className="text-sm mt-5 text-center text-gray-500">
+          To come: cropping tool, ID verification, and phone confirmation will be required later.
+        </p>
+      </div>
     </div>
   );
 }

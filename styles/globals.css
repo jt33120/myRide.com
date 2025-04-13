@@ -99,18 +99,19 @@
 }
 
 .button-main {
-  background: linear-gradient(to right, pink, purple);
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 5px;
+  background: linear-gradient(to right, #9333ea, #ec4899); /* Matches bg-gradient-to-r from-purple-500 to-pink-700 */
+  color: white; /* Matches text-white */
+  font-weight: 600; /* Matches font-semibold */
+  padding: 12px 24px; /* Matches px-6 py-2 */
+  border-radius: 0.375rem; /* Matches rounded */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Matches shadow-md */
+  transition: background-color 0.3s ease, transform 0.3s ease; /* Matches transition duration-300 */
   cursor: pointer;
-  font-size: 16px;
-  transition: background 0.3s ease;
 }
 
 .button-main:hover {
-  background: linear-gradient(to right, purple, pink);
+  background: linear-gradient(to right, #2563eb, #9333ea); /* Matches hover:from-blue-600 hover:to-blue-800 */
+  transform: scale(1.05); /* Slight scaling effect on hover */
 }
 
 /* Form Layout */
@@ -355,6 +356,30 @@
 
 .bg-gradient-purple:hover {
   background: linear-gradient(to right, #9333ea, #7e22ce);
+}
+
+.text-red-500 {
+  color: #ef4444; /* Tailwind red-500 */
+}
+
+.text-blue-500 {
+  color: #3b82f6; /* Tailwind blue-500 */
+}
+
+.text-blue-500:hover {
+  text-decoration: underline;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.mt-4 {
+  margin-top: 1rem;
+}
+
+.mb-4 {
+  margin-bottom: 1rem;
 }
 
 /* General Styles */

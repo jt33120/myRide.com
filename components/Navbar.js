@@ -1,17 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/router";
 import { useAuth } from "../hooks/useAuth";
 import { ref, getDownloadURL } from "firebase/storage";
-import { storage } from "../lib/firebase";
+import { storage, auth } from "../lib/firebase";
+import { signOut } from "firebase/auth"; // Import signOut from Firebase Auth
 
 export default function Navbar({ leftContent }) {
   const router = useRouter();
   const { currentUser } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [profileImage, setProfileImage] = useState("/default-profile.png"); // Default profile picture
-  const [isTopNavbarVisible, setIsTopNavbarVisible] = useState(true); // Track visibility of the top navbar
-  const [lastScrollY, setLastScrollY] = useState(0); // Track the last scroll position
+  const [profileImage, setProfileImage] = useState("/profile_icon.png"); // Default profile picture for unauthenticated users
+  const dropdownRef = useRef(null); // Ref for the dropdown menu
 
   useEffect(() => {
     const fetchProfileImage = async () => {
@@ -23,64 +23,63 @@ export default function Navbar({ leftContent }) {
         } catch (error) {
           console.error("Error fetching profile picture:", error);
         }
+      } else {
+        setProfileImage("/profile_icon.png"); // Use default profile picture if no user is logged in
       }
     };
 
     fetchProfileImage();
   }, [currentUser]);
 
-  const handleLogout = () => {
-    alert("Logged out!");
-    router.push("/login_page");
+  const handleLogout = async () => {
+    try {
+      await signOut(auth); // Log out the user
+      router.push("/Welcome_page"); // Redirect to the Welcome page
+    } catch (error) {
+      console.error("Error logging out:", error);
+      alert("Failed to log out. Please try again.");
+    }
   };
 
-  const handleScroll = () => {
-    if (window.scrollY > lastScrollY) {
-      setIsTopNavbarVisible(false); // Hide navbar on scroll down
-    } else {
-      setIsTopNavbarVisible(true); // Show navbar on scroll up
+  const handleClickOutside = (event) => {
+    if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      setDropdownOpen(false); // Close the dropdown if clicked outside
     }
-    setLastScrollY(window.scrollY); // Update the last scroll position
   };
 
   useEffect(() => {
-    window.addEventListener("scroll", handleScroll);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      window.removeEventListener("scroll", handleScroll);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [lastScrollY]);
+  }, []);
+
+  // Hide the navbar on the Welcome page
+  if (router.pathname === "/Welcome_page") {
+    return null;
+  }
 
   return (
     <div>
       {/* Top Navbar */}
-      <div
-        className={`navbar-top transition-transform duration-300 ${
-          isTopNavbarVisible ? "translate-y-0" : "-translate-y-full"
-        }`}
-      >
+      <div className="navbar-top">
         <div className="flex items-center justify-between w-full">
           {/* Left Content (e.g., Return Button) */}
           <div>{leftContent}</div>
 
           {/* Profile Section */}
-          <div className="profile-container">
+          <div className="profile-container relative" ref={dropdownRef}>
             <Image
               src={profileImage}
               alt="Profile"
               width={40}
               height={40}
-              className="profile-icon"
+              className="profile-icon cursor-pointer"
               onClick={() => setDropdownOpen((prev) => !prev)}
             />
             {/* Dropdown Menu */}
             {dropdownOpen && (
               <div className="absolute right-0 mt-2 w-40 bg-white shadow-lg rounded-md border border-gray-200 z-10">
-                <button
-                  onClick={() => router.push("/userProfile_page")}
-                  className="block w-full text-left px-4 py-2 text-gray-600 hover:bg-gray-100"
-                >
-                  Profile
-                </button>
                 <button
                   onClick={() => router.push("/help_page")}
                   className="block w-full text-left px-4 py-2 text-gray-600 hover:bg-gray-100"
@@ -93,12 +92,29 @@ export default function Navbar({ leftContent }) {
                 >
                   Get your AI image
                 </button>
-                <button
-                  onClick={handleLogout}
-                  className="block w-full text-left px-4 py-2 text-gray-600 hover:bg-gray-100"
-                >
-                  Log Out
-                </button>
+                {currentUser ? (
+                  <>
+                    <button
+                      onClick={() => router.push("/userProfile_page")}
+                      className="block w-full text-left px-4 py-2 text-gray-600 hover:bg-gray-100"
+                    >
+                      Profile
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      className="block w-full text-left px-4 py-2 text-gray-600 hover:bg-gray-100"
+                    >
+                      Log Out
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => router.push("/login_page")}
+                    className="block w-full text-left px-4 py-2 text-gray-600 hover:bg-gray-100"
+                  >
+                    Sign In
+                  </button>
+                )}
               </div>
             )}
           </div>
