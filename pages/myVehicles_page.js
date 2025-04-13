@@ -334,6 +334,7 @@ const MyGarage = () => {
     updateEstimatedValues(); // Ensure the array is updated at most once a day
   }, []);
 
+
   const updateEstimatedValuesOncePerDay = async () => {
     try {
       const user = auth.currentUser;
@@ -401,28 +402,7 @@ const MyGarage = () => {
   };
 
   useEffect(() => {
-    const updateDailyAIValues = async () => {
-      const today = new Date().toISOString().split("T")[0]; // Get current date in YYYY-MM-DD format
-      const lastUpdateDate = getLastUpdateDate(); // Fetch last update date from storage or API
-
-      if (lastUpdateDate !== today) {
-        await updateEstimatedValuesOncePerDay(); // Update AI estimation
-        localStorage.setItem("lastUpdateDate", today); // Save today's date as the last update date
-      }
-    };
-
-    updateDailyAIValues(); // Call the function to ensure daily updates
-  }, []);
-
-  useEffect(() => {
-    const today = new Date().toISOString().split("T")[0]; // Get current date in YYYY-MM-DD format
-    const lastUpdateDate = getLastUpdateDate(); // Fetch last update date from storage or API
-
-    if (lastUpdateDate !== today) {
-      updateAiEstimatedValue(); // Update AI estimation
-      // Save today's date as the last update date
-      localStorage.setItem("lastUpdateDate", today);
-    }
+    updateEstimatedValuesOncePerDay(); // Ensure the array is updated at most once a day
   }, []);
 
   if (loading) return <p>Loading...</p>;
