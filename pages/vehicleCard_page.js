@@ -248,38 +248,47 @@ const ReceiptForm = ({ id, onClose, receiptTitle, setReceiptTitle, receiptDate, 
       const currentDate = new Date();
       const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(currentDate.getDate()).padStart(2, '0')}/${currentDate.getFullYear()}`;
 
-      const response = await fetch('/api/aiEstimator', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          make: vehicleData.make,
-          model: vehicleData.model,
-          year: vehicleData.year,
-          mileage: vehicleData.mileage || 'Unknown',
-          color: vehicleData.color || 'Unknown',
-          city: vehicleData.city || 'Unknown',
-          zip: vehicleData.zip || 'Unknown',
-          state: vehicleData.state || 'Unknown',
-          title: vehicleData.title || 'Unknown',
-          aftermarketMods: vehicleData.aftermarketMods || 'Unknown',
-          cosmeticDefaults: vehicleData.cosmeticDefaults || 'Unknown',
-        }),
-      });
+      const vehicleRef = doc(db, 'listing', id);
+      const vehicleDoc = await getDoc(vehicleRef);
 
-      const data = await response.json();
-      if (response.ok && data.estimation) {
-        const numericEstimation = parseFloat(data.estimation.replace(/[^0-9.]/g, '')); // Extract numeric value
-        if (!isNaN(numericEstimation)) {
-          const newEntry = `${numericEstimation}-${formattedDate}`;
-          const vehicleRef = doc(db, 'listing', id);
+      if (vehicleDoc.exists()) {
+        const vehicleData = vehicleDoc.data();
+        const aiValues = Array.isArray(vehicleData.ai_estimated_value) ? vehicleData.ai_estimated_value : [];
 
-          // Overwrite today's estimation
-          await updateDoc(vehicleRef, {
-            ai_estimated_value: arrayUnion(newEntry),
-          });
+        // Remove any existing entry for today's date
+        const filteredAiValues = aiValues.filter(entry => !entry.endsWith(`-${formattedDate}`));
+
+        // Fetch AI estimation from the API
+        const response = await fetch('/api/aiEstimator', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            make: vehicleData.make,
+            model: vehicleData.model,
+            year: vehicleData.year,
+            mileage: vehicleData.mileage || 'Unknown',
+            color: vehicleData.color || 'Unknown',
+            city: vehicleData.city || 'Unknown',
+            zip: vehicleData.zip || 'Unknown',
+            state: vehicleData.state || 'Unknown',
+            title: vehicleData.title || 'Unknown',
+            aftermarketMods: vehicleData.aftermarketMods || 'Unknown',
+            cosmeticDefaults: vehicleData.cosmeticDefaults || 'Unknown',
+          }),
+        });
+
+        const data = await response.json();
+        if (response.ok && data.estimation) {
+          const numericEstimation = parseFloat(data.estimation.replace(/[^0-9.]/g, '')); // Extract numeric value
+          if (!isNaN(numericEstimation)) {
+            const newEntry = `${numericEstimation}-${formattedDate}`;
+            await updateDoc(vehicleRef, {
+              ai_estimated_value: [...filteredAiValues, newEntry], // Overwrite today's entry
+            });
+          }
+        } else {
+          console.error('Failed to fetch AI estimation:', data.error || 'Unknown error');
         }
-      } else {
-        console.error('Failed to fetch AI estimation:', data.error || 'Unknown error');
       }
     } catch (error) {
       console.error('Error updating AI estimation for today:', error);

@@ -355,9 +355,9 @@ const MyGarage = () => {
             const vehicleData = vehicleDoc.data();
             const aiValues = Array.isArray(vehicleData.ai_estimated_value) ? vehicleData.ai_estimated_value : [];
 
-            // Skip if `ai_estimated_value` already updated today
-            if (aiValues.some(entry => entry.includes(`-${formattedDate}`))) {
-              continue;
+            // Check if today's date already exists in the array
+            if (aiValues.some(entry => entry.endsWith(`-${formattedDate}`))) {
+              continue; // Skip if today's valuation already exists
             }
 
             // Fetch AI estimation from the API
@@ -385,7 +385,7 @@ const MyGarage = () => {
               if (!isNaN(numericEstimation)) {
                 const newEntry = `${numericEstimation}-${formattedDate}`;
                 await updateDoc(vehicleDocRef, {
-                  ai_estimated_value: arrayUnion(newEntry), // Append the new entry
+                  ai_estimated_value: [...aiValues, newEntry], // Append the new entry
                 });
               }
             } else {
