@@ -12,6 +12,8 @@ export default function Navbar({ leftContent }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [profileImage, setProfileImage] = useState("/profile_icon.png"); // Default profile picture for unauthenticated users
   const dropdownRef = useRef(null); // Ref for the dropdown menu
+  const [isTopNavbarVisible, setIsTopNavbarVisible] = useState(true); // Track visibility of the top navbar
+  const [lastScrollY, setLastScrollY] = useState(0); // Track the last scroll position
 
   useEffect(() => {
     const fetchProfileImage = async () => {
@@ -54,6 +56,22 @@ export default function Navbar({ leftContent }) {
     };
   }, []);
 
+  const handleScroll = () => {
+    if (window.scrollY > lastScrollY) {
+      setIsTopNavbarVisible(false); // Hide navbar on scroll down
+    } else {
+      setIsTopNavbarVisible(true); // Show navbar on scroll up
+    }
+    setLastScrollY(window.scrollY); // Update the last scroll position
+  };
+
+  useEffect(() => {
+    window.addEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [lastScrollY]);
+
   // Hide the navbar on the Welcome page
   if (router.pathname === "/Welcome_page") {
     return null;
@@ -62,8 +80,12 @@ export default function Navbar({ leftContent }) {
   return (
     <div>
       {/* Top Navbar */}
-      <div className="navbar-top">
-        <div className="flex items-center justify-between w-full">
+      <div
+        className={`navbar-top fixed top-0 left-0 w-full bg-transparent z-50 transition-transform duration-300 ${
+          isTopNavbarVisible ? "translate-y-0" : "-translate-y-full"
+        }`}
+      >
+        <div className="flex items-center justify-between w-full px-4 py-2">
           {/* Left Content (e.g., Return Button) */}
           <div>{leftContent}</div>
 
@@ -122,10 +144,10 @@ export default function Navbar({ leftContent }) {
       </div>
 
       {/* Bottom Navbar */}
-      <div className="navbar-bottom">
+      <div className="navbar-bottom fixed bottom-0 left-0 w-full bg-white shadow-md z-50 flex justify-around py-2">
         <button
           onClick={() => router.push("/myVehicles_page")}
-          className="button_simple"
+          className="button_simple flex flex-col items-center"
         >
           <Image
             src="/garage.svg"
@@ -139,7 +161,7 @@ export default function Navbar({ leftContent }) {
 
         <button
           onClick={() => router.push("/myMessages_page")}
-          className="button_simple"
+          className="button_simple flex flex-col items-center"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -160,7 +182,7 @@ export default function Navbar({ leftContent }) {
 
         <button
           onClick={() => router.push("/documents_page")}
-          className="button_simple"
+          className="button_simple flex flex-col items-center"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -181,7 +203,7 @@ export default function Navbar({ leftContent }) {
 
         <button
           onClick={() => router.push("/marketplace_page")}
-          className="button_simple"
+          className="button_simple flex flex-col items-center"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

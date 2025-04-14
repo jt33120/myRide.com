@@ -175,24 +175,40 @@ const ReceiptForm = ({ id, onClose, receiptTitle, setReceiptTitle, receiptDate, 
   const updateMaintenanceTable = async (receiptData) => {
     try {
       console.log("Updating maintenance table...");
+  
+      // Fetch the current mileage from Firestore
+      const vehicleRef = doc(db, 'listing', id);
+      const vehicleDoc = await getDoc(vehicleRef);
+  
+      if (!vehicleDoc.exists()) {
+        throw new Error("Vehicle not found in Firestore.");
+      }
+  
+      const vehicleData = vehicleDoc.data();
+      const currentMileage = vehicleData.mileage || 'Unknown'; // Use 'Unknown' if mileage is not available
+  
+      console.log("Fetched current mileage from Firestore:", currentMileage);
+  
+      // Send the correct mileage and title to the API
       const updateResponse = await fetch(`/api/updateMaintenanceTable`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           vehicleId: id,
-          currentMileage: receiptData.mileage,
+          currentMileage, // Use the mileage fetched from Firestore
+          title: receiptData.title, // Include the title from receiptData
         }),
       });
-
+  
       if (!updateResponse.ok) {
         throw new Error("Failed to update maintenance table.");
       }
-
-      toast.success("Maintenance table successfully updated."); // Show success message
+  
+      toast.success("Maintenance table successfully updated.");
       console.log("Maintenance table updated successfully.");
     } catch (error) {
       console.error("Error updating maintenance table:", error);
-      toast.error("Failed to update maintenance table. Please try again."); // Show error message
+      toast.error("Failed to update maintenance table. Please try again.");
       throw error; // Rethrow to stop further execution
     }
   };
@@ -230,57 +246,7 @@ const ReceiptForm = ({ id, onClose, receiptTitle, setReceiptTitle, receiptDate, 
     }
   };
 
-  const updateAiEstimationForToday = async () => {
-    try {
-      const currentDate = new Date();
-      const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(currentDate.getDate()).padStart(2, '0')}/${currentDate.getFullYear()}`;
 
-      const vehicleRef = doc(db, 'listing', id);
-      const vehicleDoc = await getDoc(vehicleRef);
-
-      if (vehicleDoc.exists()) {
-        const vehicleData = vehicleDoc.data();
-        const aiValues = Array.isArray(vehicleData.ai_estimated_value) ? vehicleData.ai_estimated_value : [];
-
-        // Remove any existing entry for today's date
-        const filteredAiValues = aiValues.filter(entry => !entry.endsWith(`-${formattedDate}`));
-
-        // Fetch AI estimation from the API
-        const response = await fetch('/api/aiEstimator', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            make: vehicleData.make,
-            model: vehicleData.model,
-            year: vehicleData.year,
-            mileage: vehicleData.mileage || 'Unknown',
-            color: vehicleData.color || 'Unknown',
-            city: vehicleData.city || 'Unknown',
-            zip: vehicleData.zip || 'Unknown',
-            state: vehicleData.state || 'Unknown',
-            title: vehicleData.title || 'Unknown',
-            aftermarketMods: vehicleData.aftermarketMods || 'Unknown',
-            cosmeticDefaults: vehicleData.cosmeticDefaults || 'Unknown',
-          }),
-        });
-
-        const data = await response.json();
-        if (response.ok && data.estimation) {
-          const numericEstimation = parseFloat(data.estimation.replace(/[^0-9.]/g, '')); // Extract numeric value
-          if (!isNaN(numericEstimation)) {
-            const newEntry = `${numericEstimation}-${formattedDate}`;
-            await updateDoc(vehicleRef, {
-              ai_estimated_value: [...filteredAiValues, newEntry], // Overwrite today's entry
-            });
-          }
-        } else {
-          console.error('Failed to fetch AI estimation:', data.error || 'Unknown error');
-        }
-      }
-    } catch (error) {
-      console.error('Error updating AI estimation for today:', error);
-    }
-  };
 
   const handleSave = async () => {
     if (!validateForm()) return;
@@ -339,8 +305,6 @@ const ReceiptForm = ({ id, onClose, receiptTitle, setReceiptTitle, receiptDate, 
       // Update maintenance table and fetch recommendation
       await updateMaintenanceAndRecommendation(receiptData);
 
-      // Update AI estimation for today after receipt upload
-      await updateAiEstimationForToday();
 
       // Reset form state
       setNewFiles([]);
@@ -419,9 +383,6 @@ const ReceiptForm = ({ id, onClose, receiptTitle, setReceiptTitle, receiptDate, 
 
       // Update maintenance table and fetch recommendation
       await updateMaintenanceAndRecommendation(receiptData);
-
-      // Update AI estimation for today after receipt upload
-      await updateAiEstimationForToday();
 
       // Reset form state
       setNewFiles([]);
@@ -1134,9 +1095,7 @@ const VehicleCardPage = () => {
       console.log('Receipt uploaded successfully.');
   
       await updateMaintenanceAndRecommendation({ mileage: parsedMileage }); // Trigger AI recommendation refresh
-  
-      // Update AI estimation for today after receipt upload
-      await updateAiEstimationForToday();
+
   
       // Refresh the page
       router.reload();
