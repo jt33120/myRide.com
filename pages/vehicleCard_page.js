@@ -740,31 +740,29 @@ const VehicleCardPage = () => {
   const [receiptPrice, setReceiptPrice] = useState('');
   const [imageUrls, setImageUrls] = useState([]);
   const [, setExistingDocuments] = useState({ title: null, inspection: null, registration: null });
-  const router = useRouter();
-  const { id } = router.query;
-  const user = auth.currentUser;
   const [conversationId, setConversationId] = useState(null);
   const [ownerName, setOwnerName] = useState('');
-  const [sumType, setSumType] = useState('Total Spent'); // State to track the current sum type
+  const [sumType, setSumType] = useState('Total Spent');
   const [showOwnerManualModal, setShowOwnerManualModal] = useState(false);
-  const [, setCurrentMileage] = useState(null); // State for current mileage
+  const [, setCurrentMileage] = useState(null);
   const [showEditReceiptForm, setShowEditReceiptForm] = useState(false);
-  const [editingReceipt, setEditingReceipt] = useState(null); // State for editing receipt
-  const [refreshing, setRefreshing] = useState(false); // State for refresh button
-  const [aiRecommendation, setAIRecommendation] = useState(null); // State for AI recommendation
-  const [, setOwnerManualUrl] = useState(null); // State for owner manual URL
-  const [aiEstimation, setAiEstimation] = useState(null); // State for AI estimation
-
+  const [editingReceipt, setEditingReceipt] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [aiRecommendation, setAIRecommendation] = useState(null);
+  const [, setOwnerManualUrl] = useState(null);
+  const [aiEstimation, setAiEstimation] = useState(null);
   const [aiQuestion, setAiQuestion] = useState('');
   const [aiAnswer, setAiAnswer] = useState('');
   const [loadingAi, setLoadingAi] = useState(false);
+  const [showAiBox, setShowAiBox] = useState(false);
+  const [hideVin, setHideVin] = useState(false);
+  const [authenticatedUser, setAuthenticatedUser] = useState(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [isOnMarketplace, setIsOnMarketplace] = useState(false); // Ensure this is always initialized
 
-  const [showAiBox, setShowAiBox] = useState(false); // State for toggling AI box
-
-  const [hideVin, setHideVin] = useState(false); // State to track if VIN is hidden
-
-  const [authenticatedUser, setAuthenticatedUser] = useState(null); // Track the authenticated user
-  const [showLoginModal, setShowLoginModal] = useState(false); // State for login modal
+  const router = useRouter();
+  const { id } = router.query;
+  const user = auth.currentUser;
 
   const toggleHideVin = async () => {
     try {
@@ -1522,6 +1520,23 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (!id) return;
+
+    const checkMarketplaceStatus = async () => {
+      try {
+        const marketplaceRef = doc(db, "on_marketplace", id);
+        const marketplaceDoc = await getDoc(marketplaceRef);
+
+        setIsOnMarketplace(marketplaceDoc.exists()); // Set the state based on whether the document exists
+      } catch (error) {
+        console.error("Error checking marketplace status:", error);
+      }
+    };
+
+    checkMarketplaceStatus();
+  }, [id]);
+
   if (!authenticatedUser) {
     // Show login modal if the user is not signed in
     return (
@@ -2072,7 +2087,7 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
           )}
           {isOwner && (
             <div className="flex justify-around mt-0">
-              {vehicleData.onMarketplace ? (
+              {isOnMarketplace ? (
                 // Red button to remove the vehicle from the marketplace
                 <button
                   onClick={async () => {
@@ -2080,7 +2095,7 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
                       const marketplaceRef = doc(db, "on_marketplace", id);
                       await deleteDoc(marketplaceRef);
                       alert("Vehicle removed from marketplace.");
-                      refreshPage(); // Reload the page to reflect changes
+                      setIsOnMarketplace(false); // Update state
                     } catch (error) {
                       console.error("Error removing vehicle from marketplace:", error);
                       alert("Failed to remove vehicle from marketplace.");
@@ -2108,7 +2123,7 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
                         status: "listed",
                       });
                       alert("Vehicle added to marketplace.");
-                      refreshPage(); // Reload the page to reflect changes
+                      setIsOnMarketplace(true); // Update state
                     } catch (error) {
                       console.error("Error adding vehicle to marketplace:", error);
                       alert("Failed to add vehicle to marketplace.");
