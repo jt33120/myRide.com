@@ -199,7 +199,6 @@ const ReceiptForm = ({ id, onClose, receiptTitle, setReceiptTitle, receiptDate, 
 
   const generateAIRecommendation = async (receiptData) => {
     try {
-      console.log("Generating AI recommendations...");
       const analyzeResponse = await fetch(`/api/analyzeManual`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -209,37 +208,25 @@ const ReceiptForm = ({ id, onClose, receiptTitle, setReceiptTitle, receiptDate, 
         }),
       });
 
-      if (!analyzeResponse.ok) {
-        throw new Error("Failed to generate AI recommendations.");
-      }
-
       const recommendationData = await analyzeResponse.json();
-      console.log("AI recommendation fetched:", recommendationData.recommendation);
 
-      // Save the recommendation in Firestore
-      const recommendationRef = doc(db, `listing/${id}`);
-      await setDoc(recommendationRef, { aiRecommendation: recommendationData.recommendation }, { merge: true });
-
-      toast.success("AI recommendation successfully updated."); // Show success message
-      console.log("AI recommendation saved successfully.");
+      if (analyzeResponse.ok) {
+        const recommendationRef = doc(db, `listing/${id}`);
+        await setDoc(recommendationRef, { aiRecommendation: recommendationData.recommendation }, { merge: true });
+      } else {
+        throw new Error(recommendationData.error || "Failed to generate AI recommendations.");
+      }
     } catch (error) {
       console.error("Error generating AI recommendation:", error);
-      toast.error("Failed to generate AI recommendation. Please try again."); // Show error message
-      throw error; // Rethrow to stop further execution
     }
   };
 
   const updateMaintenanceAndRecommendation = async (receiptData) => {
     try {
-
-      // Step 1: Update the maintenance table
       await updateMaintenanceTable(receiptData);
-
-      // Step 2: Generate AI recommendations
       await generateAIRecommendation(receiptData);
-; // Stop loading spinner
     } catch (error) {
-      console.error("Error during maintenance table or AI recommendation update:", error);; // Stop loading spinner on error
+      console.error("Error during maintenance table or AI recommendation update:", error);
     }
   };
 
@@ -759,7 +746,6 @@ const VehicleCardPage = () => {
   const [authenticatedUser, setAuthenticatedUser] = useState(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [isOnMarketplace, setIsOnMarketplace] = useState(false); // Ensure this is always initialized
-
   const router = useRouter();
   const { id } = router.query;
   const user = auth.currentUser;
@@ -831,26 +817,31 @@ const VehicleCardPage = () => {
 
   useEffect(() => {
     if (!id) return;
-
+  
     const fetchRecommendations = async () => {
       try {
         // Fetch vehicle data
         const vehicleRef = doc(db, 'listing', id);
         const vehicleDoc = await getDoc(vehicleRef);
-
+  
         if (!vehicleDoc.exists()) {
           throw new Error('Vehicle not found.');
         }
-
+  
         const vehicleData = vehicleDoc.data();
         const ownerManual = vehicleData.ownerManual;
         const currentMileage = vehicleData.mileage; // Correctly fetch current mileage
+        const aiRecommendation = vehicleData.aiRecommendation; // Fetch AI recommendation directly from Firebase
+  
         if (!ownerManual) {
           throw new Error('Owner manual URL not available.');
         }
+  
+        // Update state with fetched data
         setOwnerManualUrl(ownerManual);
         setCurrentMileage(currentMileage); // Set current mileage in state
-
+        setAIRecommendation(aiRecommendation || 'No recommendations available.'); // Set AI recommendation from Firebase
+  
         // Fetch receipts
         const receiptsRef = collection(db, `listing/${id}/receipts`);
         const receiptsSnapshot = await getDocs(receiptsRef);
@@ -859,32 +850,36 @@ const VehicleCardPage = () => {
           ...doc.data(),
         }));
         setReceipts(receiptsData);
-
-        // Call the analyzeManual API
-        const analyzeResponse = await fetch('/api/analyzeManual', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            vehicleId: id, // Pass the correct vehicleId
-            currentMileage, // Pass the correct currentMileage
-          }),
-        });
-
-        const analyzeData = await analyzeResponse.json();
-
-        if (!analyzeResponse.ok) {
-          throw new Error(analyzeData.error || 'Failed to fetch AI recommendations.');
-        }
-
-        setAIRecommendation(analyzeData.recommendation || 'No recommendations available.');
       } catch (error) {
         console.error('Error fetching recommendations:', error);
         setAIRecommendation('Failed to fetch recommendations.');
-      } finally {
+      }
+    };
+  
+    fetchRecommendations();
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+
+    const fetchAiRecommendation = async () => {
+      try {
+        const vehicleRef = doc(db, 'listing', id);
+        const vehicleDoc = await getDoc(vehicleRef);
+
+        if (vehicleDoc.exists()) {
+          const vehicleData = vehicleDoc.data();
+          setAIRecommendation(vehicleData.aiRecommendation || 'No recommendations available.');
+        } else {
+          setAIRecommendation('No recommendations available.');
+        }
+      } catch (error) {
+        console.error('Error fetching AI recommendation:', error);
+        setAIRecommendation('Failed to fetch recommendations.');
       }
     };
 
-    fetchRecommendations();
+    fetchAiRecommendation();
   }, [id]);
 
   const handleSumBoxClick = () => {
@@ -1840,11 +1835,7 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
         <div className="loader animate-spin mx-auto"></div>
       ) : (
         <pre className="whitespace-pre-wrap">
-          {aiRecommendation
-            ? typeof aiRecommendation === 'string'
-              ? aiRecommendation
-              : JSON.stringify(aiRecommendation, null, 2)
-            : "No AI recommendation available."}
+          {aiRecommendation || "No AI recommendation available."}
         </pre>
       )}
     </div>
@@ -1986,12 +1977,12 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
                     className="animate-spin h-5 w-5 text-purple-700 mr-2"
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
-                    viewBox="0 0 24 24"
+                    viewBox="0 0 20 20"
                   >
                     <circle
                       className="opacity-25"
-                      cx="12"
-                      cy="12"
+                      cx="10"
+                      cy="10"
                       r="10"
                       stroke="currentColor"
                       strokeWidth="4"
@@ -1999,7 +1990,7 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
                     <path
                       className="opacity-75"
                       fill="currentColor"
-                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                      d="M4 10a6 6 0 0 1 6-6v3a3 3 0 0 0-3 3H4z"
                     ></path>
                   </svg>
                 ) : (
