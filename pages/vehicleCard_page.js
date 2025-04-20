@@ -263,6 +263,7 @@ const VehicleCardPage = () => {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [isOnMarketplace, setIsOnMarketplace] = useState(false); // Ensure this is always initialized
   const [aiEstimation, setAiEstimation] = useState(null);
+  const [timeWindow, setTimeWindow] = useState("Last Year");
   const router = useRouter();
   const { id } = router.query;
   const user = auth.currentUser;
@@ -402,20 +403,66 @@ const VehicleCardPage = () => {
     };
   };
 
-  const plotDepreciationCurve = () => {
-    if (!vehicleData || !vehicleData.boughtAt || !vehicleData.boughtIn) return { labels: [], data: [] };
+  const plotDepreciationCurve = (timeWindow = "Last Year") => {
+    if (!vehicleData || !vehicleData.boughtAt || !vehicleData.boughtIn) return { labels: [], datasets: [] };
+  
     const purchasePrice = vehicleData.boughtAt;
     const purchaseYear = vehicleData.boughtIn;
-    const currentYear = new Date().getFullYear();
-    const years = Array.from({ length: (currentYear - purchaseYear) + 6 }, (_, i) => purchaseYear + i);
+    const currentDate = new Date();
+  
+    // Define the time range based on the selected time window
+    let startDate;
+    switch (timeWindow) {
+      case "Last Week":
+        startDate = new Date(currentDate);
+        startDate.setDate(currentDate.getDate() - 7);
+        break;
+      case "Last Month":
+        startDate = new Date(currentDate);
+        startDate.setMonth(currentDate.getMonth() - 1);
+        break;
+      case "Last Year":
+      default:
+        startDate = new Date(currentDate);
+        startDate.setFullYear(currentDate.getFullYear() - 1);
+        break;
+    }
+  
+    // Generate all dates within the selected time window
+    const allDates = [];
+    for (let d = new Date(startDate); d <= currentDate; d.setDate(d.getDate() + 1)) {
+      allDates.push(new Date(d));
+    }
+  
+    // Calculate depreciation values for each date
     const depreciationRate = 0.15; // 15% annual depreciation
     const k = 0.18; // Depreciation factor
-
-    const straightLineValues = years.map(year => purchasePrice * Math.pow((1 - depreciationRate), year - purchaseYear));
-    const exponentialValues = years.map(year => purchasePrice * Math.exp(-k * (year - purchaseYear)));
-
+    const straightLineValues = allDates.map(date => {
+      const age = (date.getFullYear() + date.getMonth() / 12) - purchaseYear;
+      return purchasePrice * Math.pow((1 - depreciationRate), age);
+    });
+    const exponentialValues = allDates.map(date => {
+      const age = (date.getFullYear() + date.getMonth() / 12) - purchaseYear;
+      return purchasePrice * Math.exp(-k * age);
+    });
+  
+    // Parse AI estimated values and filter them based on the selected time window
+    const aiEstimationPoints = [];
+    if (vehicleData.ai_estimated_value && Array.isArray(vehicleData.ai_estimated_value)) {
+      vehicleData.ai_estimated_value.forEach((entry) => {
+        const [value, date] = entry.split('-');
+        const parsedDate = new Date(date);
+        if (!isNaN(parsedDate) && parsedDate >= startDate && parsedDate <= currentDate) {
+          aiEstimationPoints.push({
+            x: parsedDate.toLocaleDateString('en-US'), // Use specific dates for x-axis
+            y: parseFloat(value),
+          });
+        }
+      });
+    }
+  
     return {
-      labels: years,
+      labels: allDates.map(date => date.toLocaleDateString('en-US')), // Use all dates as x-axis labels
       datasets: [
         {
           label: 'Straight-Line Depreciation',
@@ -429,12 +476,22 @@ const VehicleCardPage = () => {
           borderColor: 'rgba(153, 102, 255, 1)',
           backgroundColor: 'rgba(153, 102, 255, 0.2)',
         },
+        {
+          label: 'AI Estimated Value',
+          data: aiEstimationPoints, // Use all filtered points for AI estimation
+          borderColor: 'rgba(255, 99, 132, 1)',
+          backgroundColor: 'rgba(255, 99, 132, 0.2)',
+          pointStyle: 'circle',
+          pointRadius: 5,
+          pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+          parsing: false, // Disable automatic parsing for custom x-axis
+        },
       ],
     };
   };
 
   const resaleValue = calculateResaleValue();
-  const depreciationData = plotDepreciationCurve();
+  const depreciationData = plotDepreciationCurve(timeWindow);
 
   useEffect(() => {
     const fetchConversation = async () => {
@@ -1776,6 +1833,19 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
           </div>
           <div className="mt-4 p-4 bg-white rounded-lg shadow-md border border-gray-300">
             <h3 className="text-lg font-semibold mb-2">Depreciation Curve</h3>
+            <div className="mb-4">
+              <label htmlFor="timeWindow" className="block text-sm font-medium text-gray-700">Select Time Window:</label>
+              <select
+                id="timeWindow"
+                value={timeWindow}
+                onChange={(e) => setTimeWindow(e.target.value)}
+                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+              >
+                <option value="Last Week">Last Week</option>
+                <option value="Last Month">Last Month</option>
+                <option value="Last Year">Last Year</option>
+              </select>
+            </div>
             <Line data={depreciationData} />
           </div>
         </div>
