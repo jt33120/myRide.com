@@ -14,32 +14,31 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Step 1: Fetch the existing maintenance table from Firebase Storage
-    console.log("Fetching maintenance table from Firebase Storage...");
+    console.log("Fetching maintenance table as JSON...");
     const storagePath = `listing/${vehicleId}/docs/maintenanceTable.json`;
     const storageRef = ref(storage, storagePath);
+
     const downloadURL = await getDownloadURL(storageRef);
+    console.log("Download URL fetched successfully:", downloadURL);
 
     const response = await axios.get(downloadURL);
     const maintenanceTable = response.data;
+    console.log("Fetched maintenance table successfully:", maintenanceTable);
 
-    console.log("Fetched maintenance table:", maintenanceTable);
-
-    // Step 2: Send the maintenance table to OpenAI for processing
     console.log("Sending maintenance table to OpenAI...");
     const prompt = `You are an API to update a maintenance table. The owner just uploaded a new receipt:
 The receipt title is: "${receiptData.title}".
 The current mileage of the vehicle is ${currentMileage}.
-The current table is:
+The current table is, in JSON format:
 ${JSON.stringify(maintenanceTable, null, 2)}
 
 Instructions:
-1. Analyze the receipt title and check for keywords that match the first column of the table (e.g., "Oil Change", "Oil Filter", "Brake Pad"). If a keyword is found, update the corresponding row in the table.
-2. Update the "LastTimeDone" column for the matching rows with the current mileage (${currentMileage}).
-3. For each updated row, calculate "NextTimeToDo" as follows: NextTimeToDo = LastTimeDone + Frequency.
+1. Analyze the receipt title and check for keywords that match the "Task" field in the table (e.g., "Oil Change", "Oil Filter", "Brake Pad"). If a keyword is found, update the corresponding entry in the table. The idea is interpreting the user input as part or not of the table.
+2. Update the "LastTimeDone" field for the matching entries with the current mileage (${currentMileage}).
+3. For each updated entry, calculate "NextTimeToDo" as follows: NextTimeToDo = LastTimeDone + Frequency (convert Frequency to numeric if needed).
 4. If no matching keywords are found in the receipt title, leave the table unchanged.
 
-Your output should be the updated JSON table. Do not include any additional text or comments.`;
+Your output should be the updated JSON format of the maintenance table, exact same format but with updated values. Do not include any additional text or comments.`;
 
     const aiResponse = await axios.post(
       "https://api.openai.com/v1/chat/completions",
@@ -57,26 +56,35 @@ Your output should be the updated JSON table. Do not include any additional text
         },
       }
     );
+    console.log("OpenAI API response received.");
 
-    let updatedTable = aiResponse.data.choices[0].message.content.trim();
-    console.log("AI Response:", updatedTable);
+    const updatedTable = JSON.parse(aiResponse.data.choices[0].message.content.trim());
+    console.log("AI Response (updated table):", updatedTable);
 
-    // Step 3: Parse and validate the AI's output
-    if (updatedTable.startsWith("```json")) {
-      updatedTable = updatedTable.slice(7, -3).trim(); // Remove ```json and ```
-    }
-    const parsedTable = JSON.parse(updatedTable);
-
-    console.log("Parsed updated table:", parsedTable);
-
-    // Step 4: Overwrite the maintenance table in Firebase Storage
-    console.log("Saving updated maintenance table to Firebase Storage...");
-    await uploadString(storageRef, JSON.stringify(parsedTable), "raw");
-
-    console.log("Updated maintenance table saved successfully.");
-    res.status(200).json({ message: "Maintenance table updated successfully." });
+    console.log("Saving updated maintenance table as JSON...");
+    const metadata = {
+      contentType: "application/json",
+    };
+    await uploadString(storageRef, JSON.stringify(updatedTable, null, 2), "raw", metadata);
+    console.log("Updated maintenance table saved successfully at:", new Date().toISOString());
+    res.status(200).json({
+      message: "Maintenance table updated successfully.",
+      timestamp: new Date().toISOString(),
+    });
   } catch (error) {
-    console.error("Error updating maintenance table:", error.message);
-    res.status(500).json({ error: `Failed to update maintenance table: ${error.message}` });
+    console.error("Error updating maintenance table at:", new Date().toISOString(), error.message);
+
+    // Log detailed error information
+    if (error.response) {
+      console.error("Error response data:", error.response.data);
+      console.error("Error response status:", error.response.status);
+      console.error("Error response headers:", error.response.headers);
+    }
+
+    res.status(500).json({
+      error: `Failed to update maintenance table: ${error.message}`,
+      details: error.response ? error.response.data : null,
+      timestamp: new Date().toISOString(),
+    });
   }
 }

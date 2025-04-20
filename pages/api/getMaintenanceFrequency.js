@@ -22,7 +22,7 @@ export default async function handler(req, res) {
 - Model: ${model}
 - URL of owner manual: ${url}
 
-Please build a JSON table with four columns (the two last are empty): Task | Frequency | LastTimeDone | NextTimeToDo
+Build a json format table with four columns (the two last are empty for now): Task | Frequency | LastTimeDone | NextTimeToDo
 Fill the first column with the name of the following tasks:
 - Oil Change
 - Oil Filter Replacement
@@ -37,7 +37,7 @@ Fill the first column with the name of the following tasks:
 - Fork & Suspension
 - Throttle & Clutch
 
-Please fill the second column with the frequency in miles or years (just write the number 15000 or 2Y for years, be systematic). Your output should be the JSON table, nothing else.`,
+Please fill the second column with the frequency in miles or years (just write the number 15000 or 2Y for years, be systematic). Your output should be the json maintenance table, nothing else.`,
 
       car: `You are an API for a maintenance planner, creating tables. Given the following car details:
 - Year: ${year}
@@ -45,7 +45,7 @@ Please fill the second column with the frequency in miles or years (just write t
 - Model: ${model}
 - URL of owner manual: ${url}
 
-Please build a JSON table with four columns (the two last are empty): Task | Frequency | LastTimeDone | NextTimeToDo
+Build a json format table with four columns (the two last are empty for now): Task | Frequency | LastTimeDone | NextTimeToDo
 Fill the first column with the name of the following tasks:
 - Oil Change
 - Oil Filter Replacement
@@ -61,7 +61,7 @@ Fill the first column with the name of the following tasks:
 - Suspension & Shocks Inspection
 - Tires Inspection
 
-Please fill the second column with the frequency in miles or years (just write the number, e.g., 15000 for miles or 2Y for years, be systematic). Your output should be the JSON table, nothing else.`,
+Please fill the second column with the frequency in miles or years (just write the number, e.g., 15000 for miles or 2Y for years, be systematic). Your output should be the json maintenance table, nothing else.`,
     };
 
     // Select the appropriate prompt based on the type

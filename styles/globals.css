@@ -402,7 +402,7 @@ a:hover {
 
 input, select, textarea {
   background-color: #ffffff;
-  color: #eaeaea;
+  color: black; /* Ensure input text is black */
   border: 1px solid #7e22ce;
   border-radius: 5px;
   padding: 10px;
