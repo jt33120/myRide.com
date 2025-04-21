@@ -1831,7 +1831,7 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
             <p>Based on our AI-powered valuation : ${aiEstimation || 'Fetching AI estimation...'}</p>
 </div>
           </div>
-          <div className="mt-4 p-4 bg-white rounded-lg shadow-md border border-gray-300">
+          <div className="mt-4 p-4 pb-28 bg-white rounded-lg shadow-md border border-gray-300">
             <h3 className="text-lg font-semibold mb-2">Depreciation Curve</h3>
             <div className="mb-4">
               <label htmlFor="timeWindow" className="block text-sm font-medium text-gray-700">Select Time Window:</label>
@@ -1846,7 +1846,15 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
                 <option value="Last Year">Last Year</option>
               </select>
             </div>
-            <Line data={depreciationData} />
+            <div className="h-[50vh] pb-6"> {/* Set height to half of the screen and add bottom padding */}
+              <Line 
+                data={depreciationData} 
+                options={{
+                  maintainAspectRatio: false,
+                  height: 'auto', // Disable aspect ratio to allow custom height
+                }} 
+              />
+            </div>
           </div>
         </div>
       </section>
