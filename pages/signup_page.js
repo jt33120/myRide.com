@@ -147,13 +147,13 @@ export default function SignUp() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="form-container">
-        <p className="text-center mb-4">
+        <p className="text-center text-black mb-4">
           Already have an account?{' '}
           <Link href="/login_page" className="text-blue-500 hover:underline">
             Sign in!
           </Link>
         </p>
-        <h2 className="text-3xl font-bold text-center mb-6">Register</h2>
+        <h2 className="text-3xl font-bold text-center text-black mb-6">Register</h2>
         {formError && <p className="text-red-500">{formError}</p>} {/* Replace 'error' with 'formError' */}
 
         {/* Form Fields */}
