@@ -113,7 +113,7 @@ export default function SignUp() {
       });
 
       alert("Sign up successful!");
-      router.push("/myDashboard_page");
+      router.push("/myVehicles_page");
     } catch (error) {
       console.error("Error during sign up:", error);
 
