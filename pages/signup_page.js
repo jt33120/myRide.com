@@ -154,7 +154,7 @@ export default function SignUp() {
           </Link>
         </p>
         <h2 className="text-3xl font-bold text-center mb-6">Register</h2>
-        {error && <p className="text-red-500">{error}</p>}
+        {formError && <p className="text-red-500">{formError}</p>} {/* Replace 'error' with 'formError' */}
 
         {/* Form Fields */}
         <div className="form-section">
