@@ -18,14 +18,14 @@ function MyApp({ Component, pageProps }) {
       setAuthChecked(true);
 
       if (user) {
-        // Redirect only if the user is on public pages
+        // Redirect authenticated users away from public pages
         if (['/Welcome_page', '/login_page', '/signup_page'].includes(router.pathname)) {
           const redirectUrl = router.query.redirect || '/myVehicles_page';
           router.push(redirectUrl); // Redirect to the intended page or dashboard
         }
       } else {
-        // Redirect to Welcome_page if not logged in
-        if (router.pathname === '/') {
+        // Redirect unauthenticated users to Welcome_page
+        if (!['/Welcome_page', '/login_page', '/signup_page'].includes(router.pathname)) {
           router.push('/Welcome_page');
         }
       }
