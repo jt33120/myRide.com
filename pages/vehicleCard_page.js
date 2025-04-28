@@ -694,7 +694,11 @@ const VehicleCardPage = () => {
     const [files, setFiles] = useState([]);
     const [existingFiles, setExistingFiles] = useState(receiptData?.urls || []); // Use existing files
     const [errors, setErrors] = useState({});
-    const [uploading, setUploading] = useState(false); // Use uploading state
+    const [uploading, setUploading] = useState(false);
+  
+    const handleDeleteFile = (fileUrl) => {
+      setExistingFiles((prevFiles) => prevFiles.filter((url) => url !== fileUrl)); // Remove file from existingFiles
+    };
   
     const handleSubmit = async () => {
       const newErrors = {};
@@ -710,7 +714,7 @@ const VehicleCardPage = () => {
         return;
       }
   
-      setUploading(true); // Show loading spinner
+      setUploading(true);
       try {
         const receiptData = { title, date, category, mileage, price, urls: existingFiles };
         if (isEditing) {
@@ -718,13 +722,13 @@ const VehicleCardPage = () => {
         } else {
           await handleReceiptUpload({ ...receiptData, files });
         }
-        await updateMaintenanceAndRecommendation(receiptData); // Ensure this is called
+        await updateMaintenanceAndRecommendation(receiptData);
         onClose();
       } catch (error) {
         console.error("Error saving receipt:", error);
         alert("Failed to save receipt. Please try again.");
       } finally {
-        setUploading(false); // Hide loading spinner
+        setUploading(false);
       }
     };
   
