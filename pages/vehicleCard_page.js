@@ -509,7 +509,7 @@ const VehicleCardPage = () => {
     };
 
     fetchConversation();
-  }, [user, vehicleData]);
+  }, [user, vehicleData, router]); // Added 'router' to the dependency array
 
   const handleContactSeller = async () => {
     if (!user || !vehicleData) {
