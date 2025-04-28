@@ -685,6 +685,12 @@ const VehicleCardPage = () => {
       console.error("Error during maintenance table or AI recommendation update:", error.message);
     }
   };
+
+  const handleEditReceipt = (receipt) => {
+    setEditingReceipt(receipt); // Set the receipt to be edited
+    setShowEditReceiptForm(true); // Show the edit form
+  };
+
   const ReceiptForm = ({ isEditing = false, onClose, receiptData, handleUpdateReceipt }) => {
     const [title, setTitle] = useState(receiptData?.title || '');
     const [date, setDate] = useState(receiptData?.date ? new Date(receiptData.date.seconds * 1000).toISOString().split('T')[0] : '');
