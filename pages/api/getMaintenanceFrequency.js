@@ -26,11 +26,12 @@ Build a json format table with four columns (the two last are empty for now): Ta
 Fill the first column with the name of the following tasks:
 - Oil Change
 - Oil Filter Replacement
+- Valve Adjustment
+- Brake Fluid
 - Spark Plug
 - Air Filter
 - Tire
 - Brake Pad
-- Brake Fluid Flush
 - Coolant
 - Battery
 - Chain

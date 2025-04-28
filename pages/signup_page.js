@@ -4,7 +4,7 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { useRouter } from "next/router";
-import "react-datepicker/dist/react-datepicker.css";
+import '../styles/globals.css';
 import Link from 'next/link'; // Import Link for navigation
 
 export default function SignUp() {

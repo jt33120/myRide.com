@@ -685,27 +685,16 @@ const VehicleCardPage = () => {
       console.error("Error during maintenance table or AI recommendation update:", error.message);
     }
   };
-  const ReceiptForm = ({ isEditing = false, onClose, receiptData, handleUpdateReceipt, uploading }) => {
+  const ReceiptForm = ({ isEditing = false, onClose, receiptData, handleUpdateReceipt }) => {
     const [title, setTitle] = useState(receiptData?.title || '');
     const [date, setDate] = useState(receiptData?.date ? new Date(receiptData.date.seconds * 1000).toISOString().split('T')[0] : '');
     const [category, setCategory] = useState(receiptData?.category || '');
     const [mileage, setMileage] = useState(receiptData?.mileage || '');
     const [price, setPrice] = useState(receiptData?.price || '');
     const [files, setFiles] = useState([]);
-    const [existingFiles, setExistingFiles] = useState(receiptData?.urls || []);
-    const [errors, setErrors] = useState({}); // Define errors state
-  
-    const handleDeleteFile = async (fileUrl) => {
-      try {
-        const fileRef = ref(storage, fileUrl);
-        await deleteObject(fileRef);
-        setExistingFiles((prevFiles) => prevFiles.filter((url) => url !== fileUrl));
-        alert('File deleted successfully.');
-      } catch (error) {
-        console.error('Error deleting file:', error);
-        alert('Failed to delete file. Please try again.');
-      }
-    };
+    const [existingFiles, setExistingFiles] = useState(receiptData?.urls || []); // Use existing files
+    const [errors, setErrors] = useState({});
+    const [uploading, setUploading] = useState(false); // Use uploading state
   
     const handleSubmit = async () => {
       const newErrors = {};
@@ -718,15 +707,25 @@ const VehicleCardPage = () => {
       setErrors(newErrors);
   
       if (Object.keys(newErrors).length > 0) {
-        return; // Stop execution if there are validation errors
+        return;
       }
   
-      if (isEditing) {
-        await handleUpdateReceipt({ ...receiptData, title, date, category, mileage, price, urls: existingFiles });
-      } else {
-        await handleSave({ title, date, category, mileage, price, files });
+      setUploading(true); // Show loading spinner
+      try {
+        const receiptData = { title, date, category, mileage, price, urls: existingFiles };
+        if (isEditing) {
+          await handleUpdateReceipt(receiptData);
+        } else {
+          await handleReceiptUpload({ ...receiptData, files });
+        }
+        await updateMaintenanceAndRecommendation(receiptData); // Ensure this is called
+        onClose();
+      } catch (error) {
+        console.error("Error saving receipt:", error);
+        alert("Failed to save receipt. Please try again.");
+      } finally {
+        setUploading(false); // Hide loading spinner
       }
-      onClose();
     };
   
     return (
@@ -839,7 +838,7 @@ const VehicleCardPage = () => {
                 <path
                   className="opacity-75"
                   fill="currentColor"
-                  d="M4 12a8 8 0 018-8v8H4z"
+                  d="M4 12a8 8 0 0 1 8-8v8H4z"
                 ></path>
               </svg>
             ) : null}
@@ -850,172 +849,47 @@ const VehicleCardPage = () => {
     );
   };
   
-  const handleReceiptUpload = async () => {
-    // Ensure all required fields are filled
-    if (!receiptTitle || !receiptDate || !receiptCategory || !receiptMileage || !receiptPrice) {
-      alert('Please fill in all required fields.');
-      return;
-    }
-    // Check if mileage is either a number or the string "Unknown"
-    if (receiptMileage !== 'Unknown' && isNaN(receiptMileage)) {
-      alert('Mileage must be a number or "Unknown".');
-      return;
-    }
-  
-    // Parse price and check if it's a valid number
-    const parsedPrice = parseFloat(receiptPrice);
-    if (isNaN(parsedPrice)) {
-      alert('Price must be a valid number.');
-      return;
-    }
-  
-    // Parse mileage (set to null if "Unknown")
-    const parsedMileage = receiptMileage === 'Unknown' ? null : parseFloat(receiptMileage);
-  
-    setUploading(true); // Show loading spinner while uploading
-  
+  const handleReceiptUpload = async ({ title, date, category, mileage, price, files }) => {
     try {
-      // Generate a new Firestore document ID for the receipt (ensures uniqueness)
       const receiptId = doc(collection(db, `listing/${id}/receipts`)).id;
   
-      // Upload each file to Firebase Storage under a specific path
-      const uploadPromises = Array.from(receiptFiles).map(async (file, index) => {
-        const fileName = `${receiptId}-${index}`; // Unique filename
+      const uploadPromises = files.map(async (file, index) => {
+        const fileName = `${receiptId}-${index}`;
         const storageRef = ref(storage, `listing/${id}/docs/receipts/${fileName}`);
-        const uploadTask = uploadBytesResumable(storageRef, file); // Start resumable upload
+        const uploadTask = uploadBytesResumable(storageRef, file);
   
-        // Return a Promise that resolves to the download URL of the uploaded file
         return new Promise((resolve, reject) => {
           uploadTask.on(
             'state_changed',
-            null, // Optional: track progress here if needed
-            (error) => {
-              // Handle errors during upload
-              console.error(`Error uploading file ${fileName}:`, error);
-              reject(error);
-            },
+            null,
+            (error) => reject(error),
             async () => {
-              // On successful upload, get and return the download URL
-              try {
-                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                resolve(downloadURL);
-              } catch (error) {
-                console.error(`Error retrieving download URL for file ${fileName}:`, error);
-                reject(error);
-              }
+              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+              resolve(downloadURL);
             }
           );
         });
       });
   
-      // Wait for all files to upload and collect their download URLs
       const downloadURLs = await Promise.all(uploadPromises);
   
-      // Reference to the receipt document in Firestore
       const receiptRef = doc(db, `listing/${id}/receipts`, receiptId);
+      const receiptData = {
+        title,
+        date: new Date(date),
+        category,
+        mileage: mileage === 'Unknown' ? null : parseFloat(mileage),
+        price: parseFloat(price),
+        urls: downloadURLs,
+      };
   
-      // Parse receipt date
-      const receiptDateObj = new Date(receiptDate);
-      if (isNaN(receiptDateObj.getTime())) {
-        alert('Invalid receipt date.');
-        setUploading(false);
-        return;
-      }
-  
-      // Save receipt info in Firestore (merging if the doc already exists)
-      await setDoc(receiptRef, {
-        title: receiptTitle,
-        date: receiptDateObj,
-        category: receiptCategory,
-        mileage: parsedMileage,
-        price: parsedPrice,
-        urls: downloadURLs, // Array of uploaded file URLs
-      }, { merge: true });
-  
-      console.log('Receipt uploaded successfully.');
-  
-      // Optional: trigger backend logic to update AI maintenance recommendations
-      await updateMaintenanceAndRecommendation({ mileage: parsedMileage });
-      // Reload the page to reflect new data
-      router.reload();
+      await setDoc(receiptRef, receiptData);
+      await updateMaintenanceAndRecommendation(receiptData); // Ensure this is called
+      alert("Receipt saved successfully.");
+      router.reload(); // Refresh the page to reflect new data
     } catch (error) {
-      // Catch any unexpected errors during upload or database update
-      console.error('Error uploading receipt files or updating Firestore:', error);
-    } finally {
-      setUploading(false); // Hide loading spinner regardless of outcome
-    }
-  };
-
-  const handleReceiptDelete = async (receiptId, receiptUrls) => {
-    try {
-      // Delete the receipt document from Firestore
-      await deleteDoc(doc(db, `listing/${id}/receipts`, receiptId));
-
-      // Delete the receipt files from Firebase Storage
-      const deletePromises = receiptUrls.map(async (url) => {
-        const receiptRef = ref(storage, url);
-        await deleteObject(receiptRef);
-      });
-  
-      await Promise.all(deletePromises);
-  
-      // Refresh the receipts list
-      const receiptsRef = collection(db, `listing/${id}/receipts`);
-      const receiptsSnapshot = await getDocs(receiptsRef);
-      const sortedReceipts = receiptsSnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .sort((a, b) => b.date.seconds - a.date.seconds); // Sort by date, most recent first
-      setReceipts(sortedReceipts);
-  
-      console.log('Receipt deleted successfully.');
-    } catch (error) {
-      console.error("Error deleting receipt:", error);
-      throw new Error("Failed to delete receipt."); // Re-throw the error to propagate it
-    }
-  };
-
-  useEffect(() => {
-    if (!id) return;
-    const fetchReceipts = async () => {
-      const receiptsRef = collection(db, `listing/${id}/receipts`);
-      const receiptsSnapshot = await getDocs(receiptsRef);
-      const sortedReceipts = receiptsSnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .sort((a, b) => b.date.seconds - a.date.seconds); // Sort by date, most recent first
-      setReceipts(sortedReceipts);
-    };
-    fetchReceipts();
-  }, [id]);
-
-  const handleEditReceipt = (receipt) => {
-    setEditingReceipt(receipt); // Pass the entire receipt object, including its ID
-    setShowEditReceiptForm(true);
-  };
-  
-  const handleUpdateReceipt = async (updatedReceipt) => {
-    setUploading(true); // Show loading spinner
-    try {
-      const receiptRef = doc(db, `listing/${id}/receipts`, updatedReceipt.id);
-      await setDoc(receiptRef, {
-        title: updatedReceipt.title,
-        date: new Date(updatedReceipt.date),
-        category: updatedReceipt.category,
-        mileage: updatedReceipt.mileage,
-        price: updatedReceipt.price,
-        urls: updatedReceipt.urls,
-      }, { merge: true });
-
-      // Update AI recommendation
-      await updateMaintenanceAndRecommendation(updatedReceipt);
-      alert("Receipt and AI recommendation updated successfully.");
-
-      setShowEditReceiptForm(false); // Close the edit form
-      router.reload(); // Refresh the page to reflect changes
-    } catch (error) {
-      console.error("Error updating receipt:", error);
-      alert("Failed to update receipt. Please try again.");
-    } finally {
-      setUploading(false); // Hide loading spinner
+      console.error("Error uploading receipt:", error);
+      alert("Failed to save receipt. Please try again.");
     }
   };
 
