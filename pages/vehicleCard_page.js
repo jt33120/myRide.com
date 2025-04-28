@@ -1110,6 +1110,23 @@ const handleDocumentUpload = async (documentType, file, expirationDate) => {
     fetchAiEstimation();
   }, [id]);
 
+  const handleUpdateReceipt = async (updatedReceiptData) => {
+    try {
+      if (!editingReceipt || !editingReceipt.id) {
+        throw new Error("No receipt is being edited.");
+      }
+  
+      const receiptRef = doc(db, `listing/${id}/receipts`, editingReceipt.id);
+      await setDoc(receiptRef, updatedReceiptData, { merge: true }); // Update the receipt in Firestore
+      alert("Receipt updated successfully.");
+      setShowEditReceiptForm(false); // Close the edit form
+      router.reload(); // Refresh the page to reflect changes
+    } catch (error) {
+      console.error("Error updating receipt:", error);
+      alert("Failed to update receipt. Please try again.");
+    }
+  };
+
   if (!authenticatedUser) {
     // Show login modal if the user is not signed in
     return (
