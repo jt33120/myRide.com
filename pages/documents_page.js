@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { storage } from "../lib/firebase";
 import { ref, getDownloadURL } from "firebase/storage";
 
+
 const DocumentsPage = () => {
   const [buyMotorcycleChecklistUrl, setBuyMotorcycleChecklistUrl] = useState("");
   const [billOfSaleUrl, setBillOfSaleUrl] = useState("");
@@ -35,15 +36,15 @@ const DocumentsPage = () => {
   }, []);
 
   return (
-    <div className="min-h-screen pt-20 px-6 bg-gray-100 text-black">
+    <div className="min-h-screen px-6 pt-20 text-black bg-gray-100">
       <h1 className="page-heading">Documents</h1>
       <p className="page-subheading">
         Our goal is to simplify your life with pre-filled documents. To come:
         all digitalized bill of sale, signed electronically, all safe. We will
         also add AI guidelines for specific checklists per model.
       </p>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 space-between-boxes">
-        <div className="card relative">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 space-between-boxes">
+        <div className="relative card">
           <div className="card-content">
             <h2 className="card-title">Motorcycle Checklist</h2>
             <p className="card-description">
@@ -54,7 +55,7 @@ const DocumentsPage = () => {
             href={buyMotorcycleChecklistUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="absolute top-1/2 right-0 transform -translate-y-1/2 button-primary"
+            className="absolute right-0 transform -translate-y-1/2 top-1/2 button-primary"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -72,7 +73,7 @@ const DocumentsPage = () => {
             </svg>
           </a>
         </div>
-        <div className="card relative">
+        <div className="relative card">
           <div className="card-content">
             <h2 className="card-title">Bill of Sale Template</h2>
             <p className="card-description">Template for vehicle sale (PDF)</p>
@@ -81,7 +82,7 @@ const DocumentsPage = () => {
             href={billOfSaleUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="absolute top-1/2 right-0 transform -translate-y-1/2 button-primary"
+            className="absolute right-0 transform -translate-y-1/2 top-1/2 button-primary"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -99,7 +100,7 @@ const DocumentsPage = () => {
             </svg>
           </a>
         </div>
-        <div className="card relative">
+        <div className="relative card">
           <div className="card-content">
             <h2 className="card-title">Car Checklist</h2>
             <p className="card-description">How to buy a used car? (XLSX)</p>
@@ -108,7 +109,7 @@ const DocumentsPage = () => {
             href={buyCarChecklistUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="absolute top-1/2 right-0 transform -translate-y-1/2 button-primary"
+            className="absolute right-0 transform -translate-y-1/2 top-1/2 button-primary"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
