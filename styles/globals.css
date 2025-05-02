@@ -5,6 +5,13 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .dropdown-btn {
+    @apply block w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100;
+  }
+}
+
+
 .input {
   padding: 12px;
   border: 1px solid #ddd;
