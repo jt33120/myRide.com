@@ -1,24 +1,102 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
 import {
-   MagnifyingGlassIcon,
-   WrenchIcon,
-   UserPlusIcon,
-   PlusCircleIcon
-  } from '@heroicons/react/24/outline';
+  MagnifyingGlassIcon,
+  WrenchIcon,
+  UserPlusIcon,
+  PlusCircleIcon,
+} from '@heroicons/react/24/outline';
+
+import { db, storage } from '../lib/firebase';
+import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { ref, listAll, getDownloadURL } from 'firebase/storage';
 
 export default function WelcomePage() {
   const router = useRouter();
   const [query, setQuery] = useState('');
+  const [vehicles, setVehicles] = useState([]);
 
   const handleSearch = (e) => {
     e.preventDefault();
     router.push(`/marketplace_page?search=${encodeURIComponent(query)}`);
   };
+
+  const fetchVehicleImages = useCallback(async (vehicleId) => {
+    const imagesRef = ref(storage, `listing/${vehicleId}/photos`);
+    const imageList = await listAll(imagesRef);
+    const imageUrls = await Promise.all(
+      imageList.items.map((imageRef) => getDownloadURL(imageRef))
+    );
+    const frontImageIndex = imageUrls.findIndex((url) => url.includes('front'));
+    if (frontImageIndex > -1) {
+      const [frontImage] = imageUrls.splice(frontImageIndex, 1);
+      imageUrls.unshift(frontImage);
+    }
+    return imageUrls;
+  }, []);
+
+  const fetchSellerProfile = async (uid) => {
+    if (!uid) return { profilePicture: '/default-profile.png', firstName: 'Unknown Seller', rating: 0 };
+    try {
+      const userRef = doc(db, 'members', uid);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        const profilePictureRef = ref(storage, `members/${uid}/profilepicture.png`);
+        const profilePicture = await getDownloadURL(profilePictureRef).catch(() => '/default-profile.png');
+        return {
+          profilePicture,
+          firstName: userData.firstName || 'Unknown Seller',
+          rating: userData.rating || 0,
+        };
+      }
+    } catch (error) {
+      console.error('Error fetching seller profile:', error);
+    }
+    return { profilePicture: '/default-profile.png', firstName: 'Unknown Seller', rating: 0 };
+  };
+
+  useEffect(() => {
+    async function fetchVehicles() {
+      const marketplaceRef = collection(db, 'on_marketplace');
+      const marketplaceSnapshot = await getDocs(marketplaceRef);
+      let vehicleList = [];
+
+      for (const vehicleDoc of marketplaceSnapshot.docs) {
+        const vehicleId = vehicleDoc.id;
+        const vehicleRef = doc(db, 'listing', vehicleId);
+        const vehicleSnap = await getDoc(vehicleRef);
+
+        if (vehicleSnap.exists()) {
+          const vehicleData = vehicleSnap.data();
+          const marketplaceData = vehicleDoc.data();
+
+          const { profilePicture, firstName, rating } = await fetchSellerProfile(vehicleData.uid);
+          const images = await fetchVehicleImages(vehicleId);
+
+          vehicleList.push({
+            id: vehicleId,
+            make: vehicleData.make || 'Unknown Make',
+            model: vehicleData.model || 'Unknown Model',
+            year: vehicleData.year || 'Unknown Year',
+            owner: firstName,
+            profilePicture,
+            rating,
+            images,
+            price: marketplaceData.price || 'N/A',
+          });
+        }
+      }
+
+      setVehicles(vehicleList);
+    }
+
+    fetchVehicles();
+  }, [fetchVehicleImages]);
 
   return (
     <div className="flex flex-col min-h-screen pb-5">
@@ -60,7 +138,7 @@ export default function WelcomePage() {
           </form>
 
           {/* CTA */}
-          <div className="flex flex-col justify-center gap-4 pb-5 mt-8 sm:flex-row">
+          <div className="flex flex-col justify-center gap-4 pb-5 mt-8 sm:flex-row ">
             <Link href="/login_page" className="px-8 py-3 font-semibold text-white rounded-lg shadow-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
               Sign In
             </Link>
@@ -74,34 +152,73 @@ export default function WelcomePage() {
         </div>
       </section>
 
-      {/* How It Works */}
-      <section className="py-12 bg-white">
-        <h2 className="mb-8 text-3xl font-semibold text-center text-gray-800">
-          How It Works
-        </h2>
-        <div className="container grid grid-cols-1 gap-8 mx-auto sm:grid-cols-2 lg:grid-cols-4">
-          <div className="flex flex-col items-center text-center">
-            <UserPlusIcon className="w-10 h-10 mb-4 text-purple-600"  />
-            <h3 className="font-semibold">Create Account</h3>
-            <p className="text-sm text-gray-500">Set up your profile in seconds.</p>
-          </div>
-          <div className="flex flex-col items-center text-center">
-            <PlusCircleIcon className="w-10 h-10 mb-4 text-purple-600" />
-            <h3 className="font-semibold">Add Your Vehicle</h3>
-            <p className="text-sm text-gray-500">Import VIN, photos & details.</p>
-          </div>
-          <div className="flex flex-col items-center text-center">
-            <MagnifyingGlassIcon className="w-10 h-10 mb-4 text-purple-600" />
-            <h3 className="font-semibold">Browse Marketplace</h3>
-            <p className="text-sm text-gray-500">Find what you need with AI power.</p>
-          </div>
-          <div className="flex flex-col items-center text-center">
-            <WrenchIcon className="w-10 h-10 mb-4 text-purple-600" />
-            <h3 className="font-semibold">Log Maintenance</h3>
-            <p className="text-sm text-gray-500">Keep your history up to date.</p>
-          </div>
+      {/* Marketplace Carousel Section */}
+      <section className="py-12 bg-gray-100">
+        <h2 className="mb-6 text-3xl font-semibold text-center text-gray-800">Featured Vehicles</h2>
+        <div className="px-4 overflow-x-auto whitespace-nowrap">
+          {vehicles.map((vehicle) => (
+            <div key={vehicle.id} className="inline-block w-64 mr-4 transition bg-white rounded-lg shadow-md hover:shadow-lg">
+              <Image
+                src={vehicle.images[0] || '/default-vehicle.png'}
+                alt={`${vehicle.make} ${vehicle.model}`}
+                width={256}
+                height={160}
+                className="object-cover w-full h-40 rounded-t-lg"
+              />
+              <div className="p-3">
+                <h3 className="font-bold text-md">
+                  {vehicle.year} {vehicle.make} {vehicle.model}
+                </h3>
+                <p className="text-sm text-gray-600">${vehicle.price}</p>
+                <p className="text-sm text-gray-500">Seller: {vehicle.owner}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
+
+      {/* How It Works */}
+      <section className="py-16 bg-black">
+  <h2 className="mb-12 text-4xl font-bold text-center text-white">How It Works</h2>
+  <div className="container grid grid-cols-1 gap-8 px-6 mx-auto sm:grid-cols-2 md:grid-cols-4">
+    
+    {/* Create Account */}
+    <div className="flex flex-col items-center p-6 text-center text-white transition border border-purple-600 bg-white/5 rounded-2xl hover:bg-white hover:text-black hover:scale-105">
+      <div className="flex items-center justify-center mb-4 text-purple-400 rounded-full w-14 h-14 bg-purple-900/20">
+        <UserPlusIcon className="w-8 h-8" />
+      </div>
+      <h3 className="mb-1 text-lg font-semibold">Create Account</h3>
+      <p className="text-sm text-gray-400">Set up your profile in seconds.</p>
+    </div>
+
+    {/* Add Your Vehicle */}
+    <div className="flex flex-col items-center p-6 text-center text-white transition border border-purple-600 bg-white/5 rounded-2xl hover:bg-white hover:text-black hover:scale-105">
+      <div className="flex items-center justify-center mb-4 text-purple-400 rounded-full w-14 h-14 bg-purple-900/20">
+        <PlusCircleIcon className="w-8 h-8" />
+      </div>
+      <h3 className="mb-1 text-lg font-semibold">Add Your Vehicle</h3>
+      <p className="text-sm text-gray-400">Import VIN, photos & details.</p>
+    </div>
+
+    {/* Browse Marketplace */}
+    <div className="flex flex-col items-center p-6 text-center text-white transition border border-purple-600 bg-white/5 rounded-2xl hover:bg-white hover:text-black hover:scale-105">
+      <div className="flex items-center justify-center mb-4 text-purple-400 rounded-full w-14 h-14 bg-purple-900/20">
+        <MagnifyingGlassIcon className="w-8 h-8" />
+      </div>
+      <h3 className="mb-1 text-lg font-semibold">Browse Marketplace</h3>
+      <p className="text-sm text-gray-400">Find what you need with AI power.</p>
+    </div>
+
+    {/* Log Maintenance */}
+    <div className="flex flex-col items-center p-6 text-center text-white transition border border-purple-600 bg-white/5 rounded-2xl hover:bg-white hover:text-black hover:scale-105">
+      <div className="flex items-center justify-center mb-4 text-purple-400 rounded-full w-14 h-14 bg-purple-900/20">
+        <WrenchIcon className="w-8 h-8" />
+      </div>
+      <h3 className="mb-1 text-lg font-semibold">Log Maintenance</h3>
+      <p className="text-sm text-gray-400">Keep your history up to date.</p>
+    </div>
+  </div>
+</section>
 
       {/* Footer */}
       <footer className="py-6 bg-gray-800">
