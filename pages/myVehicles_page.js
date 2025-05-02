@@ -164,10 +164,9 @@ const MyGarage = () => {
               ai_estimated_value: vehicleData.ai_estimated_value || 0, // Ensure default value
               receipts,
             };
-          } else {
-            console.log(`Vehicle with ID ${vehicleId} does not exist.`);
-            return null;
           }
+          console.log(`Vehicle with ID ${vehicleId} does not exist.`);
+          return null;
         })
       );
 
@@ -406,12 +405,12 @@ const MyGarage = () => {
   if (loading) return <p>Loading...</p>;
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="flex flex-col min-h-screen">
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto pt-20 pb-24 p-6 bg-gray-100 text-black">
+      <div className="flex-1 p-6 pt-20 pb-24 overflow-y-auto text-black bg-gray-100">
         {/* Added `pt-20` for top padding and `pb-24` for bottom padding */}
         <div className="flex flex-col items-center mb-6">
-          <h1 className="text-3xl font-bold mb-4">{firstName ? `${firstName}'s Garage` : "Loading..."}</h1>
+          <h1 className="mb-4 text-3xl font-bold">{firstName ? `${firstName}'s Garage` : "Loading..."}</h1>
           
           {/* Sum Display */}
           <div className="w-full max-w-md text-center">
@@ -419,7 +418,7 @@ const MyGarage = () => {
               <p className="text-sm text-gray-500">{sumType}</p>
               <button
                 onClick={() => setDropdownOpen((prev) => !prev)}
-                className="p-1 hover:bg-gray-100 rounded-full transition"
+                className="p-1 transition rounded-full hover:bg-gray-100"
                 title="Select Sum Type"
               >
                 <svg
@@ -435,7 +434,7 @@ const MyGarage = () => {
               </button>
             </div>
             {dropdownOpen && (
-              <div className="absolute mt-2 w-48 bg-white shadow-lg rounded-md border border-gray-200 z-10 text-sm">
+              <div className="absolute z-10 w-48 mt-2 text-sm bg-white border border-gray-200 rounded-md shadow-lg">
                 {sumOptions.map((option) => (
                   <button
                     key={option}
@@ -457,50 +456,63 @@ const MyGarage = () => {
 
         {vehicles.length === 0 ? (
           <div className="text-center">
-            <p className="text-gray-600 text-lg mb-4">No vehicle yet? Add one!</p>
+            <p className="mb-4 text-lg text-gray-600">No vehicle yet? Add one!</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {vehicles.map((vehicle) => (
               <div
                 key={vehicle.id}
-                className="bg-white p-2 rounded-lg shadow-md relative flex flex-col"
+                className="relative flex flex-col p-2 bg-white rounded-lg shadow-md"
                 onClick={(event) => handleCardClick(vehicle.id, event)} // Handle card click
+                onKeyUp={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    handleCardClick(vehicle.id, event);
+                  }
+                }}
+                tabIndex={0} // Make the div focusable for keyboard interaction
               >
                 {/* Delete Button */}
-                <div className="absolute top-2 left-2 justify-start z-50 delete-button">
+                <div className="absolute z-50 justify-start top-2 left-2 delete-button">
                   <button
+                    type="button"
                     onClick={() => handleDeleteVehicle(vehicle.id)}
-                    className="bg-purple-500 text-white p-1 rounded-full hover:bg-purple-600 focus:outline-none"
+                    onKeyUp={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        handleDeleteVehicle(vehicle.id);
+                      }
+                    }}
+                    className="p-1 text-white bg-purple-500 rounded-full hover:bg-purple-600 focus:outline-none"
                     title="Delete Vehicle"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3" title="Delete Icon">
                       <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                     </svg>
                   </button>
                 </div>
 
                 {/* Carousel */}
-                <div className="carousel-container relative mb-4 w-48 h-48">
-                  <div className="carousel-images overflow-hidden w-full h-full">
+                <div className="relative w-48 h-48 mb-4 carousel-container">
+                  <div className="w-full h-full overflow-hidden carousel-images">
                     {vehicle.images.length > 0 && (
                       !vehicle.images[currentIndexes[vehicle.id] || 0].includes("vehicleVideo") && (
                         <Image
                           src={vehicle.images[currentIndexes[vehicle.id] || 0]}
-                          alt={`${vehicle.make} ${vehicle.model}`}
+                          alt={`${vehicle.year || 'Unknown Year'} ${vehicle.make || 'Unknown Make'} ${vehicle.model || 'Unknown Model'}`}
                           width={200}
                           height={200}
-                          className="w-full h-full object-cover rounded-lg"
+                          className="object-cover w-full h-full rounded-lg"
                         />
                       )
                     )}
                   </div>
 
                   {/* Dot navigation */}
-                  <div className="carousel-dots absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                  <div className="absolute flex space-x-2 transform -translate-x-1/2 carousel-dots bottom-2 left-1/2">
                     {vehicle.images.map((_, index) => (
                       <button
-                        key={index}
+                        key={`${vehicle.id}-dot-${index}`}
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleDotClick(vehicle.id, index);
@@ -510,7 +522,7 @@ const MyGarage = () => {
                             ? 'bg-purple-500'
                             : 'bg-gray-300'
                         }`}
-                      ></button>
+                      />
                     ))}
                   </div>
                 </div>
@@ -529,7 +541,8 @@ const MyGarage = () => {
 
       {/* Add Vehicle Button */}
       <button
-        className="fixed bottom-16 right-4 bg-gradient-to-r from-purple-500 to-purple-700 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:scale-105 transition-transform"
+        type="button"
+        className="fixed flex items-center justify-center text-white transition-transform rounded-full shadow-lg bottom-16 right-4 bg-gradient-to-r from-purple-500 to-purple-700 w-14 h-14 hover:scale-105"
         onClick={() => router.push("/addVehicle_page")}
       >
         <svg
