@@ -1,135 +1,110 @@
 import React, { useEffect, useState } from "react";
 import { storage } from "../lib/firebase";
 import { ref, getDownloadURL } from "firebase/storage";
+import Navbar from "../components/Navbar";
+import { ArrowDownTrayIcon } from "@heroicons/react/24/outline";
+import { DocumentTextIcon, DocumentCheckIcon, ChevronDoubleRightIcon } from "@heroicons/react/24/solid";
+import { motion } from "framer-motion";
 
-
-const DocumentsPage = () => {
-  const [buyMotorcycleChecklistUrl, setBuyMotorcycleChecklistUrl] = useState("");
-  const [billOfSaleUrl, setBillOfSaleUrl] = useState("");
-  const [buyCarChecklistUrl, setBuyCarChecklistUrl] = useState("");
+export default function DocumentsPage() {
+  const [docs, setDocs] = useState({ motorcycle: "", billOfSale: "", car: "" });
 
   useEffect(() => {
-    const fetchDocumentUrls = async () => {
+    async function fetchUrls() {
+      const paths = {
+        motorcycle: "public/BUY_MOTORCYCLE_CHECKLIST.xlsx",
+        billOfSale:  "public/BillOfSale_Template.pdf",
+        car:         "public/BUY_CAR_CHECKLIST.xlsx",
+      };
       try {
-        const motorcycleChecklistRef = ref(
-          storage,
-          "public/BUY_MOTORCYCLE_CHECKLIST.xlsx"
+        const entries = await Promise.all(
+          Object.entries(paths).map(async ([k, p]) => {
+            const url = await getDownloadURL(ref(storage, p));
+            return [k, url];
+          })
         );
-        const billOfSaleRef = ref(storage, "public/BillOfSale_Template.pdf");
-        const carChecklistRef = ref(storage, "public/BUY_CAR_CHECKLIST.xlsx");
-
-        const motorcycleChecklistUrl = await getDownloadURL(
-          motorcycleChecklistRef
-        );
-        const billOfSaleUrl = await getDownloadURL(billOfSaleRef);
-        const carChecklistUrl = await getDownloadURL(carChecklistRef);
-
-        setBuyMotorcycleChecklistUrl(motorcycleChecklistUrl);
-        setBillOfSaleUrl(billOfSaleUrl);
-        setBuyCarChecklistUrl(carChecklistUrl);
-      } catch (error) {
-        console.error("Error fetching document URLs:", error);
+        setDocs(Object.fromEntries(entries));
+      } catch (e) {
+        console.error("Failed to fetch documents:", e);
       }
-    };
-
-    fetchDocumentUrls();
+    }
+    fetchUrls();
   }, []);
 
+  const items = [
+    {
+      key: "motorcycle",
+      title: "Motorcycle Checklist",
+      desc: "Step-by-step XLSX guide",
+      url:  docs.motorcycle,
+      Icon: DocumentCheckIcon
+    },
+    {
+      key: "billOfSale",
+      title: "Bill of Sale Template",
+      desc: "Legal PDF contract",
+      url:  docs.billOfSale,
+      Icon: DocumentTextIcon
+    },
+    {
+      key: "car",
+      title: "Car Checklist",
+      desc: "Complete XLSX checklist",
+      url:  docs.car,
+      Icon: DocumentCheckIcon
+    },
+  ];
+
   return (
-    <div className="min-h-screen px-6 pt-20 text-black bg-gray-100">
-      <h1 className="page-heading">Documents</h1>
-      <p className="page-subheading">
-        Our goal is to simplify your life with pre-filled documents. To come:
-        all digitalized bill of sale, signed electronically, all safe. We will
-        also add AI guidelines for specific checklists per model.
-      </p>
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 space-between-boxes">
-        <div className="relative card">
-          <div className="card-content">
-            <h2 className="card-title">Motorcycle Checklist</h2>
-            <p className="card-description">
-              How to buy a used motorcycle? (XLSX)
-            </p>
-          </div>
-          <a
-            href={buyMotorcycleChecklistUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="absolute right-0 transform -translate-y-1/2 top-1/2 button-primary"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth="1.5"
-              stroke="currentColor"
-              className="size-6"
+    <div className="min-h-screen bg-gradient-to-b from-gray-100 to-white">
+      <Navbar />
+
+      <div className="max-w-5xl px-6 py-16 mx-auto">
+        {/* Title */}
+        <h1 className="mb-6 text-5xl font-extrabold text-center text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-700">
+          Documents Library
+        </h1>
+        <p className="mb-12 text-center text-gray-600">
+          Download and get instant access to essential vehicle documents with one click.
+        </p>
+
+        {/* Grid */}
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          {items.map(({ key, title, desc, url, Icon }, i) => (
+            <motion.div
+              key={key}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1, type: "spring", stiffness: 100 }}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"
-              />
-            </svg>
-          </a>
-        </div>
-        <div className="relative card">
-          <div className="card-content">
-            <h2 className="card-title">Bill of Sale Template</h2>
-            <p className="card-description">Template for vehicle sale (PDF)</p>
-          </div>
-          <a
-            href={billOfSaleUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="absolute right-0 transform -translate-y-1/2 top-1/2 button-primary"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth="1.5"
-              stroke="currentColor"
-              className="size-6"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"
-              />
-            </svg>
-          </a>
-        </div>
-        <div className="relative card">
-          <div className="card-content">
-            <h2 className="card-title">Car Checklist</h2>
-            <p className="card-description">How to buy a used car? (XLSX)</p>
-          </div>
-          <a
-            href={buyCarChecklistUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="absolute right-0 transform -translate-y-1/2 top-1/2 button-primary"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth="1.5"
-              stroke="currentColor"
-              className="size-6"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"
-              />
-            </svg>
-          </a>
+              {/* Gradient border container */}
+              <div className="p-1 transition-transform transform shadow-lg rounded-2xl bg-gradient-to-r from-pink-500 to-purple-700 hover:shadow-2xl hover:scale-105">
+                {/* Card */}
+                <div className="flex flex-col h-full p-6 bg-white rounded-2xl">
+                  {/* Icon */}
+                  <div className="flex items-center justify-center w-12 h-12 mb-4 rounded-full bg-gradient-to-tr from-pink-500 to-purple-700">
+                    <Icon className="w-6 h-6 text-white" />
+                  </div>
+                  {/* Title & Description */}
+                  <h2 className="mb-2 text-xl font-semibold text-gray-800">{title}</h2>
+                  <p className="flex-1 text-gray-500">{desc}</p>
+                  {/* Download button */}
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center px-4 py-2 mt-6 font-medium text-white transition rounded-lg bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600"
+                  >
+                    <ArrowDownTrayIcon className="w-5 h-5 mr-2" />
+                    Download
+                    <ChevronDoubleRightIcon className="w-4 h-4 ml-1 animate-pulse" />
+                  </a>
+                </div>
+              </div>
+            </motion.div>
+          ))}
         </div>
       </div>
     </div>
   );
-};
-
-export default DocumentsPage;
+}
