@@ -1,50 +1,68 @@
-import axios from "axios"; // Import axios
-import { ref, getDownloadURL } from "firebase/storage"; // Import ref and getDownloadURL
-import { storage } from "../../lib/firebase"; // Ensure storage is correctly imported
+import axios from "axios";
+import { ref, getDownloadURL } from "firebase/storage";
+import { storage } from "../../lib/firebase";
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   const { prompt, vehicleId, vehicleDetails } = req.body;
 
-  if (!prompt) {
-    return res.status(400).json({ error: 'Prompt is required.' });
-  }
-
-  if (!vehicleId || !vehicleDetails || !vehicleDetails.make || !vehicleDetails.model || !vehicleDetails.year) {
-    return res.status(400).json({ error: 'Vehicle ID and details (make, model, year) are required.' });
+  // Validation des données d'entrée
+  if (
+    !prompt ||
+    !vehicleId ||
+    !vehicleDetails ||
+    !vehicleDetails.make ||
+    !vehicleDetails.model ||
+    !vehicleDetails.year
+  ) {
+    return res
+      .status(400)
+      .json({
+        error:
+          "Missing required fields: prompt, vehicleId, or vehicleDetails (make, model, year).",
+      });
   }
 
   try {
-    // Debugging: Log incoming request
-    console.log("Received request with vehicleId:", vehicleId);
-    console.log("Vehicle details:", vehicleDetails);
+    console.log("Requête reçue avec vehicleId :", vehicleId);
+    console.log("Détails du véhicule :", vehicleDetails);
 
-    console.log("Fetching maintenance table from Firebase Storage...");
     const storagePath = `listing/${vehicleId}/docs/maintenanceTable.json`;
-    const storageRef = ref(storage, storagePath); // Use ref to create a reference to the file
-    const downloadURL = await getDownloadURL(storageRef); // Get the download URL
+    const storageRef = ref(storage, storagePath);
+    const downloadURL = await getDownloadURL(storageRef);
 
     const maintenanceResponse = await axios.get(downloadURL);
     const maintenanceTable = maintenanceResponse.data;
 
-    // Debugging: Log the fetched maintenance table
-    console.log("Fetched maintenanceTable:", JSON.stringify(maintenanceTable, null, 2));
+    // Validation du format de la table de maintenance
+    if (!maintenanceTable || !Array.isArray(maintenanceTable.table)) {
+      throw new Error("Invalid maintenance table format.");
+    }
 
-    // Simplify the prompt to avoid exceeding token limits
+    console.log(
+      "Table de maintenance récupérée :",
+      JSON.stringify(maintenanceTable, null, 2)
+    );
+
     const vehicleContext = `
       Vehicle Details:
       - Make: ${vehicleDetails.make}
       - Model: ${vehicleDetails.model}
       - Year: ${vehicleDetails.year}
-      - Mileage: ${vehicleDetails.mileage || 'Unknown'}
+      - Mileage: ${vehicleDetails.mileage || "Unknown"}
     `;
 
     const tableSummary = maintenanceTable.table
-      .map((item) => `${item.Task}: Next at ${item.NextTimeToDo || 'Unknown'}, Last done at ${item.LastTimeDone || 'Unknown'}`)
-      .join('\n');
+      .map(
+        (item) =>
+          `${item.Task}: Next at ${
+            item.NextTimeToDo || "Unknown"
+          }, Last done at ${item.LastTimeDone || "Unknown"}`
+      )
+      .join("\n");
 
     const fullPrompt = `
       Information about the vehicle:
@@ -58,33 +76,42 @@ export default async function handler(req, res) {
       You are a maintenance helper for this vehicle owner. Answer the user question as accurately as possible.
     `;
 
-    // Debugging: Log the constructed prompt
-    console.log("Constructed Prompt:", fullPrompt);
+    console.log("Prompt construit :", fullPrompt);
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [{ role: 'user', content: fullPrompt }],
+    const response = await axios.post(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        model: "gpt-3.5-turbo",
+        messages: [{ role: "user", content: fullPrompt }],
         max_tokens: 1500,
-      }),
-    });
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+      }
+    );
 
-    const data = await response.json();
-
-    if (response.ok) {
-      const answer = data.choices?.[0]?.message?.content.trim() || '';
+    if (response.status === 200) {
+      const answer = response.data.choices?.[0]?.message?.content.trim() || "";
       res.status(200).json({ answer });
     } else {
-      console.error("OpenAI API Error:", data.error?.message);
-      res.status(response.status).json({ error: data.error?.message || 'Unknown error' });
+      console.error("Erreur API OpenAI :", response.data.error?.message);
+      res
+        .status(response.status)
+        .json({ error: response.data.error?.message || "Erreur inconnue" });
     }
   } catch (error) {
-    console.error('Error processing AI maintenance prompt:', error.message);
-    res.status(500).json({ error: 'Failed to process the AI maintenance prompt.' });
+    console.error("Erreur lors du traitement du prompt AI :", error.message);
+
+    if (error.response) {
+      console.error("Détails de l'erreur :", error.response.data);
+    }
+
+    res.status(500).json({
+      error: "Failed to process the AI maintenance prompt.",
+      details: error.response ? error.response.data : null,
+    });
   }
 }
