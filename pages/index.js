@@ -1,11 +1,11 @@
 // pages/index.js
-import PrivateRoute from "../components/PrivateRoute";  // Adjust path if necessary
-import WelcomePage from "../pages/Welcome_page";  // Adjust path if necessary
+import { useEffect } from "react";
+import { useRouter } from "next/router";
 
 export default function Home() {
-  return (
-    <PrivateRoute>
-      <WelcomePage />
-    </PrivateRoute>
-  );
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/Welcome_page");
+  }, [router]);
+  return null;
 }

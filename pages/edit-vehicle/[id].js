@@ -1,190 +1,285 @@
+// pages/edit-vehicle/[id].jsx
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { auth, db } from "../../lib/firebase";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
-import Navbar from "../../components/Navbar";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
+import { toast } from "react-toastify";
 
-// Classe d'input avec gestion des erreurs / Input style with error handling
-const selectClass = (error) =>
-  `w-full bg-gray-700 text-gray-100 border ${error ? "border-red-500" : "border-gray-600"} rounded p-2`;
-const inputClass = selectClass;
-
-// Composant champ de formulaire / Form field component
-function Field({ label, children }) {
-  const child = React.Children.only(children);
-  const inputId = child.props.name;
-  return (
-    <div>
-      <label htmlFor={inputId} className="block mb-1 text-gray-200">{label}</label>
-      {React.cloneElement(child, { id: inputId })}
-    </div>
-  );
-}
-
-// Message d'erreur / Error message
-function ErrorMsg({ children }) {
-  return <p className="mt-1 text-sm text-red-400">{children}</p>;
-}
-
-const EditVehiclePage = () => {
+export default function EditVehiclePage() {
+  // Routing and state
   const router = useRouter();
   const { id } = router.query;
+  // Declare all fields exactly as in addVehicle_page.js
+  const [formData, setFormData] = useState({
+    year: "",
+    make: "",
+    model: "",
+    city: "",
+    state: "",
+    vin: "",
+    mileage: "",
+    color: "",
+    engine: "",
+    transmission: "",
+    horsepower: "",
+    fuelType: "",
+    vehicleType: "",
+    boughtAt: "",
+    purchaseYear: "",
+    withoutPurchasePrice: "",
+    repairCost: "",
+    scheduledMaintenance: "",
+    cosmeticMods: "",
+    performanceMods: "",
+    description: "", // newly added for description
+  });
 
-  const [formData, setFormData] = useState(null);
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  // Récupère les données du véhicule / Fetch vehicle data
+  // Ensure user is authenticated
   useEffect(() => {
-    const fetchData = async () => {
-      if (!id) return;
-      const docSnap = await getDoc(doc(db, "listing", id));
-      if (docSnap.exists()) {
-        setFormData(docSnap.data());
-        setLoading(false);
-      } else {
-        alert("Vehicle not found.");
-        router.push("/");
+    const unsub = onAuthStateChanged(auth, (u) => {
+      if (!u) router.push("/Welcome_page");
+    });
+    return unsub;
+  }, [router]);
+
+  // Fetch vehicle data and prefill fields
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
+      const snap = await getDoc(doc(db, "listing", id));
+      if (snap.exists()) {
+        const data = snap.data();
+        // Prefill each field using the same names as in addVehicle
+        setFormData({
+          year: data.year || "",
+          make: data.make || "",
+          model: data.model || "",
+          city: data.city || "",
+          state: data.state || "",
+          vin: data.vin || "",
+          mileage: data.mileage || "",
+          color: data.color || "",
+          engine: data.engine || "",
+          transmission: data.transmission || "",
+          horsepower: data.horsepower || "",
+          fuelType: data.fuelType || "",
+          vehicleType: data.vehicleType || "",
+          boughtAt: data.boughtAt || "",
+          purchaseYear: data.purchaseYear || "",
+          withoutPurchasePrice: data.withoutPurchasePrice || "",
+          repairCost: data.repairCost || "",
+          scheduledMaintenance: data.scheduledMaintenance || "",
+          cosmeticMods: data.cosmeticMods || "",
+          performanceMods: data.performanceMods || "",
+          description: data.description || "", // ensure description is loaded
+        });
       }
-    };
-    fetchData();
-  }, [id, router]);
+    })();
+  }, [id]);
 
-  // Gère les changements d'inputs / Handle input change
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    setErrors((prev) => ({ ...prev, [name]: null }));
-  };
-
-  // Soumet le formulaire / Submit form
-  const handleSubmit = async () => {
-    const requiredFields = ["make", "model", "year", "mileage", "color", "engine", "transmission", "horsepower", "fuelType", "city", "state"];
-    const errs = {};
-    for (const f of requiredFields) {
-      if (!formData[f]) {
-        errs[f] = "Required field";
-      }
-    }
-    if (Object.keys(errs).length) {
-      setErrors(errs);
-      return;
-    }
-
-    setSaving(true);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     try {
-      await updateDoc(doc(db, "listing", id), formData);
+      await setDoc(
+        doc(db, "listing", id),
+        {
+          ...formData,
+          state: formData.state,
+          boughtAt: formData.boughtAt,
+          purchaseYear: formData.purchaseYear,
+          withoutPurchasePrice: formData.withoutPurchasePrice,
+          repairCost: formData.repairCost,
+          scheduledMaintenance: formData.scheduledMaintenance,
+          cosmeticMods: formData.cosmeticMods,
+          performanceMods: formData.performanceMods,
+        },
+        { merge: true }
+      );
+      toast.success("Vehicle updated successfully");
       router.push(`/vehicleCard_page/${id}`);
-    } catch (e) {
-      alert("An error occurred while updating the vehicle.");
-    } finally {
-      setSaving(false);
+    } catch (error) {
+      console.error(error);
+      toast.error("Update failed");
     }
   };
-
-  // Affiche le chargement / Show loading state
-  if (loading || !formData) return <div className="p-6 text-white">Loading...</div>;
 
   return (
-    <div className="min-h-screen text-white bg-gray-900">
-      <Navbar />
-      <div className="max-w-3xl px-4 py-8 mx-auto">
-        <h1 className="mb-8 text-3xl font-bold text-center">Edit Vehicle</h1>
-        <div className="grid gap-4 p-6 bg-gray-800 rounded-lg shadow-lg md:grid-cols-2">
-          {/* Champs de formulaire / Form fields */}
-          <Field label="Make *">
-            <>
-              <input name="make" value={formData.make} onChange={handleChange} className={inputClass(errors.make)} />
-              {errors.make && <ErrorMsg>{errors.make}</ErrorMsg>}
-            </>
-          </Field>
-
-          <Field label="Model *">
-            <>
-              <input name="model" value={formData.model} onChange={handleChange} className={inputClass(errors.model)} />
-              {errors.model && <ErrorMsg>{errors.model}</ErrorMsg>}
-            </>
-          </Field>
-
-          <Field label="Year *">
-            <>
-              <input type="number" name="year" value={formData.year} onChange={handleChange} className={inputClass(errors.year)} />
-              {errors.year && <ErrorMsg>{errors.year}</ErrorMsg>}
-            </>
-          </Field>
-
-          <Field label="Mileage *">
-            <>
-              <input type="number" name="mileage" value={formData.mileage} onChange={handleChange} className={inputClass(errors.mileage)} />
-              {errors.mileage && <ErrorMsg>{errors.mileage}</ErrorMsg>}
-            </>
-          </Field>
-
-          <Field label="Color *">
-            <>
-              <input name="color" value={formData.color} onChange={handleChange} className={inputClass(errors.color)} />
-              {errors.color && <ErrorMsg>{errors.color}</ErrorMsg>}
-            </>
-          </Field>
-
-          <Field label="Engine *">
-            <>
-              <input name="engine" value={formData.engine} onChange={handleChange} className={inputClass(errors.engine)} />
-              {errors.engine && <ErrorMsg>{errors.engine}</ErrorMsg>}
-            </>
-          </Field>
-
-          <Field label="Transmission *">
-            <>
-              <input name="transmission" value={formData.transmission} onChange={handleChange} className={inputClass(errors.transmission)} />
-              {errors.transmission && <ErrorMsg>{errors.transmission}</ErrorMsg>}
-            </>
-          </Field>
-
-          <Field label="Horsepower *">
-            <>
-              <input type="number" name="horsepower" value={formData.horsepower} onChange={handleChange} className={inputClass(errors.horsepower)} />
-              {errors.horsepower && <ErrorMsg>{errors.horsepower}</ErrorMsg>}
-            </>
-          </Field>
-
-          <Field label="Fuel Type *">
-            <>
-              <input name="fuelType" value={formData.fuelType} onChange={handleChange} className={inputClass(errors.fuelType)} />
-              {errors.fuelType && <ErrorMsg>{errors.fuelType}</ErrorMsg>}
-            </>
-          </Field>
-
-          <Field label="City *">
-            <>
-              <input name="city" value={formData.city} onChange={handleChange} className={inputClass(errors.city)} />
-              {errors.city && <ErrorMsg>{errors.city}</ErrorMsg>}
-            </>
-          </Field>
-
-          <Field label="State *">
-            <>
-              <input name="state" value={formData.state} onChange={handleChange} className={inputClass(errors.state)} />
-              {errors.state && <ErrorMsg>{errors.state}</ErrorMsg>}
-            </>
-          </Field>
+    <div className="min-h-screen p-6 text-white bg-neutral-900">
+      <h1 className="mb-4 text-3xl font-bold">Edit Vehicle</h1>
+      <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-4">
+        {/* First row: Year, Make, Model, City, State, VIN */}
+        <div className="grid grid-cols-2 gap-4">
+          <input
+            type="text"
+            value={formData.year}
+            onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+            placeholder="Year"
+            className="p-2 rounded bg-neutral-800"
+          />
+          <input
+            type="text"
+            value={formData.make}
+            onChange={(e) => setFormData({ ...formData, make: e.target.value })}
+            placeholder="Make"
+            className="p-2 rounded bg-neutral-800"
+          />
+          <input
+            type="text"
+            value={formData.model}
+            onChange={(e) =>
+              setFormData({ ...formData, model: e.target.value })
+            }
+            placeholder="Model"
+            className="p-2 rounded bg-neutral-800"
+          />
+          <input
+            type="text"
+            value={formData.city}
+            onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+            placeholder="City"
+            className="p-2 rounded bg-neutral-800"
+          />
+          <input
+            type="text"
+            value={formData.state}
+            onChange={(e) =>
+              setFormData({ ...formData, state: e.target.value })
+            }
+            placeholder="State"
+            className="p-2 rounded bg-neutral-800"
+          />
+          <input
+            type="text"
+            value={formData.vin}
+            onChange={(e) => setFormData({ ...formData, vin: e.target.value })}
+            placeholder="VIN"
+            className="p-2 rounded bg-neutral-800"
+          />
         </div>
-
-        {/* Bouton d'enregistrement / Save button */}
-        <div className="flex justify-end mt-6">
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={saving}
-            className={`px-6 py-2 text-white rounded ${saving ? "bg-gray-500" : "bg-green-600 hover:bg-green-700"}`}
-          >
-            {saving ? "Saving..." : "Save Changes"}
-          </button>
+        {/* Second row: Mileage, Color, Engine, Transmission */}
+        <div className="grid grid-cols-2 gap-4">
+          <input
+            type="number"
+            value={formData.mileage}
+            onChange={(e) =>
+              setFormData({ ...formData, mileage: e.target.value })
+            }
+            placeholder="Mileage"
+            className="p-2 rounded bg-neutral-800"
+          />
+          <input
+            type="text"
+            value={formData.color}
+            onChange={(e) =>
+              setFormData({ ...formData, color: e.target.value })
+            }
+            placeholder="Color"
+            className="p-2 rounded bg-neutral-800"
+          />
+          <input
+            type="text"
+            value={formData.engine}
+            onChange={(e) =>
+              setFormData({ ...formData, engine: e.target.value })
+            }
+            placeholder="Engine"
+            className="p-2 rounded bg-neutral-800"
+          />
+          <input
+            type="text"
+            value={formData.transmission}
+            onChange={(e) =>
+              setFormData({ ...formData, transmission: e.target.value })
+            }
+            placeholder="Transmission"
+            className="p-2 rounded bg-neutral-800"
+          />
         </div>
-      </div>
+        {/* Third row: Horsepower, Fuel Type, Vehicle Type */}
+        <div className="grid grid-cols-2 gap-4">
+          <input
+            type="number"
+            value={formData.horsepower}
+            onChange={(e) =>
+              setFormData({ ...formData, horsepower: e.target.value })
+            }
+            placeholder="Horsepower"
+            className="p-2 rounded bg-neutral-800"
+          />
+          <input
+            type="text"
+            value={formData.fuelType}
+            onChange={(e) =>
+              setFormData({ ...formData, fuelType: e.target.value })
+            }
+            placeholder="Fuel Type"
+            className="p-2 rounded bg-neutral-800"
+          />
+          <input
+            type="text"
+            value={formData.vehicleType}
+            onChange={(e) =>
+              setFormData({ ...formData, vehicleType: e.target.value })
+            }
+            placeholder="Vehicle Type"
+            className="p-2 rounded bg-neutral-800"
+          />
+        </div>
+        {/* Fourth row: Purchase Price, Purchase Year */}
+        <div className="grid grid-cols-2 gap-4">
+          <input
+            type="number"
+            value={formData.boughtAt}
+            onChange={(e) =>
+              setFormData({ ...formData, boughtAt: e.target.value })
+            }
+            placeholder="Purchase Price"
+            className="p-2 rounded bg-neutral-800"
+          />
+          <input
+            type="text"
+            value={formData.purchaseYear}
+            onChange={(e) =>
+              setFormData({ ...formData, purchaseYear: e.target.value })
+            }
+            placeholder="Purchase Year"
+            className="p-2 rounded bg-neutral-800"
+          />
+        </div>
+        {/* New row: Owner Manual URL */}
+        <div>
+          <input
+            type="text"
+            value={formData.ownerManual}
+            onChange={(e) =>
+              setFormData({ ...formData, ownerManual: e.target.value })
+            }
+            placeholder="Owner Manual URL"
+            className="w-full p-2 rounded bg-neutral-800"
+          />
+        </div>
+        {/* Full-width Description Field */}
+        <div className="md:col-span-3">
+          <label className="block mb-1 text-gray-200">Description *</label>
+          <textarea
+            name="description"
+            value={formData.description}
+            onChange={(e) =>
+              setFormData({ ...formData, description: e.target.value })
+            }
+            rows={4}
+            placeholder="Modifier la description du véhicule..."
+            className="w-full p-2 text-gray-200 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+          />
+        </div>
+        <button
+          type="submit"
+          className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700"
+        >
+          Update Vehicle
+        </button>
+      </form>
     </div>
   );
-};
-
-export default EditVehiclePage;
+}

@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
 import { auth } from "../lib/firebase";
-import '../styles/globals.css';
+import "../styles/globals.css";
 import { FaSignInAlt } from "react-icons/fa";
 
 const LoginPage = () => {
@@ -11,11 +11,23 @@ const LoginPage = () => {
   const [error, setError] = useState("");
   const router = useRouter();
 
+  // Vérification explicite de l'état d'authentification
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        if (router.pathname === "/login_page") {
+          router.replace("/myVehicles_page"); // Utilisation de replace pour éviter de revenir à la page de connexion
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, [router]);
+
   const handleLogin = async () => {
     setError("");
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      router.push("/myVehicles_page");
+      router.replace("/myVehicles_page"); // Redirige après une connexion réussie
     } catch (err) {
       console.error("Login error:", err);
       setError("Invalid email or password. Please try again.");
@@ -30,10 +42,15 @@ const LoginPage = () => {
             <span className="text-3xl font-bold text-white">👤</span>
           </div>
         </div>
-        <h1 className="mb-6 text-3xl font-bold tracking-tight text-center text-gray-800">Welcome Back</h1>
+        <h1 className="mb-6 text-3xl font-bold tracking-tight text-center text-gray-800">
+          Welcome Back
+        </h1>
         {error && <p className="mb-4 text-center text-red-500">{error}</p>}
         <div className="mb-5">
-          <label htmlFor="email" className="block mb-1 text-sm font-medium text-gray-700">
+          <label
+            htmlFor="email"
+            className="block mb-1 text-sm font-medium text-gray-700"
+          >
             Email
           </label>
           <input
@@ -46,7 +63,10 @@ const LoginPage = () => {
           />
         </div>
         <div className="mb-6">
-          <label htmlFor="password" className="block mb-1 text-sm font-medium text-gray-700">
+          <label
+            htmlFor="password"
+            className="block mb-1 text-sm font-medium text-gray-700"
+          >
             Password
           </label>
           <input

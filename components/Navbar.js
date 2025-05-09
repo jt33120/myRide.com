@@ -13,134 +13,256 @@ import {
   HiOutlineUserCircle,
   HiOutlineTruck,
 } from "react-icons/hi2";
+import { IoLogOutOutline } from "react-icons/io5";
+import Link from "next/link";
 
 export default function Navbar({ leftContent }) {
   const router = useRouter();
   const { currentUser } = useAuth();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [profileImage, setProfileImage] = useState(null);
-  const dropdownRef = useRef(null);
-  const [showMobileNavbar, setShowMobileNavbar] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
 
-  // Scroll hide/show for mobile
+  const [desktopOpen, setDesktopOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileImage, setProfileImage] = useState(null);
+  const [showMobile, setShowMobile] = useState(true); // Par défaut visible
+  const [lastY, setLastY] = useState(0);
+
+  const desktopRef = useRef(null);
+  const mobileRef = useRef(null);
+
+  const items = [
+    { label: "Home", Icon: HiOutlineHome, path: "/Welcome_page" },
+    { label: "Garage", Icon: HiOutlineTruck, path: "/myVehicles_page" },
+    {
+      label: "Chat",
+      Icon: HiOutlineChatBubbleLeftRight,
+      path: "/myMessages_page",
+    },
+    { label: "Docs", Icon: HiOutlineDocumentText, path: "/documents_page" },
+    { label: "Market", Icon: HiOutlineBanknotes, path: "/marketplace_page" },
+  ];
+
+  // Hide mobile nav on scroll
   useEffect(() => {
     const handleScroll = () => {
       const currentY = window.scrollY;
-      setShowMobileNavbar(currentY < lastScrollY || currentY < 10);
-      setLastScrollY(currentY);
+      if (currentY > lastY && currentY > 50) {
+        setShowMobile(false); // Masque la Navbar en défilant vers le bas
+      } else {
+        setShowMobile(true); // Affiche la Navbar en défilant vers le haut
+      }
+      setLastY(currentY);
     };
+
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [lastScrollY]);
+  }, [lastY]);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (desktopRef.current && !desktopRef.current.contains(e.target)) {
+        setDesktopOpen(false);
+      }
+      if (mobileRef.current && !mobileRef.current.contains(e.target)) {
+        setMobileOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   // Fetch profile image
   useEffect(() => {
-    async function fetchProfileImage() {
-      if (!currentUser) return;
-      try {
-        const picRef = ref(storage, `members/${currentUser.uid}/profilepicture.png`);
-        const url = await getDownloadURL(picRef);
-        setProfileImage(url);
-      } catch (e) {
-        console.error("Error fetching profile picture:", e);
-      }
+    if (!currentUser) {
+      setProfileImage(null);
+      return;
     }
-    fetchProfileImage();
+    (async () => {
+      try {
+        const url = await getDownloadURL(
+          ref(storage, `members/${currentUser.uid}/profilepicture.png`)
+        );
+        setProfileImage(url);
+      } catch {
+        setProfileImage(null);
+      }
+    })();
   }, [currentUser]);
 
-  // Logout
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      router.push("/Welcome_page");
-    } catch {
-      alert("Failed to log out.");
-    }
+  const logout = async () => {
+    await signOut(auth);
+    router.push("/Welcome_page");
   };
-
-  // Click outside dropdown
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   return (
     <>
       {/* Desktop Navbar */}
-      <div className="fixed top-0 left-0 z-50 items-center justify-between hidden w-full px-4 py-2 bg-white shadow md:flex">
-        <div>{leftContent}</div>
-        <div className="flex items-center gap-6">
-          {/* Home always goes to Welcome_page */}
-          <NavIcon label="Home" Icon={HiOutlineHome} onClick={() => router.push("/Welcome_page")} />
-          <NavIcon label="Garage" Icon={HiOutlineTruck} onClick={() => router.push("/myVehicles_page")} />
-          <NavIcon label="Discussion" Icon={HiOutlineChatBubbleLeftRight} onClick={() => router.push("/myMessages_page")} />
-          <NavIcon label="Documents" Icon={HiOutlineDocumentText} onClick={() => router.push("/documents_page")} />
-          <NavIcon label="Marketplace" Icon={HiOutlineBanknotes} onClick={() => router.push("/marketplace_page")} />
+      <nav className="hidden md:fixed md:top-3 md:left-1/2 md:-translate-x-1/2 md:z-50 md:flex md:items-center md:justify-center md:w-[90%] md:max-w-5xl md:px-10 md:py-4 md:text-gray-900 md:bg-white/80 md:backdrop-blur md:border md:border-gray-200 md:rounded-xl md:shadow-lg md:transition-all md:m-0">
+        <div className="flex items-center space-x-8" ref={desktopRef}>
+          {items.map(({ label, Icon, path }) => (
+            <button
+              key={label}
+              onClick={() => router.push(path)}
+              className={`flex flex-col items-center px-3 py-1 rounded-lg transition-colors hover:bg-gray-100 hover:text-pink-500 focus:outline-none ${
+                router.pathname === path ? "text-pink-600 font-semibold" : ""
+              }`}
+            >
+              <Icon className="w-6 h-6" />
+              <span className="mt-1 text-xs">{label}</span>
+            </button>
+          ))}
 
-          <div className="relative" ref={dropdownRef}>
+          {/* Add Help */}
+          <Link
+            href="/help_page"
+            className={`flex flex-col items-center px-3 py-1 rounded-lg transition-colors hover:bg-gray-100 hover:text-pink-500 focus:outline-none ${
+              router.pathname === "/help_page"
+                ? "text-pink-600 font-semibold"
+                : ""
+            }`}
+          >
+            <HiOutlineDocumentText className="w-6 h-6" />
+            <span className="mt-1 text-xs">Help</span>
+          </Link>
+
+          {/* Add Profile */}
+          <button
+            onClick={() => router.push("/userProfile_page")}
+            className={`flex flex-col items-center px-3 py-1 rounded-lg transition-colors hover:bg-gray-100 hover:text-pink-500 focus:outline-none ${
+              router.pathname === "/userProfile_page"
+                ? "text-pink-600 font-semibold"
+                : ""
+            }`}
+          >
             {profileImage ? (
               <Image
                 src={profileImage}
-                alt="Profile"
-                width={36}
-                height={36}
-                className="border rounded-full cursor-pointer"
-                onClick={() => setDropdownOpen((o) => !o)}
+                alt="profile"
+                width={24}
+                height={24}
+                className="rounded-full"
               />
             ) : (
-              <HiOutlineUserCircle className="text-gray-500 cursor-pointer w-9 h-9" onClick={() => setDropdownOpen((o) => !o)} />
+              <HiOutlineUserCircle className="w-6 h-6" />
             )}
-            {dropdownOpen && (
-              <div className="absolute right-0 w-40 mt-2 bg-white border rounded shadow">
-                <DropdownItem label="Help" onClick={() => router.push("/help_page")} />
-                <DropdownItem label="Generate Image" onClick={() => router.push("/generateImage_page")} />
-                {currentUser ? (
-                  <>
-                    <DropdownItem label="Profile" onClick={() => router.push("/userProfile_page")} />
-                    <DropdownItem label="Log Out" onClick={handleLogout} />
-                  </>
-                ) : (
-                  <DropdownItem label="Sign In" onClick={() => router.push("/login_page")} />
-                )}
-              </div>
-            )}
-          </div>
+            <span className="mt-1 text-xs">Profile</span>
+          </button>
+
+          {/* Add Logout */}
+          {currentUser && (
+            <button
+              onClick={logout}
+              className="flex flex-col items-center px-3 py-1 transition-colors rounded-lg hover:bg-gray-100 hover:text-pink-500 focus:outline-none"
+            >
+              <IoLogOutOutline className="w-6 h-6" />
+              <span className="mt-1 text-xs">Logout</span>
+            </button>
+          )}
         </div>
-      </div>
+      </nav>
 
-      {/* Mobile Bottom Navbar */}
-      <div className={`fixed bottom-0 left-0 z-50 flex w-full justify-around py-2 bg-white border-t md:hidden transition-transform duration-300 ${
-        showMobileNavbar ? "translate-y-0" : "translate-y-full"
-      }`}>
-        <NavIcon label="Home" Icon={HiOutlineHome} onClick={() => router.push("/Welcome_page")} />
-        <NavIcon label="Garage" Icon={HiOutlineTruck} onClick={() => router.push("/myVehicles_page")} />
-        <NavIcon label="Discussion" Icon={HiOutlineChatBubbleLeftRight} onClick={() => router.push("/myMessages_page")} />
-        <NavIcon label="Documents" Icon={HiOutlineDocumentText} onClick={() => router.push("/documents_page")} />
-        <NavIcon label="Marketplace" Icon={HiOutlineBanknotes} onClick={() => router.push("/marketplace_page")} />
-      </div>
+      {/* Mobile Navbar */}
+      <nav
+        className={`md:hidden fixed bottom-0 w-full bg-white text-gray-900 flex justify-around py-2 transition-transform duration-300 ${
+          showMobile ? "translate-y-0" : "translate-y-full"
+        } z-50`}
+      >
+        {items.map(({ label, Icon, path }) => (
+          <button
+            key={label}
+            onClick={() => router.push(path)}
+            className="flex flex-col items-center hover:text-pink-500 focus:outline-none"
+          >
+            <Icon className="w-6 h-6" />
+            <span className="mt-1 text-xs">{label}</span>
+          </button>
+        ))}
+
+        {/* Mobile Dropdown */}
+        <div className="relative" ref={mobileRef}>
+          <button
+            onClick={() => setMobileOpen((open) => !open)}
+            className="p-1 rounded-full hover:text-pink-500 focus:outline-none"
+          >
+            {profileImage ? (
+              <Image
+                src={profileImage}
+                alt="profile"
+                width={32}
+                height={32}
+                className="rounded-full"
+              />
+            ) : (
+              <HiOutlineUserCircle className="w-7 h-7" />
+            )}
+          </button>
+          {mobileOpen && (
+            <div className="absolute w-40 text-gray-900 bg-white rounded shadow-lg right-4 bottom-12">
+              {currentUser ? (
+                <>
+                  <button
+                    onClick={() => {
+                      setMobileOpen(false);
+                      router.push("/userProfile_page");
+                    }}
+                    className="w-full px-4 py-2 text-left hover:bg-gray-100"
+                  >
+                    Profile
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMobileOpen(false);
+                      logout();
+                    }}
+                    className="w-full px-4 py-2 text-left hover:bg-gray-100"
+                  >
+                    Logout
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMobileOpen(false);
+                      router.push("/help_page");
+                    }}
+                    className="w-full px-4 py-2 text-left hover:bg-gray-100"
+                  >
+                    Help
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      setMobileOpen(false);
+                      router.push("/login_page");
+                    }}
+                    className="w-full px-4 py-2 text-left hover:bg-gray-100"
+                  >
+                    Log In
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMobileOpen(false);
+                      router.push("/help_page");
+                    }}
+                    className="w-full px-4 py-2 text-left hover:bg-gray-100"
+                  >
+                    Help
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMobileOpen(false);
+                      router.push("/signup_page");
+                    }}
+                    className="w-full px-4 py-2 text-left hover:bg-gray-100"
+                  >
+                    Sign Up
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </nav>
     </>
-  );
-}
-
-function NavIcon({ label, Icon, onClick }) {
-  return (
-    <button onClick={onClick} className="flex flex-col items-center text-gray-600 hover:text-black">
-      <Icon className="w-6 h-6" />
-      <span className="mt-1 text-xs">{label}</span>
-    </button>
-  );
-}
-
-function DropdownItem({ label, onClick }) {
-  return (
-    <button onClick={onClick} className="block w-full px-4 py-2 text-left hover:bg-gray-100">
-      {label}
-    </button>
   );
 }
