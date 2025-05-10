@@ -1,3 +1,4 @@
+// next.config.js
 module.exports = {
   reactStrictMode: true,
   images: {
@@ -18,7 +19,12 @@ module.exports = {
         protocol: 'https',
         hostname: 'firebasestorage.googleapis.com',
       },
-      // Add other remote patterns as needed
+      {
+        protocol: 'https',
+        hostname: 'i.pravatar.cc',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
 };

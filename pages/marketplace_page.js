@@ -122,17 +122,17 @@ export default function MarketplacePage() {
                         {vehicle.year} {vehicle.make} {vehicle.model}
                       </h3>
                       <span className="px-2 py-1 text-sm font-medium text-white bg-blue-600 rounded">
-                        {vehicle.engine || "Unknown Engine"}
+                        {vehicle.engine}
                       </span>
                     </div>
                     <p className="text-lg font-semibold text-blue-600">
                       €{vehicle.price}
                     </p>
                     <p className="text-sm text-gray-600">
-                      Mileage: {vehicle.mileage || "N/A"} km
+                      Mileage: {vehicle.mileage || "N/A"} miles
                     </p>
                     <p className="text-sm text-gray-600">
-                      Location: {vehicle.city || "Unknown"}
+                      Location: {vehicle.city || ""}
                     </p>
                     <div className="flex items-center mt-3">
                       <Image
@@ -150,6 +150,17 @@ export default function MarketplacePage() {
                           Rating: {vehicle.rating} ★
                         </p>
                       </div>
+                    </div>
+                    {/* Contact Seller Button */}
+                    <div className="mt-4">
+                      <button
+                        onClick={() =>
+                          alert("Contact Seller for " + vehicle.model)
+                        }
+                        className="w-full px-4 py-2 text-white transition bg-green-600 rounded-lg hover:bg-green-700"
+                      >
+                        Contact Seller
+                      </button>
                     </div>
                   </div>
                 </div>
