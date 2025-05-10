@@ -42,6 +42,9 @@ import {
   Clipboard, // added for Inspection Document
   PlusCircle, // added for file upload icon
   Eye, // added for view document icon
+  EyeOff, // <-- added EyeOff icon
+  Trash, // new delete icon
+  Edit, // new modify icon
 } from "lucide-react";
 
 // Icônes et catégories
@@ -339,6 +342,9 @@ export default function VehicleCardPage() {
   const [, setMaintenanceRec] = useState(null);
   // Ajout de l'état manquant pour les maintenance records
   const [, setLoadingMaintenanceRec] = useState(false);
+  const [selectedReceiptUrl, setSelectedReceiptUrl] = useState(null);
+  const [receiptToDelete, setReceiptToDelete] = useState(null);
+  const [selectedAdminDocUrl, setSelectedAdminDocUrl] = useState(null); // New state for admin document modal
 
   useEffect(() => setLogLevel("debug"), []);
   useEffect(() => {
@@ -558,8 +564,6 @@ export default function VehicleCardPage() {
         return rep;
       case "Scheduled Maintenance":
         return sched;
-      case "Cosmetic Mods":
-        return cos;
       case "Performance Mods":
         return perf;
       default:
@@ -653,7 +657,6 @@ export default function VehicleCardPage() {
                   name="year"
                   value={formData.year}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -664,7 +667,6 @@ export default function VehicleCardPage() {
                   name="make"
                   value={formData.make}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -677,7 +679,6 @@ export default function VehicleCardPage() {
                   name="model"
                   value={formData.model}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -688,7 +689,6 @@ export default function VehicleCardPage() {
                   name="city"
                   value={formData.city}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -701,7 +701,6 @@ export default function VehicleCardPage() {
                   name="state"
                   value={formData.state}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -724,7 +723,6 @@ export default function VehicleCardPage() {
                   name="mileage"
                   value={formData.mileage}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -752,7 +750,6 @@ export default function VehicleCardPage() {
                   name="engine"
                   value={formData.engine}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -765,7 +762,6 @@ export default function VehicleCardPage() {
                   name="transmission"
                   value={formData.transmission}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -790,7 +786,6 @@ export default function VehicleCardPage() {
                   name="fuelType"
                   value={formData.fuelType}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -803,7 +798,6 @@ export default function VehicleCardPage() {
                   name="vehicleType"
                   value={formData.vehicleType}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -816,7 +810,6 @@ export default function VehicleCardPage() {
                   name="boughtAt"
                   value={formData.boughtAt}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -829,7 +822,6 @@ export default function VehicleCardPage() {
                   name="purchaseYear"
                   value={formData.purchaseYear}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -844,7 +836,6 @@ export default function VehicleCardPage() {
                   name="repairCost"
                   value={formData.repairCost}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -857,7 +848,6 @@ export default function VehicleCardPage() {
                   name="scheduledMaintenance"
                   value={formData.scheduledMaintenance}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -895,7 +885,6 @@ export default function VehicleCardPage() {
                 name="description"
                 value={formData.description || ""}
                 onChange={handleFormChange}
-                required
                 className="w-full p-2 border rounded-md resize-y border-neutral-600 bg-neutral-700"
                 rows="4"
                 placeholder="Edit vehicle description..."
@@ -933,6 +922,26 @@ export default function VehicleCardPage() {
     } catch (e) {
       console.error(e);
       toast.error("Error removing document");
+    }
+  };
+
+  // New helper function to upload or modify admin documents
+  const handleUploadAdminDocument = async (type, file) => {
+    const ext = file.name.substring(file.name.lastIndexOf("."));
+    const name = `${type}-${Date.now()}${ext}`;
+    const path = `listing/${id}/docs/${name}`;
+    const storageRef = ref(storage, path);
+    try {
+      await uploadBytesResumable(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      toast.success(`${type} document uploaded`);
+      setAllDocs((prevDocs) => [
+        ...prevDocs.filter((d) => !d.name.toLowerCase().includes(type)),
+        { name, url },
+      ]);
+    } catch (e) {
+      console.error(e);
+      toast.error(`Error uploading ${type} document`);
     }
   };
 
@@ -1038,7 +1047,7 @@ export default function VehicleCardPage() {
               <h3 className="flex items-center mb-1 text-lg font-medium">
                 <Info className="w-4 h-4 mr-2" /> Vehicle Condition
               </h3>
-              <span className="inline-block px-3 py-1 text-xs font-semibold text-green-800 bg-green-200 rounded-full">
+              <span className="inline-block px-3 py-1 text-xs font-semibold text-green-800 bg-green-200 rounded-xl">
                 Excellent
               </span>
             </div>
@@ -1195,10 +1204,22 @@ export default function VehicleCardPage() {
                         key={r.id}
                         className="flex items-center justify-between"
                       >
-                        <span>
-                          {r.title} - ${r.price.toFixed(2)}
-                        </span>
-                        {vehicle.uid === user.uid && (
+                        <div className="flex flex-col">
+                          <span>
+                            {r.title} - ${r.price.toFixed(2)}
+                          </span>
+                          {vehicle.uid === user.uid &&
+                            r.urls &&
+                            r.urls.length > 0 && (
+                              <button
+                                onClick={() => setSelectedReceiptUrl(r.urls[0])}
+                                className="mt-1 text-sm text-blue-400 hover:underline"
+                              >
+                                View Receipt
+                              </button>
+                            )}
+                        </div>
+                        {vehicle.uid === user.uid ? (
                           <div className="space-x-2">
                             <button
                               onClick={() => {
@@ -1208,17 +1229,26 @@ export default function VehicleCardPage() {
                             >
                               ✏️
                             </button>
-                            <button
-                              onClick={async () => {
-                                await deleteDoc(
-                                  doc(db, `listing/${id}/receipts`, r.id)
-                                );
-                                window.location.reload();
-                              }}
-                            >
+                            <button onClick={() => setReceiptToDelete(r)}>
                               ✖️
                             </button>
                           </div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              if (r.urls && r.urls.length > 0) {
+                                setSelectedReceiptUrl(r.urls[0]);
+                              }
+                            }}
+                            className="ml-auto"
+                            disabled={!(r.urls && r.urls.length > 0)}
+                          >
+                            {r.urls && r.urls.length > 0 ? (
+                              <Eye className="w-6 h-6 text-blue-400 hover:text-blue-500" />
+                            ) : (
+                              <EyeOff className="w-6 h-6 text-red-500" />
+                            )}
+                          </button>
                         )}
                       </div>
                     ))}
@@ -1254,16 +1284,12 @@ export default function VehicleCardPage() {
                 <h2 className="pb-2 mb-4 text-2xl font-bold text-white border-b">
                   Admin Documents
                 </h2>
-                {/* Nouvelle grille à 3 colonnes pour Title, Registration et Inspection */}
+                {/* Grid for Title, Registration and Inspection */}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   {["title", "registration", "inspection"].map((type) => {
                     const docObj = allDocs.find((d) =>
                       d.name.toLowerCase().includes(type)
                     );
-                    const isDue =
-                      docObj?.name.match(/\d{2}-\d{2}-\d{4}/) &&
-                      new Date(docObj.name.match(/\d{2}-\d{2}-\d{4}/)[0]) <
-                        new Date();
                     const labels = {
                       title: "Title",
                       registration: "Registration",
@@ -1271,15 +1297,14 @@ export default function VehicleCardPage() {
                     };
                     let bgColor = "bg-gray-500";
                     if (docObj) {
-                      bgColor = isDue
-                        ? "bg-red-500"
-                        : type === "title"
-                        ? "bg-blue-500"
-                        : type === "registration"
-                        ? "bg-green-500"
-                        : type === "inspection"
-                        ? "bg-purple-500"
-                        : "bg-gray-500";
+                      bgColor =
+                        type === "title"
+                          ? "bg-blue-500"
+                          : type === "registration"
+                          ? "bg-green-500"
+                          : type === "inspection"
+                          ? "bg-purple-500"
+                          : "bg-gray-500";
                     }
                     const IconComponent =
                       type === "title"
@@ -1292,54 +1317,104 @@ export default function VehicleCardPage() {
                         key={type}
                         className="flex flex-col items-center p-4 bg-gray-700 rounded-lg"
                       >
-                        <div
-                          className={`w-16 h-16 flex items-center justify-center rounded-full mb-2 ${bgColor}`}
-                        >
-                          <IconComponent className="w-8 h-8 text-white" />
-                        </div>
-                        <span className="text-sm font-medium text-white">
-                          {labels[type]}
-                        </span>
-                        {docObj ? (
-                          <div className="flex flex-col items-center mt-1">
-                            <a
-                              href={docObj.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="cursor-pointer"
-                            >
-                              <Eye className="w-8 h-8 text-blue-300 hover:text-blue-400" />
-                            </a>
-                            {vehicle.uid === user.uid && (
-                              <button
-                                onClick={() => removeDocument(type)}
-                                className="mt-1 text-xs text-red-500 hover:text-red-600"
-                              >
-                                Supprimer
-                              </button>
-                            )}
-                          </div>
-                        ) : vehicle.uid === user.uid ? (
+                        {vehicle.uid === user.uid ? (
                           <>
-                            <label
-                              htmlFor={`file-input-${type}`}
-                              className="mt-1 cursor-pointer"
+                            <div
+                              className={`w-16 h-16 flex items-center justify-center rounded-full mb-2 ${
+                                docObj ? bgColor : "bg-gray-500"
+                              }`}
                             >
-                              <PlusCircle className="w-8 h-8 text-gray-200 hover:text-gray-100" />
-                            </label>
-                            <input
-                              id={`file-input-${type}`}
-                              type="file"
-                              className="hidden"
-                              onChange={() => {
-                                /* upload logic */
-                              }}
-                            />
+                              <IconComponent className="w-8 h-8 text-white" />
+                            </div>
+                            <span className="text-sm font-medium text-white">
+                              {labels[type]}
+                            </span>
+                            {docObj ? (
+                              <div className="flex flex-col items-center mt-1 space-y-1">
+                                <button
+                                  onClick={() =>
+                                    setSelectedAdminDocUrl(docObj.url)
+                                  }
+                                  className="cursor-pointer"
+                                >
+                                  <Eye className="w-8 h-8 text-blue-300 hover:text-blue-400" />
+                                </button>
+                                <div className="flex space-x-1">
+                                  <button
+                                    onClick={() => removeDocument(type)}
+                                    className="text-red-500 hover:text-red-600"
+                                  >
+                                    <Trash className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      document
+                                        .getElementById(
+                                          `modify-file-input-${type}`
+                                        )
+                                        .click()
+                                    }
+                                    className="text-green-500 hover:text-green-600"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </button>
+                                </div>
+                                <input
+                                  id={`modify-file-input-${type}`}
+                                  type="file"
+                                  className="hidden"
+                                  onChange={(e) =>
+                                    e.target.files[0] &&
+                                    handleUploadAdminDocument(
+                                      type,
+                                      e.target.files[0]
+                                    )
+                                  }
+                                />
+                              </div>
+                            ) : (
+                              <>
+                                <label
+                                  htmlFor={`file-input-${type}`}
+                                  className="mt-1 cursor-pointer"
+                                >
+                                  <PlusCircle className="w-8 h-8 text-gray-200 hover:text-gray-100" />
+                                </label>
+                                <input
+                                  id={`file-input-${type}`}
+                                  type="file"
+                                  className="hidden"
+                                  onChange={(e) =>
+                                    e.target.files[0] &&
+                                    handleUploadAdminDocument(
+                                      type,
+                                      e.target.files[0]
+                                    )
+                                  }
+                                />
+                              </>
+                            )}
                           </>
                         ) : (
-                          <span className="mt-1 text-xs text-gray-400">
-                            Owner only
-                          </span>
+                          <>
+                            <div
+                              className={`w-16 h-16 flex items-center justify-center rounded-full mb-2 ${
+                                docObj ? bgColor : "bg-gray-500"
+                              } ${
+                                docObj
+                                  ? "hover:bg-green-600"
+                                  : "hover:bg-red-600"
+                              }`}
+                            >
+                              <IconComponent className="w-8 h-8 text-white" />
+                            </div>
+                            <span className="text-sm font-medium text-white">
+                              {labels[type]}
+                            </span>
+                            <span className="mt-1 text-xs text-gray-400">
+                              {docObj ? "Added" : "Not Added"}
+                            </span>
+                          </>
                         )}
                       </div>
                     );
@@ -1421,6 +1496,117 @@ export default function VehicleCardPage() {
             onClose={() => setShowManual(false)}
             onSync={() => window.location.reload()}
           />
+        )}
+
+        {/* Receipt Modal */}
+        {selectedReceiptUrl && (
+          <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-70">
+            <div className="relative w-full max-w-3xl p-6 bg-white rounded-lg shadow-xl">
+              <div className="flex justify-between mb-4">
+                <h2 className="text-2xl font-semibold">Receipt Detail</h2>
+                <button
+                  onClick={() => setSelectedReceiptUrl(null)}
+                  className="text-2xl font-bold"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="overflow-auto h-96">
+                <iframe
+                  src={selectedReceiptUrl}
+                  className="w-full h-full border"
+                  title="Receipt"
+                ></iframe>
+              </div>
+              <div className="flex justify-end mt-4 space-x-4">
+                <a
+                  href={selectedReceiptUrl}
+                  download
+                  className="px-4 py-2 text-white transition bg-green-600 rounded hover:bg-green-700"
+                >
+                  Download
+                </a>
+                <button
+                  onClick={() => setSelectedReceiptUrl(null)}
+                  className="px-4 py-2 text-white transition bg-gray-600 rounded hover:bg-gray-700"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Confirmation modal for receipt deletion */}
+        {receiptToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="w-full max-w-sm p-6 rounded shadow-lg bg-zinc-600">
+              <h3 className="mb-4 text-xl font-semibold">
+                Confirmer la suppression
+              </h3>
+              <p className="mb-6">
+                Êtes-vous sûr de vouloir supprimer ce receipt :{" "}
+                <strong>{receiptToDelete.title}</strong> ?
+              </p>
+              <div className="flex justify-end space-x-4">
+                <button
+                  onClick={() => setReceiptToDelete(null)}
+                  className="px-4 py-2 text-red-700 bg-gray-300 rounded hover:bg-gray-400"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={async () => {
+                    await deleteDoc(
+                      doc(db, `listing/${id}/receipts`, receiptToDelete.id)
+                    );
+                    setReceiptToDelete(null);
+                    window.location.reload();
+                  }}
+                  className="px-4 py-2 text-white bg-red-600 rounded hover:bg-red-700"
+                >
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* New Admin Document Modal */}
+        {selectedAdminDocUrl && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
+            <div className="relative w-full max-w-3xl p-6 bg-white rounded-lg shadow-xl">
+              <div className="flex justify-between mb-4">
+                <h2 className="text-2xl font-semibold">Admin Document</h2>
+                <button
+                  onClick={() => setSelectedAdminDocUrl(null)}
+                  className="text-2xl font-bold"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="overflow-auto h-96">
+                <iframe
+                  src={selectedAdminDocUrl}
+                  className="w-full h-full border"
+                  title="Admin Document"
+                ></iframe>
+              </div>
+              <div className="flex justify-end mt-4 space-x-4">
+                <a
+                  href={selectedAdminDocUrl}
+                  download
+                  className="px-4 py-2 text-white transition bg-green-600 rounded hover:bg-green-700"
+                >
+                  Download
+                </a>
+                <button
+                  onClick={() => setSelectedAdminDocUrl(null)}
+                  className="px-4 py-2 text-white transition bg-gray-600 rounded hover:bg-gray-700"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </>

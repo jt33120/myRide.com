@@ -93,7 +93,8 @@ export default function WelcomePage() {
             make: vehicleData.make || "Unknown Make",
             model: vehicleData.model || "Unknown Model",
             year: vehicleData.year || "Unknown Year",
-            engine: vehicleData.engine || "Unknown Engine", // Récupération de l'information "engine"
+            engine: vehicleData.engine || "Unknown Engine",
+            vehicleType: vehicleData.vehicleType || "car", // Ajout de Vehicle Type
             owner: firstName,
             profilePicture,
             rating,
@@ -109,18 +110,15 @@ export default function WelcomePage() {
     fetchVehicles();
   }, [fetchVehicleImages, router]);
 
-  // séparer voitures et motos
-  const cars = vehicles.filter(
-    (v) =>
-      !["motorcycle", "moto"].includes(
-        v.make?.toLowerCase() || v.model?.toLowerCase()
-      )
-  );
-  const motorcycles = vehicles.filter((v) =>
-    ["motorcycle", "moto"].includes(
-      v.make?.toLowerCase() || v.model?.toLowerCase()
-    )
-  );
+  // Séparer voitures et motos en vérifiant make et model
+  const cars = vehicles.filter((v) => {
+    const type = v.vehicleType ? v.vehicleType.toLowerCase() : "";
+    return type !== "motorcycle" && type !== "moto";
+  });
+  const motorcycles = vehicles.filter((v) => {
+    const type = v.vehicleType ? v.vehicleType.toLowerCase() : "";
+    return type === "motorcycle" || type === "moto";
+  });
 
   const handleVehicleClick = (vehicleId) => {
     const user = auth.currentUser; // Vérifie si l'utilisateur est connecté
@@ -162,7 +160,7 @@ export default function WelcomePage() {
               href="/addVehicle_page"
               className="px-8 py-3 font-semibold text-white rounded-lg shadow-lg bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
             >
-              Log a Service 🛠️
+              Log a Vehicle 🛠️
             </Link>
           </div>
         </div>
@@ -337,7 +335,7 @@ export default function WelcomePage() {
       {/* Auth Popup */}
       {showAuthPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
-          <div className="p-8 bg-white rounded-lg shadow-xl max-w-sm w-full">
+          <div className="w-full max-w-sm p-8 bg-white rounded-lg shadow-xl">
             <h2 className="mb-4 text-2xl font-bold text-center text-gray-800">
               Sign In or Sign Up
             </h2>
@@ -347,20 +345,20 @@ export default function WelcomePage() {
             <div className="flex justify-center space-x-4">
               <button
                 onClick={() => router.push("/login_page")}
-                className="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition"
+                className="px-6 py-2 text-white transition bg-blue-600 rounded-lg hover:bg-blue-700"
               >
                 Sign In
               </button>
               <button
                 onClick={() => router.push("/signup_page")}
-                className="px-6 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 transition"
+                className="px-6 py-2 text-white transition bg-green-600 rounded-lg hover:bg-green-700"
               >
                 Sign Up
               </button>
             </div>
             <button
               onClick={() => setShowAuthPopup(false)}
-              className="mt-6 text-sm text-center text-gray-500 hover:underline w-full"
+              className="w-full mt-6 text-sm text-center text-gray-500 hover:underline"
             >
               Cancel
             </button>
