@@ -50,9 +50,9 @@ const DocumentsPage = () => {
     fetchDocumentUrls();
   }, []);
 
-  const handleView = (type) => {
-    alert(`Viewing ${documents[type]}`);
-  };
+  // const handleView = (type) => {
+  //   alert(`Viewing ${documents[type]}`);
+  // };
 
   if (!user) {
     return <p className="text-center text-white">Loading...</p>; // Show loading message
