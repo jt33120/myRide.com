@@ -1,12 +1,7 @@
 // pages/MyMessagesPage.jsx
 import React, { useEffect, useState, useRef } from "react";
 import { auth, db } from "../lib/firebase";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-} from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { useRouter } from "next/router";
 import { onAuthStateChanged } from "firebase/auth";
 import Image from "next/image";
@@ -37,11 +32,12 @@ export default function MyMessagesPage() {
     async function load() {
       try {
         const convRef = collection(db, "conversations");
-        const q = query(convRef, where("participants", "array-contains", user.uid));
-        const snap = await getDocs(q);
-        setConversations(
-          snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        const q = query(
+          convRef,
+          where("participants", "array-contains", user.uid)
         );
+        const snap = await getDocs(q);
+        setConversations(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       } catch (err) {
         console.error(err);
       }
@@ -58,12 +54,30 @@ export default function MyMessagesPage() {
       sellerName: conversation.sellerName || "John",
       sellerAvatar: conversation.picture || "https://i.pravatar.cc/150?img=3",
       messages: [
-        { sender: conversation.sellerName || "John", text: "Hello, how can I help you?" },
-        { sender: user.displayName || "You", text: "Hi, I'm interested in the Audi A5 2018. Is it still available?" },
-        { sender: conversation.sellerName || "John", text: "Yes, it's still available. Would you like to schedule a test drive?" },
-        { sender: user.displayName || "You", text: "That would be great. I'm available this weekend. Does that work for you?" },
-        { sender: conversation.sellerName || "John", text: "Yes, Saturday morning works for me. I'll send you the address." },
-        { sender: user.displayName || "You", text: "Perfect, thank you! Looking forward to it." },
+        {
+          sender: conversation.sellerName || "John",
+          text: "Hello, how can I help you?",
+        },
+        {
+          sender: user.displayName || "You",
+          text: "Hi, I'm interested in the Audi A5 2018. Is it still available?",
+        },
+        {
+          sender: conversation.sellerName || "John",
+          text: "Yes, it's still available. Would you like to schedule a test drive?",
+        },
+        {
+          sender: user.displayName || "You",
+          text: "That would be great. I'm available this weekend. Does that work for you?",
+        },
+        {
+          sender: conversation.sellerName || "John",
+          text: "Yes, Saturday morning works for me. I'll send you the address.",
+        },
+        {
+          sender: user.displayName || "You",
+          text: "Perfect, thank you! Looking forward to it.",
+        },
       ],
     });
     setInputValue("");
@@ -109,36 +123,51 @@ export default function MyMessagesPage() {
         {conversations.length === 0 ? (
           <p className="text-gray-400">You don’t have any chats yet.</p>
         ) : (
-          conversations.slice(0, 1).map(({ id, sellerName, vehicleName, picture }) => (
-            <div
-              key={id}
-              onClick={() => openConversation({ id, sellerName, vehicleName, picture })}
-              className="w-full max-w-sm p-6 bg-gray-800 border border-gray-700 shadow-lg cursor-pointer rounded-2xl hover:shadow-xl"
-            >
-              <div className="flex items-center mb-4">
-                <Image
-                  src={picture || "https://i.pravatar.cc/150?img=3"}
-                  alt={`${sellerName}'s profile`}
-                  width={48}
-                  height={48}
-                  className="w-12 h-12 border-2 border-white rounded-full"
-                />
-                <div className="ml-4">
-                  <h2 className="text-lg font-semibold">{sellerName}</h2>
-                  <p className="text-sm text-gray-400">{vehicleName || "Audi A5 2018"}</p>
+          conversations
+            .slice(0, 1)
+            .map(({ id, sellerName, vehicleName, picture }) => (
+              <div
+                key={id}
+                onClick={() =>
+                  openConversation({ id, sellerName, vehicleName, picture })
+                }
+                className="w-full max-w-sm p-6 bg-gray-800 border border-gray-700 shadow-lg cursor-pointer rounded-2xl hover:shadow-xl"
+              >
+                <div className="flex items-center mb-4">
+                  <Image
+                    src={picture || "https://i.pravatar.cc/150?img=3"}
+                    alt={`${sellerName}'s profile`}
+                    width={48}
+                    height={48}
+                    className="w-12 h-12 border-2 border-white rounded-full"
+                  />
+                  <div className="ml-4">
+                    <h2 className="text-lg font-semibold">{sellerName}</h2>
+                    <p className="text-sm text-gray-400">
+                      {vehicleName || "Audi A5 2018"}
+                    </p>
+                  </div>
                 </div>
+                <p className="mt-4 text-sm text-gray-500">
+                  Tap to continue chat →
+                </p>
               </div>
-              <p className="mt-4 text-sm text-gray-500">Tap to continue chat →</p>
-            </div>
-          ))
+            ))
         )}
       </div>
 
       {/* Modal conversation */}
       {selectedConversation && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80">
-          <div className="flex flex-col w-full max-w-lg p-6 bg-gray-900 shadow-2xl rounded-2xl">
-
+        // overlay catches taps
+        <div
+          onClick={closeConversation}
+          className="inset-0 z-50 flex items-center justify-center max-sm:-mt-52 bg-opacity-80"
+        >
+          {/* prevent inner clicks from closing */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="flex flex-col p-6 mx-auto bg-gray-900 shadow-2xl rounded-2xl"
+          >
             {/* Header */}
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-gray-700">
               <div className="flex items-center">
@@ -154,7 +183,8 @@ export default function MyMessagesPage() {
                     {selectedConversation.sellerName}
                   </h2>
                   <p className="text-sm text-gray-400">
-                    Chat about {selectedConversation.vehicleName || "Audi A5 2018"}
+                    Chat about{" "}
+                    {selectedConversation.vehicleName || "Audi A5 2018"}
                   </p>
                 </div>
               </div>
@@ -252,7 +282,6 @@ export default function MyMessagesPage() {
                 color: #1c1c1e;
               }
             `}</style>
-
           </div>
         </div>
       )}

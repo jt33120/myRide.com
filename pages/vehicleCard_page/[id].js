@@ -1295,23 +1295,13 @@ export default function VehicleCardPage() {
                       registration: "Registration",
                       inspection: "Inspection",
                     };
-                    let bgColor = "bg-gray-500";
-                    if (docObj) {
-                      bgColor =
-                        type === "title"
-                          ? "bg-blue-500"
-                          : type === "registration"
-                          ? "bg-green-500"
-                          : type === "inspection"
-                          ? "bg-purple-500"
-                          : "bg-gray-500";
-                    }
                     const IconComponent =
                       type === "title"
                         ? FileText
                         : type === "registration"
                         ? Shield
                         : Clipboard;
+
                     return (
                       <div
                         key={type}
@@ -1321,7 +1311,7 @@ export default function VehicleCardPage() {
                           <>
                             <div
                               className={`w-16 h-16 flex items-center justify-center rounded-full mb-2 ${
-                                docObj ? bgColor : "bg-gray-500"
+                                docObj ? "bg-blue-500" : "bg-gray-500"
                               }`}
                             >
                               <IconComponent className="w-8 h-8 text-white" />
@@ -1329,36 +1319,44 @@ export default function VehicleCardPage() {
                             <span className="text-sm font-medium text-white">
                               {labels[type]}
                             </span>
+
                             {docObj ? (
-                              <div className="flex flex-col items-center mt-1 space-y-1">
-                                <button
-                                  onClick={() =>
-                                    setSelectedAdminDocUrl(docObj.url)
-                                  }
-                                  className="cursor-pointer"
-                                >
-                                  <Eye className="w-8 h-8 text-blue-300 hover:text-blue-400" />
-                                </button>
-                                <div className="flex space-x-1">
-                                  <button
-                                    onClick={() => removeDocument(type)}
-                                    className="text-red-500 hover:text-red-600"
-                                  >
-                                    <Trash className="w-4 h-4" />
-                                  </button>
+                              <>
+                                <div className="flex flex-col items-center mt-1 space-y-1">
                                   <button
                                     onClick={() =>
-                                      document
-                                        .getElementById(
-                                          `modify-file-input-${type}`
-                                        )
-                                        .click()
+                                      setSelectedAdminDocUrl(docObj.url)
                                     }
-                                    className="text-green-500 hover:text-green-600"
+                                    className="cursor-pointer"
+                                    title="View document"
                                   >
-                                    <Edit className="w-4 h-4" />
+                                    <Eye className="w-8 h-8 text-blue-300 hover:text-blue-400" />
                                   </button>
+                                  <div className="flex space-x-2">
+                                    <button
+                                      onClick={() => removeDocument(type)}
+                                      className="text-red-500 hover:text-red-600"
+                                      title="Delete document"
+                                    >
+                                      <Trash className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() =>
+                                        document
+                                          .getElementById(
+                                            `modify-file-input-${type}`
+                                          )
+                                          .click()
+                                      }
+                                      className="text-green-500 hover:text-green-600"
+                                      title="Modify document"
+                                    >
+                                      <Edit className="w-4 h-4" />
+                                    </button>
+                                  </div>
                                 </div>
+                                {/* Hint for owner */}
+
                                 <input
                                   id={`modify-file-input-${type}`}
                                   type="file"
@@ -1371,12 +1369,13 @@ export default function VehicleCardPage() {
                                     )
                                   }
                                 />
-                              </div>
+                              </>
                             ) : (
                               <>
                                 <label
                                   htmlFor={`file-input-${type}`}
                                   className="mt-1 cursor-pointer"
+                                  title="Add document"
                                 >
                                   <PlusCircle className="w-8 h-8 text-gray-200 hover:text-gray-100" />
                                 </label>
@@ -1397,21 +1396,18 @@ export default function VehicleCardPage() {
                           </>
                         ) : (
                           <>
+                            {/* non-owner: green if exists, red if missing */}
                             <div
                               className={`w-16 h-16 flex items-center justify-center rounded-full mb-2 ${
-                                docObj ? bgColor : "bg-gray-500"
-                              } ${
-                                docObj
-                                  ? "hover:bg-green-600"
-                                  : "hover:bg-red-600"
+                                docObj ? "bg-green-500" : "bg-red-500"
                               }`}
                             >
                               <IconComponent className="w-8 h-8 text-white" />
                             </div>
-                            <span className="text-sm font-medium text-white">
+                            <h3 className="text-sm font-medium text-white">
                               {labels[type]}
-                            </span>
-                            <span className="mt-1 text-xs text-gray-400">
+                            </h3>
+                            <span className="mt-1 text-xs text-gray-300">
                               {docObj ? "Added" : "Not Added"}
                             </span>
                           </>
@@ -1420,6 +1416,13 @@ export default function VehicleCardPage() {
                     );
                   })}
                 </div>
+
+                {/* notice for non-owners */}
+                {vehicle.uid !== user.uid && (
+                  <p className="mt-4 text-sm text-center text-gray-400">
+                    Only the vehicle owner can view and manage these documents.
+                  </p>
+                )}
               </div>
               {/* Depreciation Chart */}
               <div className="p-6 border rounded-lg shadow-lg bg-neutral-800 border-neutral-700">
