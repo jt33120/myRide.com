@@ -3,6 +3,7 @@ import { auth, db } from "../lib/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { useRouter } from "next/router";
 import { onAuthStateChanged } from "firebase/auth";
+import Image from "next/image";
 
 export default function MyMessagesPage() {
   const router = useRouter();
@@ -81,7 +82,7 @@ export default function MyMessagesPage() {
             ))}
           </div>
         ) : (
-          conversations.map(({ id, sellerName, vehicleName, picture }, idx) => (
+          conversations.map(({ id, sellerName, vehicleName, picture }) => (
             <div
               key={id}
               className="w-full max-w-sm p-6 text-center transition bg-gray-800 border border-gray-700 rounded-lg shadow-lg hover:shadow-xl"
@@ -92,9 +93,12 @@ export default function MyMessagesPage() {
               >
                 <div className="flex items-center mb-4">
                   {picture ? (
-                    <img
+                    <Image
                       src={picture}
                       alt={`${sellerName}'s profile`}
+                      width={100}
+                      height={100}
+                      quality={80}
                       className="w-12 h-12 border-2 border-white rounded-full"
                     />
                   ) : (

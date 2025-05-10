@@ -2,7 +2,8 @@
 import React, { useEffect, useState } from "react";
 import { FaFileAlt, FaRegAddressCard, FaClipboardCheck } from "react-icons/fa";
 import { doc, getDoc } from "firebase/firestore";
-import { db } from "../firebase"; // Assurez-vous que le chemin d'importation est correct
+import { db } from "../lib/firebase";
+; // Assurez-vous que le chemin d'importation est correct
 
 export default function VehicleCardPage({ vehicleId }) {
   const [vehicle, setVehicle] = useState({});

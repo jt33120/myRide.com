@@ -1,18 +1,14 @@
 import React, { useState, useEffect, useCallback } from "react";
-import Navbar from "../components/Navbar";
-import Link from "next/link";
 import Image from "next/image";
 import { db, storage, auth } from "../lib/firebase";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { ref, listAll, getDownloadURL } from "firebase/storage";
 import { useRouter } from "next/router";
-import { motion } from "framer-motion";
 
 export default function MarketplacePage() {
   const router = useRouter();
   const [vehicles, setVehicles] = useState([]);
   const [showAuthPopup, setShowAuthPopup] = useState(false); // État pour la pop-up
-  const [selectedVehicleId, setSelectedVehicleId] = useState(null); // Véhicule sélectionné
 
   const fetchVehicleImages = useCallback(async (vehicleId) => {
     const imagesRef = ref(storage, `listing/${vehicleId}/photos`);
@@ -83,40 +79,9 @@ export default function MarketplacePage() {
     })();
   }, [fetchVehicleImages]);
 
-  const renderStars = (rating) => {
-    const stars = [];
-    for (let i = 0; i < 5; i++) {
-      stars.push(
-        <svg
-          key={i}
-          xmlns="http://www.w3.org/2000/svg"
-          fill={i < rating ? "currentColor" : "none"}
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          className="w-4 h-4 text-yellow-500"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l2.122 6.564a1 1 0 0 0 .95.69h6.905c.969 0 1.371 1.24.588 1.81l-5.588 4.06a1 
-                   1 0 0 0-.364 1.118l2.122 6.564c.3.921-.755 1.688-1.54 
-                   1.118l-5.588-4.06a1 1 0 0 0-1.176 0l-5.588 
-                   4.06c-.784.57-1.838-.197-1.54-1.118l2.122-
-                   6.564a1 1 0 0 0-.364-1.118L2.34 
-                   11.99c-.783-.57-.38-1.81.588-
-                   1.81h6.905a1 1 0 0 0 .95-.
-                   69l2.122-6.564z"
-          />
-        </svg>
-      );
-    }
-    return stars;
-  };
-
   const handleVehicleClick = (vehicleId) => {
     const user = auth.currentUser; // Vérifie si l'utilisateur est connecté
     if (!user) {
-      setSelectedVehicleId(vehicleId);
       setShowAuthPopup(true); // Affiche la pop-up si non connecté
     } else {
       router.push(`/vehicleCard_page/${vehicleId}`);
@@ -125,7 +90,6 @@ export default function MarketplacePage() {
 
   return (
     <div className="min-h-screen bg-zinc-900 md:pt-28">
-      <Navbar />
       <main className="container py-8 mx-auto">
         <h1 className="mb-2 text-4xl font-bold text-center text-white">
           Marketplace
@@ -202,7 +166,7 @@ export default function MarketplacePage() {
       {/* Auth Popup */}
       {showAuthPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
-          <div className="p-8 bg-white rounded-lg shadow-xl max-w-sm w-full">
+          <div className="w-full max-w-sm p-8 bg-white rounded-lg shadow-xl">
             <h2 className="mb-4 text-2xl font-bold text-center text-gray-800">
               Sign In or Sign Up
             </h2>
@@ -212,20 +176,20 @@ export default function MarketplacePage() {
             <div className="flex justify-center space-x-4">
               <button
                 onClick={() => router.push("/login_page")}
-                className="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition"
+                className="px-6 py-2 text-white transition bg-blue-600 rounded-lg hover:bg-blue-700"
               >
                 Sign In
               </button>
               <button
                 onClick={() => router.push("/signup_page")}
-                className="px-6 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 transition"
+                className="px-6 py-2 text-white transition bg-green-600 rounded-lg hover:bg-green-700"
               >
                 Sign Up
               </button>
             </div>
             <button
               onClick={() => setShowAuthPopup(false)}
-              className="mt-6 text-sm text-center text-gray-500 hover:underline w-full"
+              className="w-full mt-6 text-sm text-center text-gray-500 hover:underline"
             >
               Cancel
             </button>
