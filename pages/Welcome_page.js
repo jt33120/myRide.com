@@ -1,348 +1,380 @@
-import React, { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/router";
+"use client";
+
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { motion } from "framer-motion";
-import NavBar from "../components/Navbar";
+import { useRouter } from "next/router";
 import {
   MagnifyingGlassIcon,
   WrenchIcon,
   UserPlusIcon,
   PlusCircleIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
 } from "@heroicons/react/24/outline";
-import { db, storage } from "../lib/firebase";
+
+import { auth, db, storage } from "../lib/firebase"; // Assurez-vous que `auth` est bien importé
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { ref, listAll, getDownloadURL } from "firebase/storage";
 
 export default function WelcomePage() {
   const router = useRouter();
-  const [queryText, setQueryText] = useState("");
-  const [vehicles, setVehicles] = useState(null);
-  const carsRef = useRef(null);
-  const motosRef = useRef(null);
+  const [query, setQuery] = useState("");
+  const [vehicles, setVehicles] = useState([]);
+  const [showAuthPopup, setShowAuthPopup] = useState(false); // État pour la pop-up
+  const [selectedVehicleId, setSelectedVehicleId] = useState(null); // Véhicule sélectionné
 
   const handleSearch = (e) => {
     e.preventDefault();
-    router.push(`/marketplace_page?search=${encodeURIComponent(queryText)}`);
+    router.push(`/marketplace_page?search=${encodeURIComponent(query)}`);
+  };
+
+  const fetchVehicleImages = useCallback(async (vehicleId) => {
+    const imagesRef = ref(storage, `listing/${vehicleId}/photos`);
+    const imageList = await listAll(imagesRef);
+    const imageUrls = await Promise.all(
+      imageList.items.map((imageRef) => getDownloadURL(imageRef))
+    );
+    const frontImageIndex = imageUrls.findIndex((url) => url.includes("front"));
+    if (frontImageIndex > -1) {
+      const [frontImage] = imageUrls.splice(frontImageIndex, 1);
+      imageUrls.unshift(frontImage);
+    }
+    return imageUrls;
+  }, []);
+
+  const fetchSellerProfile = async (uid) => {
+    if (!uid)
+      return {
+        profilePicture: "/default-profile.png",
+        firstName: "Unknown Seller",
+        rating: 0,
+      };
+    try {
+      const userRef = doc(db, "members", uid);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        const profilePictureRef = ref(
+          storage,
+          `members/${uid}/profilepicture.png`
+        );
+        const profilePicture = await getDownloadURL(profilePictureRef).catch(
+          () => "/default-profile.png"
+        );
+        return {
+          profilePicture,
+          firstName: userData.firstName || "Unknown Seller",
+          rating: userData.rating || 0,
+        };
+      }
+    } catch (error) {
+      console.error("Error fetching seller profile:", error);
+    }
+    return {
+      profilePicture: "/default-profile.png",
+      firstName: "Unknown Seller",
+      rating: 0,
+    };
   };
 
   useEffect(() => {
-    const loadVehicles = async () => {
-      try {
-        // 1. Récupère tous les IDs et prix en vente
-        const marketSnap = await getDocs(collection(db, "on_marketplace"));
-        const marketplaceEntries = marketSnap.docs.map((d) => ({
-          id: d.id,
-          price: d.data().price || "N/A",
-        }));
+    async function fetchVehicles() {
+      const marketplaceRef = collection(db, "on_marketplace");
+      const marketplaceSnapshot = await getDocs(marketplaceRef);
+      let vehicleList = [];
 
-        // 2. Charge tous les listings Firestore en parallèle
-        const listingSnaps = await Promise.all(
-          marketplaceEntries.map((entry) => getDoc(doc(db, "listing", entry.id)))
-        );
+      for (const vehicleDoc of marketplaceSnapshot.docs) {
+        const vehicleId = vehicleDoc.id;
+        const vehicleRef = doc(db, "listing", vehicleId);
+        const vehicleSnap = await getDoc(vehicleRef);
 
-        // 3. Pour chaque listing, récupère images + vendeur en parallèle
-        const vehiclesData = await Promise.all(
-          listingSnaps.map(async (snap, idx) => {
-            if (!snap.exists()) return null;
-            const data = snap.data();
-            const id = marketplaceEntries[idx].id;
+        if (vehicleSnap.exists()) {
+          const vehicleData = vehicleSnap.data();
+          const marketplaceData = vehicleDoc.data();
 
-            // Récupération des images
-            const imagesRef = ref(storage, `listing/${id}/photos`);
-            const items = await listAll(imagesRef);
-            const urls = await Promise.all(items.items.map((it) => getDownloadURL(it)));
-            const front = urls.find((u) => u.includes("front"));
-            const images = front ? [front, ...urls.filter((u) => u !== front)] : urls;
+          const { profilePicture, firstName, rating } =
+            await fetchSellerProfile(vehicleData.uid);
+          const images = await fetchVehicleImages(vehicleId);
 
-            // Récupération du vendeur
-            let seller = { profilePicture: "/default-profile.png", firstName: "Unknown Seller" };
-            if (data.uid) {
-              try {
-                const memberSnap = await getDoc(doc(db, "members", data.uid));
-                if (memberSnap.exists()) {
-                  const picRef = ref(storage, `members/${data.uid}/profilepicture.png`);
-                  const picUrl = await getDownloadURL(picRef).catch(() => "/default-profile.png");
-                  const memberData = memberSnap.data();
-                  seller = {
-                    profilePicture: picUrl,
-                    firstName: memberData.firstName || seller.firstName,
-                  };
-                }
-              } catch (e) {
-                console.error("fetchSeller error", e);
-              }
-            }
-
-            return {
-              id,
-              make: data.make || "Unknown Make",
-              model: data.model || "Unknown Model",
-              year: data.year || "Unknown Year",
-              type: data.type || "car",
-              price: marketplaceEntries[idx].price,
-              images,
-              owner: seller.firstName,
-              profilePicture: seller.profilePicture,
-            };
-          })
-        );
-
-        // 4. Mise à jour d'état
-        setVehicles(vehiclesData.filter(Boolean));
-      } catch (error) {
-        console.error("Error loading vehicles:", error);
-        setVehicles([]); // pour éviter un loader infini
+          vehicleList.push({
+            id: vehicleId,
+            make: vehicleData.make || "Unknown Make",
+            model: vehicleData.model || "Unknown Model",
+            year: vehicleData.year || "Unknown Year",
+            engine: vehicleData.engine || "Unknown Engine", // Récupération de l'information "engine"
+            owner: firstName,
+            profilePicture,
+            rating,
+            images,
+            price: marketplaceData.price || "N/A",
+          });
+        }
       }
-    };
 
-    loadVehicles();
-  }, []);
+      setVehicles(vehicleList);
+    }
 
-  // Affiche un loader tant que les données n'arrivent pas
-  if (vehicles === null) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <p className="text-gray-600">Chargement des véhicules…</p>
-      </div>
-    );
-  }
+    fetchVehicles();
+  }, [fetchVehicleImages]);
 
-  // Sépare voitures et motos
-  const cars = vehicles.filter((v) => !["motorcycle", "moto"].includes(v.type.toLowerCase()));
+  // séparer voitures et motos
+  const cars = vehicles.filter(
+    (v) =>
+      !["motorcycle", "moto"].includes(
+        v.make?.toLowerCase() || v.model?.toLowerCase()
+      )
+  );
   const motorcycles = vehicles.filter((v) =>
-    ["motorcycle", "moto"].includes(v.type.toLowerCase())
+    ["motorcycle", "moto"].includes(
+      v.make?.toLowerCase() || v.model?.toLowerCase()
+    )
   );
 
-  const cardVariants = {
-    initial: { opacity: 0, y: 20 },
-    animate: { opacity: 1, y: 0 },
-    hover: { scale: 1.05, boxShadow: "0px 10px 15px rgba(0,0,0,0.1)" },
+  const handleVehicleClick = (vehicleId) => {
+    const user = auth.currentUser; // Vérifie si l'utilisateur est connecté
+    if (!user) {
+      setSelectedVehicleId(vehicleId);
+      setShowAuthPopup(true); // Affiche la pop-up si non connecté
+    } else {
+      router.push(`/vehicleCard_page/${vehicleId}`);
+    }
   };
-
-  const scrollByOffset = (ref, dir = 1) => {
-    ref.current?.scrollBy({ left: 300 * dir, behavior: "smooth" });
-  };
-
-  const renderItems = (items) =>
-    items.map((v, idx) => (
-      <motion.div
-        key={v.id}
-        variants={cardVariants}
-        initial="initial"
-        animate="animate"
-        transition={{ delay: idx * 0.1 }}
-        whileHover="hover"
-        className="inline-block w-64 mr-4 overflow-hidden bg-white rounded-lg shadow-md scroll-snap-start"
-      >
-        <Link href={`/vehicleCard_page/${v.id}`} legacyBehavior>
-          <a>
-            <Image
-              src={v.images[0] || "/default-vehicle.png"}
-              alt={`${v.make} ${v.model}`}
-              width={256}
-              height={160}
-              className="object-cover w-full h-40"
-            />
-            <div className="p-4">
-              <h3 className="font-bold text-gray-800 text-md">
-                {v.year} {v.make} {v.model}
-              </h3>
-              <p className="mt-1 text-sm text-gray-600">€{v.price}</p>
-              <div className="flex items-center mt-2">
-                <Image
-                  src={v.profilePicture}
-                  alt="Seller"
-                  width={24}
-                  height={24}
-                  className="rounded-full"
-                />
-                <p className="ml-2 text-sm text-gray-500">{v.owner}</p>
-              </div>
-            </div>
-          </a>
-        </Link>
-      </motion.div>
-    ));
 
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Navigation */}
-      <NavBar>
-        <div className="hidden space-x-6 md:flex">
-          <Link href="/marketplace_page" className="text-white hover:text-gray-300">
-            Marketplace
-          </Link>
-          <Link href="/myVehicles_page" className="text-white hover:text-gray-300">
-            My Garage
-          </Link>
-          <Link href="/myMessages_page" className="text-white hover:text-gray-300">
-            Messages
-          </Link>
-          <Link href="/userProfile_page" className="text-white hover:text-gray-300">
-            Profile
-          </Link>
-        </div>
-      </NavBar>
-
-      {/* Hero & Recherche */}
-      <motion.section
-        className="relative py-20 text-center text-white bg-black"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.8 }}
-      >
-        <div className="absolute inset-0 opacity-10 mix-blend-overlay bg-[url('/logo.png')] bg-center bg-no-repeat bg-contain" />
-        <div className="container relative z-10 px-6 mx-auto">
-          <motion.h1
-            className="text-5xl font-extrabold md:text-7xl md:mt-8"
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.7 }}
-          >
+    <div className="flex flex-col min-h-screen pb-5">
+      {/* Hero */}
+      <section className="relative flex flex-col items-center justify-center flex-1 overflow-hidden bg-gradient-to-b from-gray-900 to-gray-800">
+        <div className="absolute inset-0 bg-black" />
+        <div className="relative z-10 px-6 text-center md:mt-40">
+          <h2 className="text-4xl font-extrabold text-white max-sm:mt-5 md:text-7xl">
             Find Your Next Ride
-          </motion.h1>
-          <motion.p
-            className="mt-4 text-lg text-gray-300 md:text-2xl"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-          >
+          </h2>
+          <p className="mt-4 text-xl text-gray-300">
             Your marketplace & garage in one place
-          </motion.p>
+          </p>
 
-          <form
-            onSubmit={handleSearch}
-            className="flex flex-col items-center mt-8 space-y-6"
-          >
-            <div className="flex space-x-4">
-              <input
-                type="text"
-                value={queryText}
-                onChange={(e) => setQueryText(e.target.value)}
-                placeholder="Search by make, model, or license..."
-                className="px-4 py-3 text-gray-800 bg-white border border-gray-300 rounded-lg shadow-sm w-72 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-              <button
-                type="submit"
-                className="px-6 py-3 text-white rounded-lg shadow-md bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              >
-                <MagnifyingGlassIcon className="w-5 h-5" />
-              </button>
-            </div>
-          </form>
-
-          <motion.div className="grid max-w-xl grid-cols-1 gap-6 px-6 mx-auto mt-10 sm:grid-cols-2 md:px-0">
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              className="flex items-center justify-center py-3 font-semibold text-white transition-transform duration-300 shadow-lg cursor-pointer bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl"
-              onClick={() => router.push("/login_page")}
+          {/* CTA */}
+          <div className="flex flex-col justify-center gap-4 pb-5 mt-8 sm:flex-row">
+            <Link
+              href="/login_page"
+              className="px-8 py-3 font-semibold text-white rounded-lg shadow-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
             >
               Sign In
-            </motion.div>
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              className="flex items-center justify-center py-3 font-semibold text-white transition-transform duration-300 shadow-lg cursor-pointer bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl"
-              onClick={() => router.push("/signup_page")}
+            </Link>
+            <Link
+              href="/signup_page"
+              className="px-8 py-3 font-semibold text-white rounded-lg shadow-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
             >
               Sign Up 🚀
-            </motion.div>
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              className="flex items-center justify-center py-3 font-semibold text-white transition-transform duration-300 shadow-lg cursor-pointer sm:col-span-2 bg-gradient-to-r from-green-500 to-blue-500 rounded-xl"
-              onClick={() => router.push("/addVehicle_page")}
+            </Link>
+            <Link
+              href="/addVehicle_page"
+              className="px-8 py-3 font-semibold text-white rounded-lg shadow-lg bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
             >
               Log a Service 🛠️
-            </motion.div>
-          </motion.div>
+            </Link>
+          </div>
         </div>
-      </motion.section>
+      </section>
 
-      {/* Sections Voitures & Motos */}
-      {[
-        { title: "Available Cars", items: cars, ref: carsRef },
-        { title: "Available Motorcycles", items: motorcycles, ref: motosRef },
-      ].map(({ title, items, ref }) => (
-        <section key={title} className="relative py-12 bg-gradient-to-b from-gray-100 to-gray-200">
-          <h2 className="mb-6 text-3xl font-semibold text-center text-gray-800">{title}</h2>
-          <div className="absolute justify-between hidden transform -translate-y-1/2 md:flex top-1/2 left-4 right-4">
-            <button
-              onClick={() => scrollByOffset(ref, -1)}
-              className="p-2 bg-white rounded-lg shadow-md hover:bg-gray-200"
-            >
-              <ChevronLeftIcon className="w-6 h-6 text-gray-700" />
-            </button>
-            <button
-              onClick={() => scrollByOffset(ref, +1)}
-              className="p-2 bg-white rounded-lg shadow-md hover:bg-gray-200"
-            >
-              <ChevronRightIcon className="w-6 h-6 text-gray-700" />
-            </button>
+      {/* Marketplace Carousel Section */}
+      <section className="py-12 bg-gray-800">
+        {/* Featured Cars */}
+        <h2 className="mb-8 text-4xl font-extrabold text-center text-white">
+          Featured Cars
+        </h2>
+        <div className="px-4 py-4 overflow-x-auto whitespace-nowrap sm:overflow-visible sm:whitespace-normal">
+          <div className="inline-flex space-x-4 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-6">
+            {cars.map((vehicle) => (
+              <div
+                key={vehicle.id}
+                onClick={() => handleVehicleClick(vehicle.id)}
+                className="min-w-[14rem] sm:min-w-auto flex-shrink-0 transition transform bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl border border-gray-300 shadow-lg hover:shadow-2xl hover:scale-105 duration-300 cursor-pointer"
+              >
+                <div className="relative h-48 overflow-hidden rounded-t-xl">
+                  <Image
+                    src={vehicle.images[0] || "/default-vehicle.png"}
+                    alt={`${vehicle.make} ${vehicle.model}`}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <div className="p-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-bold text-gray-800">
+                      {vehicle.year} {vehicle.make} {vehicle.model}
+                    </h3>
+                    <span className="px-2 py-1 text-sm font-medium text-white bg-gray-800 rounded">
+                      {vehicle.engine || "Unknown Engine"}
+                    </span>
+                  </div>
+                  <p className="text-lg font-semibold text-blue-600">
+                    €{vehicle.price}
+                  </p>
+
+                  {/* Seller Information */}
+                  <div className="flex items-center mt-3">
+                    <Image
+                      src={vehicle.profilePicture}
+                      alt={vehicle.owner}
+                      width={40}
+                      height={40}
+                      className="border border-gray-300 rounded-full"
+                    />
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-gray-700">
+                        {vehicle.owner}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Rating: {vehicle.rating} ★
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-          <div
-            ref={ref}
-            className="px-6 overflow-x-auto whitespace-nowrap scroll-smooth snap-x snap-mandatory touch-pan-x"
-          >
-            {renderItems(items)}
+        </div>
+
+        {/* Featured Motorcycles */}
+        <h2 className="mt-8 mb-8 text-4xl font-extrabold text-center text-white">
+          Featured Motorcycles
+        </h2>
+        <div className="px-4 py-4 overflow-x-scroll scroll-smooth whitespace-nowrap sm:overflow-visible sm:whitespace-normal">
+          <div className="inline-flex space-x-4 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-6">
+            {motorcycles.length
+              ? motorcycles.map((vehicle) => (
+                  <div
+                    key={vehicle.id}
+                    onClick={() =>
+                      router.push(`/vehicleCard_page/${vehicle.id}`)
+                    }
+                    className="min-w-[12rem] sm:min-w-auto flex-shrink-0 transition transform bg-white rounded-xl border border-gray-300 shadow-md hover:shadow-xl hover:scale-105 duration-300 cursor-pointer scroll-snap-align-start"
+                  >
+                    <div className="relative h-48">
+                      <Image
+                        src={vehicle.images[0] || "/default-vehicle.png"}
+                        alt={`${vehicle.make} ${vehicle.model}`}
+                        fill
+                        className="object-cover rounded-t-xl"
+                      />
+                    </div>
+                    <div className="p-4">
+                      <h3 className="mb-2 text-xl font-semibold text-gray-900">
+                        {vehicle.year} {vehicle.make} {vehicle.model}
+                      </h3>
+                      <p className="text-lg font-bold text-blue-600">
+                        €{vehicle.price}
+                      </p>
+                      <p className="mt-2 text-sm text-gray-600">
+                        Seller: {vehicle.owner}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              : Array.from({ length: 3 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="min-w-[12rem] h-64 flex-shrink-0 bg-gray-200 rounded-xl animate-pulse scroll-snap-align-start"
+                  />
+                ))}
           </div>
-        </section>
-      ))}
+        </div>
+      </section>
 
       {/* How It Works */}
-      <section className="py-16 bg-black">
-        <h2 className="mb-12 text-4xl font-bold text-center text-white">How It Works</h2>
-        <div className="container grid grid-cols-1 gap-8 px-6 mx-auto sm:grid-cols-2 md:grid-cols-4">
+      <section className="py-12 text-white bg-gray-900">
+        <h2 className="mb-10 text-3xl font-bold text-center">How It Works</h2>
+        <div className="grid grid-cols-1 gap-6 px-6 sm:grid-cols-2 lg:grid-cols-4">
           {[
             {
-              icon: <UserPlusIcon className="w-8 h-8 text-purple-400" />,
+              icon: UserPlusIcon,
               title: "Create Account",
               desc: "Set up your profile in seconds.",
             },
             {
-              icon: <PlusCircleIcon className="w-8 h-8 text-purple-400" />,
-              title: "Add Your Vehicle",
+              icon: PlusCircleIcon,
+              title: "Add Vehicle",
               desc: "Import VIN, photos & details.",
             },
             {
-              icon: <MagnifyingGlassIcon className="w-8 h-8 text-purple-400" />,
+              icon: MagnifyingGlassIcon,
               title: "Browse Marketplace",
               desc: "Find what you need with AI power.",
             },
             {
-              icon: <WrenchIcon className="w-8 h-8 text-purple-400" />,
+              icon: WrenchIcon,
               title: "Log Maintenance",
               desc: "Keep your history up to date.",
             },
-          ].map(({ icon, title, desc }, idx) => (
-            <motion.div
-              key={title}
-              variants={cardVariants}
-              initial="initial"
-              animate="animate"
-              transition={{ delay: idx * 0.1 }}
-              whileHover="hover"
-              className="flex flex-col items-center p-6 text-center text-white transition-transform duration-300 border border-purple-600 rounded-lg bg-white/5"
+          ].map(({ icon: Icon, title, desc }, i) => (
+            <div
+              key={i}
+              className="flex flex-col items-center p-6 text-center transition bg-gray-800 rounded-lg shadow-md hover:shadow-lg hover:bg-gray-700"
             >
-              <div className="flex items-center justify-center mb-4 rounded-lg bg-purple-900/20 w-14 h-14">
-                {icon}
+              <div className="flex items-center justify-center mb-4 bg-purple-600 rounded-full w-14 h-14">
+                <Icon className="w-8 h-8 text-white" />
               </div>
-              <h3 className="mb-1 text-lg font-semibold text-white transition-colors duration-300 hover:text-black">
-                {title}
-              </h3>
-              <p className="text-sm text-gray-400">{desc}</p>
-            </motion.div>
+              <h3 className="mb-2 text-lg font-semibold">{title}</h3>
+              <p className="text-sm text-gray-300">{desc}</p>
+            </div>
           ))}
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="py-6 bg-gray-800">
-        <div className="container mx-auto text-center text-gray-400">
+      <footer className="py-6 bg-gray-900">
+        <div className="container mx-auto space-y-2 text-center text-gray-400">
           <p>© {new Date().getFullYear()} MyRide. All rights reserved.</p>
+          <div className="flex justify-center space-x-4">
+            <Link href="/terms" className="hover:text-white">
+              Terms
+            </Link>
+            <Link href="/privacy" className="hover:text-white">
+              Privacy
+            </Link>
+            <Link href="/contact" className="hover:text-white">
+              Contact
+            </Link>
+            <Link href="/blog" className="hover:text-white">
+              Blog
+            </Link>
+          </div>
         </div>
       </footer>
+
+      {/* Auth Popup */}
+      {showAuthPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
+          <div className="p-8 bg-white rounded-lg shadow-xl max-w-sm w-full">
+            <h2 className="mb-4 text-2xl font-bold text-center text-gray-800">
+              Sign In or Sign Up
+            </h2>
+            <p className="mb-6 text-center text-gray-600">
+              You need to be logged in to view the details of this listing.
+            </p>
+            <div className="flex justify-center space-x-4">
+              <button
+                onClick={() => router.push("/login_page")}
+                className="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition"
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => router.push("/signup_page")}
+                className="px-6 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 transition"
+              >
+                Sign Up
+              </button>
+            </div>
+            <button
+              onClick={() => setShowAuthPopup(false)}
+              className="mt-6 text-sm text-center text-gray-500 hover:underline w-full"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

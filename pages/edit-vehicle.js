@@ -74,7 +74,7 @@ const EditVehiclePage = () => {
   if (loading || !formData) return <div className="p-6 text-white">Chargement...</div>;
 
   return (
-    <div className="min-h-screen text-white bg-gray-900">
+    <div className="min-h-screen mt-8 text-white bg-gray-900">
       <Navbar />
       <div className="max-w-3xl px-4 py-8 mx-auto">
         <h1 className="mb-8 text-3xl font-bold text-center">Modifier le véhicule</h1>

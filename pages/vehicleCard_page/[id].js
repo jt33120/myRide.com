@@ -649,7 +649,7 @@ export default function VehicleCardPage() {
     return (
       <div className="flex items-center justify-center min-h-screen px-4 py-10 bg-gradient-to-b from-neutral-900 to-neutral-800">
         <div className="w-full max-w-6xl p-8 rounded-lg shadow-2xl bg-neutral-800">
-          <h1 className="mb-8 text-4xl font-bold text-center">
+          <h1 className="mb-8 text-4xl font-bold text-center md:mt-14">
             Modifier le véhicule
           </h1>
           <form
@@ -950,7 +950,7 @@ export default function VehicleCardPage() {
 
   return (
     <>
-      <div className="relative px-6 py-10 text-white md:pt-28 bg-gradient-to-r from-gray-800 to-neutral-900 sm:px-10">
+      <div className="container px-4 py-10 mx-auto text-white md:pt-28 bg-zinc-900">
         <ToastContainer />
         {/* Header */}
         <header className="mb-8 text-center">
@@ -1161,28 +1161,7 @@ export default function VehicleCardPage() {
                   </li>
                 ))}
               </ul>
-              {/* SECTION: Maintenance Recommendation by Mileage */}
-              <div className="p-4 mt-6 mb-6 rounded bg-neutral-700">
-                <h3 className="flex items-center mb-2 text-xl font-semibold text-white">
-                  🛠️ Maintenance Recommendation (by Mileage)
-                </h3>
-                {loadingMaintenanceRec ? (
-                  <p className="text-neutral-300">Loading recommendation...</p>
-                ) : (
-                  <p className="whitespace-pre-line">
-                    {maintenanceRec === "Aucune recommandation disponible."
-                      ? "No recommendation available."
-                      : maintenanceRec}
-                  </p>
-                )}
-                <button
-                  className="px-4 py-2 mt-3 text-white bg-blue-600 rounded hover:bg-blue-700"
-                  onClick={fetchMaintenanceRec}
-                  disabled={loadingMaintenanceRec}
-                >
-                  Refresh recommendation
-                </button>
-              </div>
+
               <div className="mt-4 text-xl font-semibold text-white">
                 <h3 className="mb-2 text-xl font-semibold text-white">
                   AI Recommendation

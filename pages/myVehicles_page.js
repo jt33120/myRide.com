@@ -29,53 +29,55 @@ export default function MyGarage() {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
       if (!currentUser) {
-        setIsAuthenticated(false);
+        router.push("/login_page");
         setLoading(false);
-        setShowModal(true);
-        return;
-      }
-      setIsAuthenticated(true);
+      } else {
+        setIsAuthenticated(true);
+        setFirstName(currentUser.displayName || "");
 
-      async function load() {
-        const userRef = doc(db, "members", currentUser.uid);
-        const snap = await getDoc(userRef);
-        if (snap.exists()) {
-          const data = snap.data();
-          setFirstName(data.firstName || "");
+        async function load() {
+          const userRef = doc(db, "members", currentUser.uid);
+          const snap = await getDoc(userRef);
+          if (snap.exists()) {
+            const data = snap.data();
+            setFirstName(data.firstName || "");
 
-          if (data.vehicles?.length) {
-            const list = await Promise.all(
-              data.vehicles.map(async (id) => {
-                const vSnap = await getDoc(doc(db, "listing", id));
-                if (!vSnap.exists()) return null;
-                const vData = vSnap.data();
+            if (data.vehicles?.length) {
+              const list = await Promise.all(
+                data.vehicles.map(async (id) => {
+                  const vSnap = await getDoc(doc(db, "listing", id));
+                  if (!vSnap.exists()) return null;
+                  const vData = vSnap.data();
 
-                // fetch images
-                const imgsRef = ref(storage, `listing/${id}/photos`);
-                const files = await listAll(imgsRef);
-                const urls = await Promise.all(
-                  files.items.map((f) => getDownloadURL(f))
-                );
-                const images = urls.filter((u) => !u.includes("vehicleVideo"));
+                  // fetch images
+                  const imgsRef = ref(storage, `listing/${id}/photos`);
+                  const files = await listAll(imgsRef);
+                  const urls = await Promise.all(
+                    files.items.map((f) => getDownloadURL(f))
+                  );
+                  const images = urls.filter(
+                    (u) => !u.includes("vehicleVideo")
+                  );
 
-                // fetch receipts
-                const rSnap = await getDocs(
-                  collection(db, `listing/${id}/receipts`)
-                );
-                const receipts = rSnap.docs.map((d) => d.data());
+                  // fetch receipts
+                  const rSnap = await getDocs(
+                    collection(db, `listing/${id}/receipts`)
+                  );
+                  const receipts = rSnap.docs.map((d) => d.data());
 
-                return { id, ...vData, images, receipts };
-              })
-            );
-            setVehicles(list.filter(Boolean));
+                  return { id, ...vData, images, receipts };
+                })
+              );
+              setVehicles(list.filter(Boolean));
+            }
           }
+          setLoading(false);
         }
-        setLoading(false);
+        load();
       }
-      load();
     });
     return () => unsubscribe();
-  }, []);
+  }, [router]);
 
   const openVehicle = (id) => router.push(`/vehicleCard_page/${id}`);
   const addVehicle = () => router.push("/addVehicle_page");
@@ -117,8 +119,8 @@ export default function MyGarage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen text-white bg-gray-900">
-      <NavBar />
+    <div className="flex flex-col min-h-screen text-white bg-zinc-900 ">
+      
       <main className="relative flex-1 p-6 pt-32">
         {showModal && !isAuthenticated && (
           <div className="fixed inset-0 z-20 flex items-center justify-center bg-black bg-opacity-75">

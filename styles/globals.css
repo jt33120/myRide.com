@@ -392,25 +392,37 @@
 
 /* General Styles */
 body {
-  background-color: #ffffff;
-  color: #eaeaea;
-  font-family: 'Arial', sans-serif;
   margin: 0;
   padding: 0;
+  background-color: #18181b; /* Mise à jour avec la nouvelle teinte */
+  color: #eaeaea;
+  font-family: 'Arial', sans-serif;
 }
 
-a {
-  color: #a29bfe;
-  text-decoration: none;
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 16px; /* Ajoute un léger padding pour éviter que le contenu touche les bords */
 }
 
-a:hover {
-  color: #7e22ce;
+.card {
+  background-color: #1a1a2e; /* Uniformise avec un fond sombre */
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  transition: box-shadow 0.3s ease;
+  margin-bottom: 16px; /* Add spacing between cards */
+}
+
+.card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 input, select, textarea {
-  background-color: #ffffff;
-  color: black; /* Ensure input text is black */
+  background-color: #1a1a2e;
+  color: white;
   border: 1px solid #7e22ce;
   border-radius: 5px;
   padding: 10px;
@@ -423,7 +435,7 @@ input:focus, select:focus, textarea:focus {
 
 /* Shared card styles */
 .card {
-  background-color: white;
+  background-color: #1a1a2e; /* Uniformise avec un fond sombre */
   padding: 16px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -587,4 +599,13 @@ nav a {
 
 .auth-link:hover {
   text-decoration: underline;
+}
+
+/* Centrer le contenu et limiter la largeur sur les grands écrans */
+@media (min-width: 1024px) {
+  .max-w-screen-xl {
+    max-width: 1280px;
+    margin: 0 auto;
+    background-color: #18181b;
+  }
 }

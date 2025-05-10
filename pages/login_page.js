@@ -35,7 +35,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen px-4 bg-gradient-to-b from-gray-50 to-gray-200">
+    <div className="flex items-center justify-center min-h-screen px-4 bg-zinc-900">
       <div className="w-full max-w-md p-8 shadow-2xl bg-white/90 backdrop-blur-md rounded-3xl">
         <div className="flex justify-center mb-6 -mt-20">
           <div className="flex items-center justify-center w-20 h-20 rounded-full shadow-lg bg-gradient-to-tr from-purple-600 to-pink-500 ring-4 ring-white animate-pulse">

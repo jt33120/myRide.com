@@ -2,11 +2,23 @@ import React, { useEffect, useState } from "react";
 import { auth, db } from "../lib/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { useRouter } from "next/router";
+import { onAuthStateChanged } from "firebase/auth";
 
-export default function MyMessages() {
+export default function MyMessagesPage() {
   const router = useRouter();
   const [conversations, setConversations] = useState([]);
-  const user = auth.currentUser;
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (!currentUser) {
+        router.push("/login_page"); // Redirect to login page if not logged in
+      } else {
+        setUser(currentUser);
+      }
+    });
+    return () => unsubscribe();
+  }, [router]);
 
   useEffect(() => {
     async function loadConversations() {
@@ -34,16 +46,22 @@ export default function MyMessages() {
     router.push(`/conversation/${conversationId}`);
   };
 
-  return (
-    <div className="min-h-screen text-white bg-gradient-to-b from-black to-gray-800">
-      <div className="max-w-4xl px-6 py-16 pt-24 mx-auto">
-        <h1 className="pt-4 pb-2 mb-4 text-4xl font-extrabold text-center text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-500">
-          My Messages
-        </h1>
-        <p className="mb-12 text-center text-gray-300">
-          All your conversations, in one place.
-        </p>
+  if (!user) {
+    return <p className="text-center text-white">Loading...</p>; // Show a loading message
+  }
 
+  return (
+    <div className="container min-h-screen px-4 py-10 mx-auto text-white bg-zinc-900">
+      {/* Title Section */}
+      <div className="mb-6 text-center md:mt-36">
+        <h1 className="text-4xl font-bold text-white">My Messages</h1>
+        <p className="mt-2 text-gray-400">
+          View and manage all your messages in one place.
+        </p>
+      </div>
+
+      {/* Messages Section */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 justify-items-center">
         {conversations.length === 0 ? (
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map((_, idx) => (
@@ -63,46 +81,42 @@ export default function MyMessages() {
             ))}
           </div>
         ) : (
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {conversations.map(
-              ({ id, sellerName, vehicleName, picture }, idx) => (
-                <div
-                  key={id}
-                  className="p-1 transition transform rounded-2xl bg-gradient-to-r from-purple-600 to-pink-500 hover:scale-105"
-                >
-                  <div
-                    onClick={() => openConversation(id)}
-                    className="block h-full p-6 bg-gray-900 rounded-2xl cursor-pointer"
-                  >
-                    <div className="flex items-center mb-4">
-                      {picture ? (
-                        <img
-                          src={picture}
-                          alt={`${sellerName}'s profile`}
-                          className="w-12 h-12 border-2 border-white rounded-full"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 bg-gray-700 rounded-full" />
-                      )}
-                      <div className="ml-4">
-                        <h2 className="text-lg font-semibold">{sellerName}</h2>
-                        <p className="text-sm text-gray-400">
-                          {vehicleName || "Unknown Vehicle"}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="mt-4 text-gray-500">Tap to continue chat →</p>
+          conversations.map(({ id, sellerName, vehicleName, picture }, idx) => (
+            <div
+              key={id}
+              className="w-full max-w-sm p-6 text-center transition bg-gray-800 border border-gray-700 rounded-lg shadow-lg hover:shadow-xl"
+            >
+              <div
+                onClick={() => openConversation(id)}
+                className="block h-full p-6 bg-gray-900 cursor-pointer rounded-2xl"
+              >
+                <div className="flex items-center mb-4">
+                  {picture ? (
+                    <img
+                      src={picture}
+                      alt={`${sellerName}'s profile`}
+                      className="w-12 h-12 border-2 border-white rounded-full"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 bg-gray-700 rounded-full" />
+                  )}
+                  <div className="ml-4">
+                    <h2 className="text-lg font-semibold">{sellerName}</h2>
+                    <p className="text-sm text-gray-400">
+                      {vehicleName || "Unknown Vehicle"}
+                    </p>
                   </div>
                 </div>
-              )
-            )}
-          </div>
+                <p className="mt-4 text-gray-500">Tap to continue chat →</p>
+              </div>
+            </div>
+          ))
         )}
-
-        <p className="mt-12 text-center text-gray-500">
-          Coming soon: message previews, group chats, and more!
-        </p>
       </div>
+
+      <p className="mt-12 text-center text-gray-500">
+        Coming soon: message previews, group chats, and more!
+      </p>
     </div>
   );
 }

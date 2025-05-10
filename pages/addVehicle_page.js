@@ -351,9 +351,9 @@ Description: ${vehicleData.description}
   ];
 
   return (
-    <div className="min-h-screen pt-16 text-white bg-gray-900">
+    <div className="min-h-screen pt-16 text-white bg-gray-900 ">
       <Navbar />
-      <div className="max-w-6xl px-6 py-10 mx-auto">
+      <div className="container max-w-6xl px-6 py-1 mx-auto">
         <h1 className="mb-8 text-4xl font-bold text-center">
           Add Your Vehicle
         </h1>
