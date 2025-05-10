@@ -17,15 +17,8 @@ import { ref, listAll, getDownloadURL } from "firebase/storage";
 
 export default function WelcomePage() {
   const router = useRouter();
-  const [query, setQuery] = useState("");
   const [vehicles, setVehicles] = useState([]);
   const [showAuthPopup, setShowAuthPopup] = useState(false); // État pour la pop-up
-  const [selectedVehicleId, setSelectedVehicleId] = useState(null); // Véhicule sélectionné
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    router.push(`/marketplace_page?search=${encodeURIComponent(query)}`);
-  };
 
   const fetchVehicleImages = useCallback(async (vehicleId) => {
     const imagesRef = ref(storage, `listing/${vehicleId}/photos`);
@@ -114,7 +107,7 @@ export default function WelcomePage() {
     }
 
     fetchVehicles();
-  }, [fetchVehicleImages]);
+  }, [fetchVehicleImages, router]);
 
   // séparer voitures et motos
   const cars = vehicles.filter(
@@ -132,7 +125,6 @@ export default function WelcomePage() {
   const handleVehicleClick = (vehicleId) => {
     const user = auth.currentUser; // Vérifie si l'utilisateur est connecté
     if (!user) {
-      setSelectedVehicleId(vehicleId);
       setShowAuthPopup(true); // Affiche la pop-up si non connecté
     } else {
       router.push(`/vehicleCard_page/${vehicleId}`);

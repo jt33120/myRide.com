@@ -39,7 +39,6 @@ import {
   Droplets,
   FileText, // added for Registration Document
   Shield, // added for Insurance Certificate
-  Activity, // still used elsewhere if needed
   Clipboard, // added for Inspection Document
   PlusCircle, // added for file upload icon
   Eye, // added for view document icon
@@ -135,7 +134,7 @@ function OwnerManualModal({ vehicleId, onClose, onSync }) {
             Car Manuals Online
           </a>{" "}
           or check the{" "}
-          <span className="text-blue-400">manufacturer's website</span>.
+          <span className="text-blue-400">manufacturer&apos;s website</span>.
         </p>
         {loading ? (
           <p className="mb-4 text-sm text-neutral-400">
@@ -160,7 +159,7 @@ function OwnerManualModal({ vehicleId, onClose, onSync }) {
   );
 }
 
-// Formulaire d'ajout / édition de reçu
+// ReceiptForm: update labels, placeholders, buttons, errors
 function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
   const isEdit = Boolean(initialData);
   const [title, setTitle] = useState(initialData?.title || "");
@@ -173,12 +172,12 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
   const [mileage, setMileage] = useState(initialData?.mileage || "");
   const [price, setPrice] = useState(initialData?.price || "");
   const [files, setFiles] = useState([]);
-  const [existing, setExisting] = useState(initialData?.urls || []);
+  const [existing] = useState(initialData?.urls || []);
   const [uploading, setUploading] = useState(false);
 
   const handleSubmit = async () => {
     if (!title || !date || !category || !price) {
-      return toast.error("Tous les champs sont requis");
+      return toast.error("All fields are required");
     }
     setUploading(true);
     try {
@@ -208,12 +207,12 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
         receipt,
         { merge: true }
       );
-      toast.success(isEdit ? "Reçu mis à jour" : "Reçu enregistré");
+      toast.success(isEdit ? "Receipt updated" : "Receipt saved");
       onSaved(receipt);
       onClose();
     } catch (e) {
       console.error(e);
-      toast.error("Erreur lors de l'enregistrement");
+      toast.error("Error saving receipt");
     } finally {
       setUploading(false);
     }
@@ -223,11 +222,11 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
       <div className="w-full max-w-md p-8 border rounded-lg shadow-xl bg-neutral-800 border-neutral-700">
         <h2 className="mb-6 text-2xl font-semibold text-center text-white">
-          {isEdit ? "Modifier le reçu" : "Ajouter un reçu"}
+          {isEdit ? "Edit Receipt" : "Add Receipt"}
         </h2>
         <input
+          placeholder="Title"
           className="w-full p-3 mb-4 text-white border rounded border-neutral-600 bg-neutral-700"
-          placeholder="Titre"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
@@ -242,22 +241,22 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
           value={category}
           onChange={(e) => setCategory(e.target.value)}
         >
-          <option value="">Catégorie</option>
+          <option value="">Category</option>
           <option>Repair</option>
           <option>Scheduled Maintenance</option>
           <option>Cosmetic Mods</option>
           <option>Performance Mods</option>
         </select>
         <input
+          placeholder="Mileage"
           className="w-full p-3 mb-4 text-white border rounded border-neutral-600 bg-neutral-700"
-          placeholder="Kilométrage"
           value={mileage}
           onChange={(e) => setMileage(e.target.value)}
         />
         <input
           type="number"
+          placeholder="Price"
           className="w-full p-3 mb-4 text-white border rounded border-neutral-600 bg-neutral-700"
-          placeholder="Prix"
           value={price}
           onChange={(e) => setPrice(e.target.value)}
         />
@@ -272,14 +271,14 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
             onClick={onClose}
             className="px-4 py-2 text-white rounded bg-neutral-600 hover:bg-neutral-500"
           >
-            Annuler
+            Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={uploading}
             className="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700"
           >
-            {uploading ? "En cours…" : "Enregistrer"}
+            {uploading ? "Uploading..." : "Save Receipt"}
           </button>
         </div>
       </div>
@@ -299,13 +298,9 @@ export default function VehicleCardPage() {
   const [receipts, setReceipts] = useState([]);
   const [images, setImages] = useState([]);
   const [aiRec, setAiRec] = useState("");
-  const [aiQ, setAiQ] = useState("");
-  const [aiA, setAiA] = useState("");
-  const [loadingAi, setLoadingAi] = useState(false);
   const [timeWindow, setTimeWindow] = useState("Last Year");
   const [isListed, setIsListed] = useState(false);
   const [salePrice, setSalePrice] = useState(null);
-  const [ownerManual, setOwnerManual] = useState("");
   const [showManual, setShowManual] = useState(false);
   const [showReceiptForm, setShowReceiptForm] = useState(false);
   const [editingReceipt, setEditingReceipt] = useState(null);
@@ -341,8 +336,9 @@ export default function VehicleCardPage() {
   const [aiQuestion, setAiQuestion] = useState(""); // State for the question
   const [aiAnswer, setAiAnswer] = useState(""); // State for the AI's answer
   const [loadingAiQuestion, setLoadingAiQuestion] = useState(false); // Renamed to avoid conflict
-  const [maintenanceRec, setMaintenanceRec] = useState(""); // Nouvelle recommandation
-  const [loadingMaintenanceRec, setLoadingMaintenanceRec] = useState(false);
+  const [, setMaintenanceRec] = useState(null);
+  // Ajout de l'état manquant pour les maintenance records
+  const [, setLoadingMaintenanceRec] = useState(false);
 
   useEffect(() => setLogLevel("debug"), []);
   useEffect(() => {
@@ -362,7 +358,6 @@ export default function VehicleCardPage() {
       const v = snapV.data();
       setVehicle(v);
       setAiRec(v.aiRecommendation || "No AI recommendation");
-      setOwnerManual(v.ownerManual || "");
 
       const snapU = await getDoc(doc(db, "members", v.uid));
       setOwnerName(snapU.data()?.firstName || "");
@@ -428,16 +423,16 @@ export default function VehicleCardPage() {
   const handleFormChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
+  // Update the form submit handler in edit mode to use native alert like in remove from marketplace
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     try {
       await setDoc(doc(db, "listing", id), formData, { merge: true });
-      toast.success("Véhicule mis à jour");
-      setEditMode(false);
       setVehicle({ ...vehicle, ...formData });
-    } catch (err) {
-      console.error(err);
-      toast.error("Erreur lors de la mise à jour");
+      toast.success("Vehicle updated successfully"); // Native alert on save
+      setEditMode(false);
+    } catch {
+      toast.error("Error updating vehicle");
     }
   };
 
@@ -473,18 +468,8 @@ export default function VehicleCardPage() {
 
   // Fonction pour obtenir la recommandation de maintenance basée sur le mileage
   const fetchMaintenanceRec = async () => {
-    if (
-      !vehicle?.mileage ||
-      !vehicle?.engine ||
-      !vehicle?.model ||
-      !vehicle?.year
-    ) {
-      setMaintenanceRec(
-        "Veuillez renseigner le mileage, le moteur, le modèle et l'année pour obtenir une recommandation."
-      );
-      return;
-    }
     setLoadingMaintenanceRec(true);
+
     try {
       const res = await fetch("/api/aiMileageRecommendation", {
         method: "POST",
@@ -496,11 +481,16 @@ export default function VehicleCardPage() {
           year: vehicle.year,
         }),
       });
+
+      if (!res.ok) {
+        throw new Error(`API error: ${res.status} ${res.statusText}`);
+      }
+
       const data = await res.json();
       setMaintenanceRec(
-        data.recommendation || "Aucune recommandation disponible."
+        data.recommendation ?? "Aucune recommandation disponible."
       );
-    } catch (e) {
+    } catch {
       setMaintenanceRec("Erreur lors de la récupération de la recommandation.");
     } finally {
       setLoadingMaintenanceRec(false);
@@ -524,17 +514,16 @@ export default function VehicleCardPage() {
   const confirmAdd = async (priceInput) => {
     const price = parseFloat(priceInput);
     if (isNaN(price) || price <= 0) {
-      toast.error("Veuillez entrer un prix valide");
+      toast.error("Please enter a valid price");
       return;
     }
     try {
       await setDoc(doc(db, "on_marketplace", id), { listingId: id, price });
       setIsListed(true);
       setSalePrice(price);
-      toast.success("Véhicule mis en vente !");
-    } catch (e) {
-      console.error(e);
-      toast.error("Impossible de lister le véhicule");
+      toast.success("Vehicle listed!");
+    } catch {
+      toast.error("Unable to list vehicle");
     }
   };
   const removeFromMarketplace = async () => {
@@ -542,10 +531,9 @@ export default function VehicleCardPage() {
       await deleteDoc(doc(db, "on_marketplace", id));
       setIsListed(false);
       setSalePrice(null);
-      toast.info("Véhicule retiré du marketplace");
-    } catch (e) {
-      console.error(e);
-      toast.error("Impossible de retirer le véhicule");
+      toast.info("Vehicle removed from marketplace");
+    } catch {
+      toast.error("Unable to remove vehicle");
     }
   };
 
@@ -650,7 +638,7 @@ export default function VehicleCardPage() {
       <div className="flex items-center justify-center min-h-screen px-4 py-10 bg-gradient-to-b from-neutral-900 to-neutral-800">
         <div className="w-full max-w-6xl p-8 rounded-lg shadow-2xl bg-neutral-800">
           <h1 className="mb-8 text-4xl font-bold text-center md:mt-14">
-            Modifier le véhicule
+            Edit Vehicle
           </h1>
           <form
             onSubmit={handleFormSubmit}
@@ -910,7 +898,7 @@ export default function VehicleCardPage() {
                 required
                 className="w-full p-2 border rounded-md resize-y border-neutral-600 bg-neutral-700"
                 rows="4"
-                placeholder="Modifier la description du véhicule..."
+                placeholder="Edit vehicle description..."
               ></textarea>
             </div>
             <div className="flex justify-center mt-6 space-x-6 md:col-span-3">
@@ -918,14 +906,14 @@ export default function VehicleCardPage() {
                 type="submit"
                 className="px-6 py-3 font-medium bg-green-600 rounded hover:bg-green-700"
               >
-                Enregistrer
+                Save
               </button>
               <button
                 type="button"
                 onClick={() => setEditMode(false)}
                 className="px-6 py-3 font-medium rounded bg-neutral-600 hover:bg-neutral-500"
               >
-                Annuler
+                Cancel
               </button>
             </div>
           </form>
@@ -936,22 +924,22 @@ export default function VehicleCardPage() {
 
   const removeDocument = async (docType) => {
     const docObj = allDocs.find((d) => d.name.toLowerCase().includes(docType));
-    if (!docObj) return toast.error("Aucun document trouvé");
+    if (!docObj) return toast.error("No document found");
     const path = `listing/${id}/docs/${docObj.name}`;
     try {
       await deleteObject(ref(storage, path)); // Assurez-vous que l'utilisateur a les permissions nécessaires
-      toast.success("Document retiré");
+      toast.success("Document removed");
       setAllDocs((prev) => prev.filter((d) => d.name !== docObj.name));
     } catch (e) {
       console.error(e);
-      toast.error("Erreur lors de la suppression");
+      toast.error("Error removing document");
     }
   };
 
   return (
     <>
+      <ToastContainer />
       <div className="container px-4 py-10 mx-auto text-white md:pt-28 bg-zinc-900">
-        <ToastContainer />
         {/* Header */}
         <header className="mb-8 text-center">
           <h1 className="text-4xl font-bold">
@@ -1138,7 +1126,7 @@ export default function VehicleCardPage() {
         <div className="max-w-4xl p-6 mx-auto mt-8 border rounded-lg shadow-lg bg-neutral-800 border-neutral-700">
           <h2 className="mb-4 text-2xl font-bold">Description</h2>
           <p className="text-lg">
-            {vehicle.description || "Aucune description fournie"}
+            {vehicle.description || "No description provided"}
           </p>
         </div>
         {/* Redesigned layout for everything after Vehicle Info: */}
@@ -1343,7 +1331,7 @@ export default function VehicleCardPage() {
                               id={`file-input-${type}`}
                               type="file"
                               className="hidden"
-                              onChange={(e) => {
+                              onChange={() => {
                                 /* upload logic */
                               }}
                             />

@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import { AiOutlineClose } from 'react-icons/ai';
 
 export default function AddReceiptPopup({ isOpen, onClose, onSubmit }) {
@@ -38,6 +39,27 @@ export default function AddReceiptPopup({ isOpen, onClose, onSubmit }) {
             <textarea
               className="block w-full p-2 mt-1 border border-gray-300 rounded-md"
               rows="3"
+            />
+          </div>
+          {/* Image Upload Field */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Upload Receipt Image</label>
+            <input
+              type="file"
+              accept="image/*"
+              className="block w-full p-2 mt-1 border border-gray-300 rounded-md"
+              // onChange={handleImageUpload} // Uncomment and define this function to handle image uploads
+            />
+          </div>
+          {/* Preview Uploaded Image */}
+          <div className="mt-4">
+            <Image
+              src="/path-to-receipt.jpg"
+              alt="Receipt"
+              width={400}
+              height={300}
+              quality={80} // optional
+              className="object-cover w-full h-48 rounded-md"
             />
           </div>
           <div className="flex justify-end space-x-3">

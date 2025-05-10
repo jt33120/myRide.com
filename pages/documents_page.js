@@ -3,7 +3,6 @@ import { useRouter } from "next/router";
 import { auth, storage } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { ref, getDownloadURL } from "firebase/storage";
-import Navbar from "../components/Navbar";
 
 const DocumentsPage = () => {
   const [user, setUser] = useState(null);
@@ -65,7 +64,6 @@ const DocumentsPage = () => {
 
   return (
     <div className="container min-h-screen py-10 mx-auto text-white bg-zmx-auto">
-      <Navbar />
       {/* Title Section */}
       <div className="mb-10 text-center md:mt-32">
         <h1 className="text-4xl font-bold text-white">Documents</h1>

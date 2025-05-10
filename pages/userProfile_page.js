@@ -5,6 +5,7 @@ import { ref, getDownloadURL, uploadBytesResumable } from "firebase/storage";
 import { updatePassword } from "firebase/auth";
 import { UserContext } from "../context/UserContext";
 import { useRouter } from "next/router";
+import Image from "next/image";
 
 export default function UserProfilePage() {
   const router = useRouter();
@@ -86,9 +87,12 @@ export default function UserProfilePage() {
           {/* Profile Picture */}
           <div className="flex flex-col items-center">
             {profilePicture ? (
-              <img
+              <Image
                 src={profilePicture}
                 alt="Profile"
+                width={80}
+                height={80}
+                quality={80}
                 className="w-32 h-32 border-4 border-gray-700 rounded-full"
               />
             ) : (

@@ -17,23 +17,25 @@ import {
 import { HiOutlineQuestionMarkCircle } from "react-icons/hi2";
 import { IoLogOutOutline } from "react-icons/io5";
 
-export default function Navbar({ leftContent }) {
+export default function Navbar() {
   const router = useRouter();
   const { currentUser } = useAuth();
 
-  const [desktopOpen, setDesktopOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileImage, setProfileImage] = useState(null);
   const [showMobile, setShowMobile] = useState(true);
   const [lastY, setLastY] = useState(0);
 
-  const desktopRef = useRef(null);
   const mobileRef = useRef(null);
 
   const items = [
     { label: "Home", Icon: HiOutlineHome, path: "/Welcome_page" },
     { label: "Garage", Icon: HiOutlineTruck, path: "/myVehicles_page" },
-    { label: "Chat", Icon: HiOutlineChatBubbleLeftRight, path: "/myMessages_page" },
+    {
+      label: "Chat",
+      Icon: HiOutlineChatBubbleLeftRight,
+      path: "/myMessages_page",
+    },
     { label: "Docs", Icon: HiOutlineDocumentText, path: "/documents_page" },
     { label: "Market", Icon: HiOutlineBanknotes, path: "/marketplace_page" },
   ];
@@ -53,9 +55,6 @@ export default function Navbar({ leftContent }) {
   // Close dropdowns on outside click or route change
   useEffect(() => {
     const handler = (e) => {
-      if (desktopRef.current && !desktopRef.current.contains(e.target)) {
-        setDesktopOpen(false);
-      }
       if (mobileRef.current && !mobileRef.current.contains(e.target)) {
         setMobileOpen(false);
       }
@@ -98,13 +97,17 @@ export default function Navbar({ leftContent }) {
     <>
       {/* Desktop Navbar */}
       <nav className="hidden md:fixed md:top-3 md:left-1/2 md:-translate-x-1/2 md:z-50 md:flex md:items-center md:justify-center md:w-[90%] md:max-w-5xl md:px-10 md:py-4 md:text-gray-900 md:bg-white/80 md:backdrop-blur md:border md:border-gray-200 md:rounded-xl md:shadow-lg md:transition-all md:m-0">
-        <div className="flex items-center space-x-8" ref={desktopRef}>
+        <div className="flex items-center space-x-8">
           {items.map(({ label, Icon, path }) => (
-            <Link key={label} href={path} className={`
+            <Link
+              key={label}
+              href={path}
+              className={`
               flex flex-col items-center px-3 py-1 rounded-lg transition-colors
               hover:bg-gray-100 hover:text-pink-500 focus:outline-none
               ${router.pathname === path ? "text-pink-600 font-semibold" : ""}
-            `}>
+            `}
+            >
               <Icon className="w-6 h-6" />
               <span className="mt-1 text-xs">{label}</span>
             </Link>
@@ -116,7 +119,11 @@ export default function Navbar({ leftContent }) {
             className={`
               flex flex-col items-center px-3 py-1 rounded-lg transition-colors
               hover:bg-gray-100 hover:text-pink-500 focus:outline-none
-              ${router.pathname === "/help_page" ? "text-pink-600 font-semibold" : ""}
+              ${
+                router.pathname === "/help_page"
+                  ? "text-pink-600 font-semibold"
+                  : ""
+              }
             `}
           >
             <HiOutlineQuestionMarkCircle className="w-6 h-6" />
@@ -129,7 +136,11 @@ export default function Navbar({ leftContent }) {
             className={`
               flex flex-col items-center px-3 py-1 rounded-lg transition-colors
               hover:bg-gray-100 hover:text-pink-500 focus:outline-none
-              ${router.pathname === "/userProfile_page" ? "text-pink-600 font-semibold" : ""}
+              ${
+                router.pathname === "/userProfile_page"
+                  ? "text-pink-600 font-semibold"
+                  : ""
+              }
             `}
           >
             {profileImage ? (

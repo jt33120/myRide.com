@@ -22,6 +22,9 @@ export default function ImageCarousel({ imageUrls }) {
               alt={`Vehicle photo ${idx + 1}`}
               layout="fill"
               objectFit="cover"
+              width={800}
+              height={600}
+              quality={80}
             />
           </div>
         ))}

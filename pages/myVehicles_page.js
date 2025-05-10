@@ -1,3 +1,4 @@
+// pages/MyGarage.js
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { auth, db, storage } from "../lib/firebase";
@@ -13,13 +14,12 @@ import {
 import { ref, listAll, getDownloadURL, deleteObject } from "firebase/storage";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import NavBar from "../components/Navbar";
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
 export default function MyGarage() {
   const router = useRouter();
 
-  // States
+  // États
   const [firstName, setFirstName] = useState("");
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -101,8 +101,9 @@ export default function MyGarage() {
     setVehicles((v) => v.filter((x) => x.id !== id));
   };
 
+  // Net Value global (converti en nombre pour éviter les strings)
   const totalGarageValue = vehicles.reduce(
-    (sum, veh) => sum + (veh.boughtAt || 0),
+    (sum, veh) => sum + (Number(veh.boughtAt) || 0),
     0
   );
 
@@ -120,7 +121,6 @@ export default function MyGarage() {
 
   return (
     <div className="flex flex-col min-h-screen text-white bg-zinc-900 ">
-      
       <main className="relative flex-1 p-6 pt-32">
         {showModal && !isAuthenticated && (
           <div className="fixed inset-0 z-20 flex items-center justify-center bg-black bg-opacity-75">
@@ -181,21 +181,22 @@ export default function MyGarage() {
                 const maintenanceItems = [
                   {
                     label: "Without Purchase Price",
-                    value: veh.withoutPurchasePrice || 0,
+                    value: Number(veh.withoutPurchasePrice) || 0,
                   },
-                  { label: "Repair", value: veh.repairCost || 0 },
+                  { label: "Repair", value: Number(veh.repairCost) || 0 },
                   {
                     label: "Scheduled Maintenance",
-                    value: veh.scheduledMaintenance || 0,
+                    value: Number(veh.scheduledMaintenance) || 0,
                   },
-                  { label: "Cosmetic Mods", value: veh.cosmeticMods || 0 },
+                  { label: "Cosmetic Mods", value: Number(veh.cosmeticMods) || 0 },
                   {
                     label: "Performance Mods",
-                    value: veh.performanceMods || 0,
+                    value: Number(veh.performanceMods) || 0,
                   },
                 ];
+
                 const receiptsTotal = veh.receipts.reduce(
-                  (s, r) => s + (r.price || 0),
+                  (s, r) => s + (Number(r.price) || 0),
                   0
                 );
                 const maintenanceTotal = maintenanceItems.reduce(
@@ -244,12 +245,18 @@ export default function MyGarage() {
                       </div>
                       <div className="pt-2 mt-4 text-sm text-gray-300 border-t border-gray-700">
                         <h4 className="mb-1 font-semibold">Maintenance</h4>
-                        {maintenanceItems.map((it) => (
-                          <div key={it.label} className="flex justify-between">
-                            <span>{it.label}:</span>
-                            <span>${it.value.toFixed(2)}</span>
-                          </div>
-                        ))}
+                        {maintenanceItems.map((it) => {
+                          const val = it.value;
+                          return (
+                            <div
+                              key={it.label}
+                              className="flex justify-between"
+                            >
+                              <span>{it.label}:</span>
+                              <span>${val.toFixed(2)}</span>
+                            </div>
+                          );
+                        })}
                         <div className="flex justify-between mt-2 font-semibold text-green-400">
                           <span>Total Spent:</span>
                           <span>${totalCost.toFixed(2)}</span>

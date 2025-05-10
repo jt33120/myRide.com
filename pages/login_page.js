@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
 import { auth } from "../lib/firebase";
-import "../styles/globals.css";
 import { FaSignInAlt } from "react-icons/fa";
 
 const LoginPage = () => {
@@ -85,7 +84,7 @@ const LoginPage = () => {
           <FaSignInAlt /> Sign In
         </button>
         <p className="mt-6 text-sm text-center text-gray-600">
-          Don't have an account?{" "}
+          Don&apos;t have an account?{" "}
           <button
             onClick={() => router.push("/signup_page")}
             className="font-semibold text-purple-600 transition hover:underline"

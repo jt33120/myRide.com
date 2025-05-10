@@ -14,12 +14,10 @@ import { UserProvider } from "../context/UserContext";
 function MyApp({ Component, pageProps }) {
   const router = useRouter();
   const [authChecked, setAuthChecked] = useState(false);
-  const [user, setUser] = useState(null);
 
   // Vérification de l'authentification & redirections
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((u) => {
-      setUser(u);
       setAuthChecked(true);
 
       if (u) {
@@ -62,7 +60,7 @@ function MyApp({ Component, pageProps }) {
         window.removeEventListener(evt, resetTimeout)
       );
     };
-  }, []);
+  }, [router]);
 
   // Gestion des erreurs globales
   useEffect(() => {
