@@ -1,115 +1,122 @@
-import { useState, useEffect } from 'react';
-import { auth, db, storage } from '../lib/firebase';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { ref, getDownloadURL } from 'firebase/storage';
-import Link from 'next/link';
-import Image from 'next/image';
+import React, { useEffect, useState } from "react";
+import { auth, db } from "../lib/firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { useRouter } from "next/router";
+import { onAuthStateChanged } from "firebase/auth";
 
-const fetchConversations = async (user) => {
-  const conversationRef = collection(db, 'conversations');
-  const q = query(conversationRef, where('participants', 'array-contains', user.uid));
-  const querySnapshot = await getDocs(q);
-
-  const convList = await Promise.all(
-    querySnapshot.docs.map(async (docSnap) => {
-      const conversation = docSnap.data();
-      const otherUserId = conversation.participants.find((id) => id !== user.uid);
-      let otherUserName = 'Unknown User';
-      let vehicleTitle = 'Unknown Vehicle';
-      let profilePictureUrl = '';
-
-      // Fetch the other participant's name and profile picture
-      if (otherUserId) {
-        const userRef = doc(db, 'members', otherUserId);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-          otherUserName = userSnap.data().firstName || 'Unknown User';
-          const profilePictureRef = ref(storage, `members/${otherUserId}/profilepicture.png`);
-          try {
-            profilePictureUrl = await getDownloadURL(profilePictureRef);
-          } catch (error) {
-            console.error("Error fetching profile picture:", error);
-          }
-        }
-      }
-
-      // Fetch vehicle title if available
-      if (conversation.vehicleName) {
-        vehicleTitle = conversation.vehicleName;
-      }
-
-      return {
-        id: docSnap.id,
-        otherUserName,
-        vehicleTitle,
-        profilePictureUrl,
-      };
-    })
-  );
-
-  return convList;
-};
-
-const MyMessages = () => {
+export default function MyMessagesPage() {
+  const router = useRouter();
   const [conversations, setConversations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const user = auth.currentUser;
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const fetchConversationsAsync = async () => {
-      if (!user) return;
-
-      try {
-        const convList = await fetchConversations(user);
-        setConversations(convList);
-        setLoading(false);
-      } catch (error) {
-        console.error(error);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (!currentUser) {
+        router.push("/login_page"); // Redirect to login page if not logged in
+      } else {
+        setUser(currentUser);
       }
-    };
+    });
+    return () => unsubscribe();
+  }, [router]);
 
-    fetchConversationsAsync();
+  useEffect(() => {
+    async function loadConversations() {
+      if (!user) return;
+      try {
+        const convRef = collection(db, "conversations");
+        const q = query(
+          convRef,
+          where("participants", "array-contains", user.uid)
+        );
+        const snap = await getDocs(q);
+        const list = snap.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...docSnap.data(),
+        }));
+        setConversations(list);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadConversations();
   }, [user]);
 
-  if (loading) return <div className="text-center text-gray-500">Loading messages...</div>;
+  const openConversation = (conversationId) => {
+    router.push(`/conversation/${conversationId}`);
+  };
+
+  if (!user) {
+    return <p className="text-center text-white">Loading...</p>; // Show a loading message
+  }
 
   return (
-    <div className="min-h-screen p-5 bg-gray-100 text-black">
-      <h2 className="page-heading">My Messages</h2>
-      {conversations.length === 0 ? (
-        <p className="text-gray-500">No conversations yet.</p>
-      ) : (
-        <div className="space-between-boxes">
-          {conversations.map((conversation) => (
-            <Link key={conversation.id} href={`/chat_page?conversationId=${conversation.id}`} passHref>
-              <div className="card cursor-pointer hover:shadow-lg transition">
-                <div className="card-content">
-                  <h3 className="card-title">{conversation.vehicleTitle}</h3>
-                  <div className="flex items-center space-x-2 mt-2">
-                    {conversation.profilePictureUrl && (
-                      <Image
-                        src={conversation.profilePictureUrl}
-                        alt={`${conversation.otherUserName}'s profile picture`}
-                        width={32}
-                        height={32}
-                        className="rounded-full"
-                      />
-                    )}
-                    <p className="card-description">
-                      Chat with <b>{conversation.otherUserName}</b>
+    <div className="container min-h-screen px-4 py-10 mx-auto text-white bg-zinc-900">
+      {/* Title Section */}
+      <div className="mb-6 text-center md:mt-36">
+        <h1 className="text-4xl font-bold text-white">My Messages</h1>
+        <p className="mt-2 text-gray-400">
+          View and manage all your messages in one place.
+        </p>
+      </div>
+
+      {/* Messages Section */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 justify-items-center">
+        {conversations.length === 0 ? (
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((_, idx) => (
+              <div
+                key={idx}
+                className="p-1 transition transform rounded-2xl bg-gradient-to-r from-purple-600 to-pink-500 hover:scale-105"
+              >
+                <div className="flex flex-col items-center justify-center block h-full p-6 bg-gray-900 rounded-2xl">
+                  <h2 className="mb-2 text-lg font-semibold text-gray-400">
+                    No Conversations
+                  </h2>
+                  <p className="mb-4 text-sm text-center text-gray-500">
+                    You don’t have any chats yet.
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          conversations.map(({ id, sellerName, vehicleName, picture }, idx) => (
+            <div
+              key={id}
+              className="w-full max-w-sm p-6 text-center transition bg-gray-800 border border-gray-700 rounded-lg shadow-lg hover:shadow-xl"
+            >
+              <div
+                onClick={() => openConversation(id)}
+                className="block h-full p-6 bg-gray-900 cursor-pointer rounded-2xl"
+              >
+                <div className="flex items-center mb-4">
+                  {picture ? (
+                    <img
+                      src={picture}
+                      alt={`${sellerName}'s profile`}
+                      className="w-12 h-12 border-2 border-white rounded-full"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 bg-gray-700 rounded-full" />
+                  )}
+                  <div className="ml-4">
+                    <h2 className="text-lg font-semibold">{sellerName}</h2>
+                    <p className="text-sm text-gray-400">
+                      {vehicleName || "Unknown Vehicle"}
                     </p>
                   </div>
                 </div>
+                <p className="mt-4 text-gray-500">Tap to continue chat →</p>
               </div>
-            </Link>
-          ))}
-        </div>
-      )}
-      <div className="text-center text-gray-500 mt-8">
-        To come: preview of the last messages, groups, etc!
+            </div>
+          ))
+        )}
       </div>
+
+      <p className="mt-12 text-center text-gray-500">
+        Coming soon: message previews, group chats, and more!
+      </p>
     </div>
   );
-};
-
-export default MyMessages;
+}

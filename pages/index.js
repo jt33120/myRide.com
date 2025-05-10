@@ -1,11 +1,4 @@
 // pages/index.js
-import PrivateRoute from "../components/PrivateRoute";  // Adjust path if necessary
-import WelcomePage from "../pages/Welcome_page";  // Adjust path if necessary
+import WelcomePage from "./Welcome_page";
 
-export default function Home() {
-  return (
-    <PrivateRoute>
-      <WelcomePage />
-    </PrivateRoute>
-  );
-}
+export default WelcomePage;
