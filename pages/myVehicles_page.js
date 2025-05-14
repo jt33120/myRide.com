@@ -25,6 +25,51 @@ export default function MyGarage() {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [sumType, setSumType] = useState("Garage's Estimated Value"); // Default to "Garage's Estimated Value"
+  const [dropdownOpen, setDropdownOpen] = useState(false); // Track dropdown visibility
+  const sumOptions = [
+    "Garage's Estimated Value",
+    "Garage's total cost",
+    "Garage's purchase cost",
+    "Cost in Repair",
+    "Cost in Scheduled Maintenance",
+    "Cost in Cosmetic Mods",
+    "Cost in Performance Mods",
+  ];
+
+  const calculateGarageSum = (type) => {
+    switch (type) {
+      case "Garage's Estimated Value":
+        return vehicles.reduce((sum, veh) => {
+          const priceHistory = veh.ai_estimated_value || [];
+          if (priceHistory.length > 0) {
+            const lastEntry = priceHistory[priceHistory.length - 1]; // Get the last string in the array
+            const [value] = lastEntry.split("-"); // Extract the value before the first "-"
+            return sum + (parseFloat(value) || 0); // Convert to number and sum
+          }
+          return sum;
+        }, 0);
+      case "Garage's total cost":
+        return vehicles.reduce((sum, veh) => sum + (Number(veh.boughtAt) || 0) + veh.receipts.reduce((rSum, r) => rSum + (Number(r.price) || 0), 0), 0);
+      case "Garage's purchase cost":
+        return vehicles.reduce((sum, veh) => sum + (Number(veh.boughtAt) || 0), 0);
+      case "Cost in Repair":
+        return vehicles.reduce((sum, veh) => sum + veh.receipts.filter(r => r.category === 'Repair').reduce((rSum, r) => rSum + (Number(r.price) || 0), 0), 0);
+      case "Cost in Scheduled Maintenance":
+        return vehicles.reduce((sum, veh) => sum + veh.receipts.filter(r => r.category === 'Scheduled Maintenance').reduce((rSum, r) => rSum + (Number(r.price) || 0), 0), 0);
+      case "Cost in Cosmetic Mods":
+        return vehicles.reduce((sum, veh) => sum + veh.receipts.filter(r => r.category === 'Cosmetic Mods').reduce((rSum, r) => rSum + (Number(r.price) || 0), 0), 0);
+      case "Cost in Performance Mods":
+        return vehicles.reduce((sum, veh) => sum + veh.receipts.filter(r => r.category === 'Performance Mods').reduce((rSum, r) => rSum + (Number(r.price) || 0), 0), 0);
+      default:
+        return 0;
+    }
+  };
+
+  const handleSumTypeSelect = (type) => {
+    setSumType(type);
+    setDropdownOpen(false); // Close the dropdown after selection
+  };
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
@@ -102,10 +147,6 @@ export default function MyGarage() {
   };
 
   // Net Value global (converti en nombre pour éviter les strings)
-  const totalGarageValue = vehicles.reduce(
-    (sum, veh) => sum + (Number(veh.boughtAt) || 0),
-    0
-  );
 
   if (loading) {
     return (
@@ -167,9 +208,45 @@ export default function MyGarage() {
         >
           {isAuthenticated ? `${firstName}'s Garage` : "My Garage"}
         </motion.h1>
-        <p className="mb-8 text-lg font-semibold text-center text-gray-300">
-          Net Value of Garage: ${totalGarageValue.toLocaleString()}
-        </p>
+        <div className="w-full max-w-md mx-auto mb-8 text-center">
+          <div className="flex items-center justify-center space-x-2">
+            <p className="text-sm text-gray-500">{sumType}</p>
+            <button
+              onClick={() => setDropdownOpen((prev) => !prev)}
+              className="p-1 hover:bg-gray-100 rounded-full transition"
+              title="Select Sum Type"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth="1.5"
+                stroke="currentColor"
+                className="w-5 h-5"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+              </svg>
+            </button>
+          </div>
+          {dropdownOpen && (
+            <div className="absolute mt-2 w-48 bg-white shadow-lg rounded-md border border-gray-200 z-10 text-sm">
+              {sumOptions.map((option) => (
+                <button
+                  key={option}
+                  onClick={() => handleSumTypeSelect(option)}
+                  className={`block w-full text-left px-4 py-2 text-gray-600 hover:bg-gray-100 ${
+                    sumType === option ? "font-bold text-purple-700" : ""
+                  }`}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center justify-center mt-2">
+            <p className="text-5xl font-extrabold">${Number(calculateGarageSum(sumType)).toFixed(2)}</p>
+          </div>
+        </div>
         <motion.div
           className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
           initial="hidden"
@@ -181,17 +258,21 @@ export default function MyGarage() {
                 const maintenanceItems = [
                   {
                     label: "Without Purchase Price",
-                    value: Number(veh.withoutPurchasePrice) || 0,
+                    value: veh.receipts.reduce((sum, r) => sum + (Number(r.price) || 0), 0) + // Total receipts
+                           veh.receipts.filter(r => r.category === 'Repair').reduce((sum, r) => sum + (Number(r.price) || 0), 0) +
+                           veh.receipts.filter(r => r.category === 'Scheduled Maintenance').reduce((sum, r) => sum + (Number(r.price) || 0), 0) +
+                           veh.receipts.filter(r => r.category === 'Cosmetic Mods').reduce((sum, r) => sum + (Number(r.price) || 0), 0) +
+                           veh.receipts.filter(r => r.category === 'Performance Mods').reduce((sum, r) => sum + (Number(r.price) || 0), 0),
                   },
-                  { label: "Repair", value: Number(veh.repairCost) || 0 },
+                  { label: "Repair", value: veh.receipts.filter(r => r.category === 'Repair').reduce((sum, r) => sum + (Number(r.price) || 0), 0) },
                   {
                     label: "Scheduled Maintenance",
-                    value: Number(veh.scheduledMaintenance) || 0,
+                    value: veh.receipts.filter(r => r.category === 'Scheduled Maintenance').reduce((sum, r) => sum + (Number(r.price) || 0), 0),
                   },
-                  { label: "Cosmetic Mods", value: Number(veh.cosmeticMods) || 0 },
+                  { label: "Cosmetic Mods", value: veh.receipts.filter(r => r.category === 'Cosmetic Mods').reduce((sum, r) => sum + (Number(r.price) || 0), 0) },
                   {
                     label: "Performance Mods",
-                    value: Number(veh.performanceMods) || 0,
+                    value: veh.receipts.filter(r => r.category === 'Performance Mods').reduce((sum, r) => sum + (Number(r.price) || 0), 0),
                   },
                 ];
 
@@ -203,7 +284,7 @@ export default function MyGarage() {
                   (s, it) => s + it.value,
                   0
                 );
-                const totalCost = receiptsTotal + maintenanceTotal;
+                const totalCost = receiptsTotal + maintenanceTotal + (Number(veh.boughtAt) || 0); // Include purchase price
 
                 return (
                   <motion.div
@@ -282,7 +363,7 @@ export default function MyGarage() {
               })}
 
               {/* Empty Add Vehicle Cards */}
-              {[...Array(2)].map((_, i) => (
+              {[...Array(1)].map((_, i) => (
                 <div
                   key={`add-${i}`}
                   className="flex flex-col items-center justify-center h-64 bg-gray-800 cursor-pointer rounded-xl hover:shadow-xl"
@@ -296,7 +377,7 @@ export default function MyGarage() {
               ))}
             </>
           ) : (
-            [...Array(3)].map((_, i) => (
+            [...Array(1)].map((_, i) => (
               <div
                 key={i}
                 className="flex flex-col items-center justify-center h-64 bg-gray-800 cursor-pointer rounded-xl hover:shadow-xl"
