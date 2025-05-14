@@ -2,8 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { FaFileAlt, FaRegAddressCard, FaClipboardCheck } from "react-icons/fa";
 import { doc, getDoc } from "firebase/firestore";
-import { db } from "../firebase"; // Assurez-vous que le chemin d'importation est correct
-
+import { db } from "../lib/firebase"; // Assurez-vous que le chemin d'importation est correct
 export default function VehicleCardPage({ vehicleId }) {
   const [vehicle, setVehicle] = useState({});
 
@@ -85,27 +84,47 @@ export default function VehicleCardPage({ vehicleId }) {
               Vehicle Documents
             </h2>
             <div className="flex flex-wrap justify-center gap-6">
-              <div className="flex flex-col items-center p-4 transition border border-gray-700 rounded-lg hover:shadow-xl">
-                <FaFileAlt className="mb-2 text-5xl text-blue-500" />
-                <h3 className="text-lg font-semibold">Title</h3>
-                <p className="text-sm text-center text-gray-300">
-                  Proves legal ownership.
-                </p>
-              </div>
-              <div className="flex flex-col items-center p-4 transition border border-gray-700 rounded-lg hover:shadow-xl">
-                <FaRegAddressCard className="mb-2 text-5xl text-green-500" />
-                <h3 className="text-lg font-semibold">Registration</h3>
-                <p className="text-sm text-center text-gray-300">
-                  Verifies registration with authorities.
-                </p>
-              </div>
-              <div className="flex flex-col items-center p-4 transition border border-gray-700 rounded-lg hover:shadow-xl">
-                <FaClipboardCheck className="mb-2 text-5xl text-yellow-500" />
-                <h3 className="text-lg font-semibold">Inspection</h3>
-                <p className="text-sm text-center text-gray-300">
-                  Confirms safety and emission standards.
-                </p>
-              </div>
+              {["title", "registration", "inspection"].map((type) => {
+                const docObj = allDocuments.find((d) => d.name.includes(type));
+                const labels = {
+                  title: "Title",
+                  registration: "Registration",
+                  inspection: "Inspection",
+                };
+                const IconComponent =
+                  type === "title"
+                    ? FaFileAlt
+                    : type === "registration"
+                    ? FaRegAddressCard
+                    : FaClipboardCheck;
+
+                return (
+                  <div
+                    key={type}
+                    className="flex flex-col items-center p-4 bg-gray-700 rounded-lg"
+                  >
+                    {vehicle.uid === user.uid ? (
+                      <span>Existing owner UI</span>
+                    ) : (
+                      <>
+                        <div
+                          className={`w-16 h-16 rounded-full mb-2 flex items-center justify-center ${
+                            docObj ? "bg-green-500" : "bg-red-500"
+                          }`}
+                        >
+                          <IconComponent className="w-8 h-8 text-white" />
+                        </div>
+                        <span className="text-sm font-medium text-white">
+                          {labels[type]}
+                        </span>
+                        <span className="mt-1 text-xs text-gray-400">
+                          {docObj ? "Added" : "Not Added"}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </section>
 

@@ -3,6 +3,7 @@ import { ref, listAll, getDownloadURL } from "firebase/storage";
 import { doc, getDoc } from "firebase/firestore";
 import { storage, db } from "../lib/firebase";
 import { useAuth } from "../hooks/useAuth";
+import Image from "next/image";
 
 export default function GenerateImagePage() {
   const { currentUser } = useAuth();
@@ -137,11 +138,15 @@ export default function GenerateImagePage() {
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Generate High-Quality Toy Model</h1>
+      <h1 className="text-2xl font-bold mb-4">
+        Generate High-Quality Toy Model
+      </h1>
 
       {/* Vehicle Selection */}
       <div className="mb-4">
-        <label className="block text-sm font-medium mb-2">Select a Vehicle</label>
+        <label className="block text-sm font-medium mb-2">
+          Select a Vehicle
+        </label>
         <select
           value={selectedVehicle}
           onChange={(e) => handleVehicleSelection(e.target.value)}
@@ -178,11 +183,14 @@ export default function GenerateImagePage() {
           <h2 className="text-lg font-semibold mb-2">Fetched Photos</h2>
           <div className="grid grid-cols-3 gap-4">
             {photos.map((photo, index) => (
-              <img
+              <Image
                 key={index}
                 src={photo}
                 alt={`Vehicle Photo ${index + 1}`}
                 className="w-full h-auto rounded shadow"
+                width={600}
+                height={400}
+                quality={80}
               />
             ))}
           </div>
@@ -201,10 +209,13 @@ export default function GenerateImagePage() {
       {aiImage && (
         <div className="mt-4">
           <h2 className="text-lg font-semibold mb-2">AI-Generated Toy Model</h2>
-          <img
+          <Image
             src={aiImage}
             alt="AI-Generated Toy Model"
             className="w-full h-auto rounded shadow"
+            width={600}
+            height={400}
+            quality={80}
           />
         </div>
       )}

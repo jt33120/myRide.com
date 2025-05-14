@@ -3,7 +3,6 @@ import { useRouter } from "next/router";
 import { auth, storage } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { ref, getDownloadURL } from "firebase/storage";
-import Navbar from "../components/Navbar";
 
 const DocumentsPage = () => {
   const [user, setUser] = useState(null);
@@ -51,23 +50,18 @@ const DocumentsPage = () => {
     fetchDocumentUrls();
   }, []);
 
-  const handleView = (type) => {
-    alert(`Viewing ${documents[type]}`);
-  };
-
-  const handleDelete = (type) => {
-    setDocuments((prev) => ({ ...prev, [type]: null }));
-  };
+  // const handleView = (type) => {
+  //   alert(`Viewing ${documents[type]}`);
+  // };
 
   if (!user) {
     return <p className="text-center text-white">Loading...</p>; // Show loading message
   }
 
   return (
-    <div className="container min-h-screen py-10 mx-auto text-white bg-zmx-auto">
-      <Navbar />
+    <div className="container min-h-screen py-10 mx-auto text-white bg-zmx-auto ">
       {/* Title Section */}
-      <div className="mb-10 text-center md:mt-32">
+      <div className="mb-10 text-center md:mt-32 ">
         <h1 className="text-4xl font-bold text-white">Documents</h1>
         <p className="mt-2 text-gray-400">
           Manage and upload all your essential documents here. Ensure everything
@@ -78,21 +72,36 @@ const DocumentsPage = () => {
       {/* Cards Section */}
       <div className="grid grid-cols-1 gap-6 px-6 sm:grid-cols-2 lg:grid-cols-3">
         {[
-          { type: "registration", title: "Vehicle Registration" },
-          { type: "insurance", title: "Insurance" },
-          { type: "maintenance", title: "Maintenance Records" },
-        ].map(({ type, title }) => (
+          {
+            type: "registration",
+            title: "Motorcycle Checklist",
+            subtitle: "How to buy a used motorcycle? (XLSX)",
+          },
+          {
+            type: "insurance",
+            title: "Bill of Sale Template",
+            subtitle: "Template for vehicle sale (PDF)",
+          },
+          {
+            type: "maintenance",
+            title: "Car Checklist",
+            subtitle: "How to buy a used car? (XLSX)",
+          },
+        ].map(({ type, title, subtitle }) => (
           <div
             key={type}
-            className="p-6 text-center transition bg-gray-800 rounded-lg shadow-lg hover:shadow-xl"
+            className="p-6 text-center transition bg-white border-4 border-gray-500 shadow-md rounded-xl hover:shadow-lg hover:scale-105"
           >
-            <h2 className="mb-2 text-xl font-semibold text-white">{title}</h2>
+            <h2 className="mb-2 text-lg font-semibold text-gray-800">
+              {title}
+            </h2>
+            <p className="mb-4 text-sm text-gray-600">{subtitle}</p>
             <div className="mb-4">
               {documents[type] ? (
                 <span className="text-green-500">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="w-6 h-6 mx-auto"
+                    className="w-8 h-8 mx-auto"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -106,10 +115,10 @@ const DocumentsPage = () => {
                   </svg>
                 </span>
               ) : (
-                <span className="text-gray-500">
+                <span className="text-red-500">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="w-6 h-6 mx-auto"
+                    className="w-8 h-8 mx-auto"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -125,27 +134,15 @@ const DocumentsPage = () => {
               )}
             </div>
             {documents[type] ? (
-              <div className="flex justify-center gap-4">
-                <button
-                  onClick={() => handleView(type)}
-                  className="px-4 py-2 text-white transition bg-green-600 rounded-lg hover:bg-green-700"
-                >
-                  View
-                </button>
-                <button
-                  onClick={() => handleDelete(type)}
-                  className="px-4 py-2 text-white transition bg-red-600 rounded-lg hover:bg-red-700"
-                >
-                  Delete
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => handleUpload(type)}
-                className="px-4 py-2 text-white transition bg-blue-600 rounded-lg hover:bg-blue-700"
+              <a
+                href={documents[type]}
+                download
+                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white transition bg-purple-600 rounded-lg hover:bg-purple-700"
               >
-                Upload Document
-              </button>
+                Download
+              </a>
+            ) : (
+              <span className="text-gray-500">Not available</span>
             )}
           </div>
         ))}

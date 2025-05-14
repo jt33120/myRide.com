@@ -39,10 +39,12 @@ import {
   Droplets,
   FileText, // added for Registration Document
   Shield, // added for Insurance Certificate
-  Activity, // still used elsewhere if needed
   Clipboard, // added for Inspection Document
   PlusCircle, // added for file upload icon
   Eye, // added for view document icon
+  EyeOff, // <-- added EyeOff icon
+  Trash, // new delete icon
+  Edit, // new modify icon
 } from "lucide-react";
 
 // Icônes et catégories
@@ -135,7 +137,7 @@ function OwnerManualModal({ vehicleId, onClose, onSync }) {
             Car Manuals Online
           </a>{" "}
           or check the{" "}
-          <span className="text-blue-400">manufacturer's website</span>.
+          <span className="text-blue-400">manufacturer&apos;s website</span>.
         </p>
         {loading ? (
           <p className="mb-4 text-sm text-neutral-400">
@@ -160,7 +162,7 @@ function OwnerManualModal({ vehicleId, onClose, onSync }) {
   );
 }
 
-// Formulaire d'ajout / édition de reçu
+// ReceiptForm: update labels, placeholders, buttons, errors
 function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
   const isEdit = Boolean(initialData);
   const [title, setTitle] = useState(initialData?.title || "");
@@ -173,12 +175,12 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
   const [mileage, setMileage] = useState(initialData?.mileage || "");
   const [price, setPrice] = useState(initialData?.price || "");
   const [files, setFiles] = useState([]);
-  const [existing, setExisting] = useState(initialData?.urls || []);
+  const [existing] = useState(initialData?.urls || []);
   const [uploading, setUploading] = useState(false);
 
   const handleSubmit = async () => {
     if (!title || !date || !category || !price) {
-      return toast.error("Tous les champs sont requis");
+      return toast.error("All fields are required");
     }
     setUploading(true);
     try {
@@ -208,12 +210,12 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
         receipt,
         { merge: true }
       );
-      toast.success(isEdit ? "Reçu mis à jour" : "Reçu enregistré");
+      toast.success(isEdit ? "Receipt updated" : "Receipt saved");
       onSaved(receipt);
       onClose();
     } catch (e) {
       console.error(e);
-      toast.error("Erreur lors de l'enregistrement");
+      toast.error("Error saving receipt");
     } finally {
       setUploading(false);
     }
@@ -223,11 +225,11 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
       <div className="w-full max-w-md p-8 border rounded-lg shadow-xl bg-neutral-800 border-neutral-700">
         <h2 className="mb-6 text-2xl font-semibold text-center text-white">
-          {isEdit ? "Modifier le reçu" : "Ajouter un reçu"}
+          {isEdit ? "Edit Receipt" : "Add Receipt"}
         </h2>
         <input
+          placeholder="Title"
           className="w-full p-3 mb-4 text-white border rounded border-neutral-600 bg-neutral-700"
-          placeholder="Titre"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
@@ -242,22 +244,22 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
           value={category}
           onChange={(e) => setCategory(e.target.value)}
         >
-          <option value="">Catégorie</option>
+          <option value="">Category</option>
           <option>Repair</option>
           <option>Scheduled Maintenance</option>
           <option>Cosmetic Mods</option>
           <option>Performance Mods</option>
         </select>
         <input
+          placeholder="Mileage"
           className="w-full p-3 mb-4 text-white border rounded border-neutral-600 bg-neutral-700"
-          placeholder="Kilométrage"
           value={mileage}
           onChange={(e) => setMileage(e.target.value)}
         />
         <input
           type="number"
+          placeholder="Price"
           className="w-full p-3 mb-4 text-white border rounded border-neutral-600 bg-neutral-700"
-          placeholder="Prix"
           value={price}
           onChange={(e) => setPrice(e.target.value)}
         />
@@ -272,14 +274,14 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
             onClick={onClose}
             className="px-4 py-2 text-white rounded bg-neutral-600 hover:bg-neutral-500"
           >
-            Annuler
+            Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={uploading}
             className="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700"
           >
-            {uploading ? "En cours…" : "Enregistrer"}
+            {uploading ? "Uploading..." : "Save Receipt"}
           </button>
         </div>
       </div>
@@ -299,13 +301,9 @@ export default function VehicleCardPage() {
   const [receipts, setReceipts] = useState([]);
   const [images, setImages] = useState([]);
   const [aiRec, setAiRec] = useState("");
-  const [aiQ, setAiQ] = useState("");
-  const [aiA, setAiA] = useState("");
-  const [loadingAi, setLoadingAi] = useState(false);
   const [timeWindow, setTimeWindow] = useState("Last Year");
   const [isListed, setIsListed] = useState(false);
   const [salePrice, setSalePrice] = useState(null);
-  const [ownerManual, setOwnerManual] = useState("");
   const [showManual, setShowManual] = useState(false);
   const [showReceiptForm, setShowReceiptForm] = useState(false);
   const [editingReceipt, setEditingReceipt] = useState(null);
@@ -341,8 +339,12 @@ export default function VehicleCardPage() {
   const [aiQuestion, setAiQuestion] = useState(""); // State for the question
   const [aiAnswer, setAiAnswer] = useState(""); // State for the AI's answer
   const [loadingAiQuestion, setLoadingAiQuestion] = useState(false); // Renamed to avoid conflict
-  const [maintenanceRec, setMaintenanceRec] = useState(""); // Nouvelle recommandation
-  const [loadingMaintenanceRec, setLoadingMaintenanceRec] = useState(false);
+  const [, setMaintenanceRec] = useState(null);
+  // Ajout de l'état manquant pour les maintenance records
+  const [, setLoadingMaintenanceRec] = useState(false);
+  const [selectedReceiptUrl, setSelectedReceiptUrl] = useState(null);
+  const [receiptToDelete, setReceiptToDelete] = useState(null);
+  const [selectedAdminDocUrl, setSelectedAdminDocUrl] = useState(null); // New state for admin document modal
 
   useEffect(() => setLogLevel("debug"), []);
   useEffect(() => {
@@ -362,7 +364,6 @@ export default function VehicleCardPage() {
       const v = snapV.data();
       setVehicle(v);
       setAiRec(v.aiRecommendation || "No AI recommendation");
-      setOwnerManual(v.ownerManual || "");
 
       const snapU = await getDoc(doc(db, "members", v.uid));
       setOwnerName(snapU.data()?.firstName || "");
@@ -428,16 +429,16 @@ export default function VehicleCardPage() {
   const handleFormChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
+  // Update the form submit handler in edit mode to use native alert like in remove from marketplace
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     try {
       await setDoc(doc(db, "listing", id), formData, { merge: true });
-      toast.success("Véhicule mis à jour");
-      setEditMode(false);
       setVehicle({ ...vehicle, ...formData });
-    } catch (err) {
-      console.error(err);
-      toast.error("Erreur lors de la mise à jour");
+      toast.success("Vehicle updated successfully"); // Native alert on save
+      setEditMode(false);
+    } catch {
+      toast.error("Error updating vehicle");
     }
   };
 
@@ -473,18 +474,8 @@ export default function VehicleCardPage() {
 
   // Fonction pour obtenir la recommandation de maintenance basée sur le mileage
   const fetchMaintenanceRec = async () => {
-    if (
-      !vehicle?.mileage ||
-      !vehicle?.engine ||
-      !vehicle?.model ||
-      !vehicle?.year
-    ) {
-      setMaintenanceRec(
-        "Veuillez renseigner le mileage, le moteur, le modèle et l'année pour obtenir une recommandation."
-      );
-      return;
-    }
     setLoadingMaintenanceRec(true);
+
     try {
       const res = await fetch("/api/aiMileageRecommendation", {
         method: "POST",
@@ -496,11 +487,16 @@ export default function VehicleCardPage() {
           year: vehicle.year,
         }),
       });
+
+      if (!res.ok) {
+        throw new Error(`API error: ${res.status} ${res.statusText}`);
+      }
+
       const data = await res.json();
       setMaintenanceRec(
-        data.recommendation || "Aucune recommandation disponible."
+        data.recommendation ?? "Aucune recommandation disponible."
       );
-    } catch (e) {
+    } catch {
       setMaintenanceRec("Erreur lors de la récupération de la recommandation.");
     } finally {
       setLoadingMaintenanceRec(false);
@@ -524,17 +520,16 @@ export default function VehicleCardPage() {
   const confirmAdd = async (priceInput) => {
     const price = parseFloat(priceInput);
     if (isNaN(price) || price <= 0) {
-      toast.error("Veuillez entrer un prix valide");
+      toast.error("Please enter a valid price");
       return;
     }
     try {
       await setDoc(doc(db, "on_marketplace", id), { listingId: id, price });
       setIsListed(true);
       setSalePrice(price);
-      toast.success("Véhicule mis en vente !");
-    } catch (e) {
-      console.error(e);
-      toast.error("Impossible de lister le véhicule");
+      toast.success("Vehicle listed!");
+    } catch {
+      toast.error("Unable to list vehicle");
     }
   };
   const removeFromMarketplace = async () => {
@@ -542,10 +537,9 @@ export default function VehicleCardPage() {
       await deleteDoc(doc(db, "on_marketplace", id));
       setIsListed(false);
       setSalePrice(null);
-      toast.info("Véhicule retiré du marketplace");
-    } catch (e) {
-      console.error(e);
-      toast.error("Impossible de retirer le véhicule");
+      toast.info("Vehicle removed from marketplace");
+    } catch {
+      toast.error("Unable to remove vehicle");
     }
   };
 
@@ -570,8 +564,6 @@ export default function VehicleCardPage() {
         return rep;
       case "Scheduled Maintenance":
         return sched;
-      case "Cosmetic Mods":
-        return cos;
       case "Performance Mods":
         return perf;
       default:
@@ -650,7 +642,7 @@ export default function VehicleCardPage() {
       <div className="flex items-center justify-center min-h-screen px-4 py-10 bg-gradient-to-b from-neutral-900 to-neutral-800">
         <div className="w-full max-w-6xl p-8 rounded-lg shadow-2xl bg-neutral-800">
           <h1 className="mb-8 text-4xl font-bold text-center md:mt-14">
-            Modifier le véhicule
+            Edit Vehicle
           </h1>
           <form
             onSubmit={handleFormSubmit}
@@ -665,7 +657,6 @@ export default function VehicleCardPage() {
                   name="year"
                   value={formData.year}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -676,7 +667,6 @@ export default function VehicleCardPage() {
                   name="make"
                   value={formData.make}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -689,7 +679,6 @@ export default function VehicleCardPage() {
                   name="model"
                   value={formData.model}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -700,7 +689,6 @@ export default function VehicleCardPage() {
                   name="city"
                   value={formData.city}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -713,7 +701,6 @@ export default function VehicleCardPage() {
                   name="state"
                   value={formData.state}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -736,7 +723,6 @@ export default function VehicleCardPage() {
                   name="mileage"
                   value={formData.mileage}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -764,7 +750,6 @@ export default function VehicleCardPage() {
                   name="engine"
                   value={formData.engine}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -777,7 +762,6 @@ export default function VehicleCardPage() {
                   name="transmission"
                   value={formData.transmission}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -802,7 +786,6 @@ export default function VehicleCardPage() {
                   name="fuelType"
                   value={formData.fuelType}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -815,7 +798,6 @@ export default function VehicleCardPage() {
                   name="vehicleType"
                   value={formData.vehicleType}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -828,7 +810,6 @@ export default function VehicleCardPage() {
                   name="boughtAt"
                   value={formData.boughtAt}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -841,7 +822,6 @@ export default function VehicleCardPage() {
                   name="purchaseYear"
                   value={formData.purchaseYear}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -856,7 +836,6 @@ export default function VehicleCardPage() {
                   name="repairCost"
                   value={formData.repairCost}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -869,7 +848,6 @@ export default function VehicleCardPage() {
                   name="scheduledMaintenance"
                   value={formData.scheduledMaintenance}
                   onChange={handleFormChange}
-                  required
                   className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
                 />
               </div>
@@ -907,10 +885,9 @@ export default function VehicleCardPage() {
                 name="description"
                 value={formData.description || ""}
                 onChange={handleFormChange}
-                required
                 className="w-full p-2 border rounded-md resize-y border-neutral-600 bg-neutral-700"
                 rows="4"
-                placeholder="Modifier la description du véhicule..."
+                placeholder="Edit vehicle description..."
               ></textarea>
             </div>
             <div className="flex justify-center mt-6 space-x-6 md:col-span-3">
@@ -918,14 +895,14 @@ export default function VehicleCardPage() {
                 type="submit"
                 className="px-6 py-3 font-medium bg-green-600 rounded hover:bg-green-700"
               >
-                Enregistrer
+                Save
               </button>
               <button
                 type="button"
                 onClick={() => setEditMode(false)}
                 className="px-6 py-3 font-medium rounded bg-neutral-600 hover:bg-neutral-500"
               >
-                Annuler
+                Cancel
               </button>
             </div>
           </form>
@@ -936,22 +913,42 @@ export default function VehicleCardPage() {
 
   const removeDocument = async (docType) => {
     const docObj = allDocs.find((d) => d.name.toLowerCase().includes(docType));
-    if (!docObj) return toast.error("Aucun document trouvé");
+    if (!docObj) return toast.error("No document found");
     const path = `listing/${id}/docs/${docObj.name}`;
     try {
       await deleteObject(ref(storage, path)); // Assurez-vous que l'utilisateur a les permissions nécessaires
-      toast.success("Document retiré");
+      toast.success("Document removed");
       setAllDocs((prev) => prev.filter((d) => d.name !== docObj.name));
     } catch (e) {
       console.error(e);
-      toast.error("Erreur lors de la suppression");
+      toast.error("Error removing document");
+    }
+  };
+
+  // New helper function to upload or modify admin documents
+  const handleUploadAdminDocument = async (type, file) => {
+    const ext = file.name.substring(file.name.lastIndexOf("."));
+    const name = `${type}-${Date.now()}${ext}`;
+    const path = `listing/${id}/docs/${name}`;
+    const storageRef = ref(storage, path);
+    try {
+      await uploadBytesResumable(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      toast.success(`${type} document uploaded`);
+      setAllDocs((prevDocs) => [
+        ...prevDocs.filter((d) => !d.name.toLowerCase().includes(type)),
+        { name, url },
+      ]);
+    } catch (e) {
+      console.error(e);
+      toast.error(`Error uploading ${type} document`);
     }
   };
 
   return (
     <>
+      <ToastContainer />
       <div className="container px-4 py-10 mx-auto text-white md:pt-28 bg-zinc-900">
-        <ToastContainer />
         {/* Header */}
         <header className="mb-8 text-center">
           <h1 className="text-4xl font-bold">
@@ -1050,7 +1047,7 @@ export default function VehicleCardPage() {
               <h3 className="flex items-center mb-1 text-lg font-medium">
                 <Info className="w-4 h-4 mr-2" /> Vehicle Condition
               </h3>
-              <span className="inline-block px-3 py-1 text-xs font-semibold text-green-800 bg-green-200 rounded-full">
+              <span className="inline-block px-3 py-1 text-xs font-semibold text-green-800 bg-green-200 rounded-xl">
                 Excellent
               </span>
             </div>
@@ -1138,7 +1135,7 @@ export default function VehicleCardPage() {
         <div className="max-w-4xl p-6 mx-auto mt-8 border rounded-lg shadow-lg bg-neutral-800 border-neutral-700">
           <h2 className="mb-4 text-2xl font-bold">Description</h2>
           <p className="text-lg">
-            {vehicle.description || "Aucune description fournie"}
+            {vehicle.description || "No description provided"}
           </p>
         </div>
         {/* Redesigned layout for everything after Vehicle Info: */}
@@ -1207,10 +1204,22 @@ export default function VehicleCardPage() {
                         key={r.id}
                         className="flex items-center justify-between"
                       >
-                        <span>
-                          {r.title} - ${r.price.toFixed(2)}
-                        </span>
-                        {vehicle.uid === user.uid && (
+                        <div className="flex flex-col">
+                          <span>
+                            {r.title} - ${r.price.toFixed(2)}
+                          </span>
+                          {vehicle.uid === user.uid &&
+                            r.urls &&
+                            r.urls.length > 0 && (
+                              <button
+                                onClick={() => setSelectedReceiptUrl(r.urls[0])}
+                                className="mt-1 text-sm text-blue-400 hover:underline"
+                              >
+                                View Receipt
+                              </button>
+                            )}
+                        </div>
+                        {vehicle.uid === user.uid ? (
                           <div className="space-x-2">
                             <button
                               onClick={() => {
@@ -1220,17 +1229,26 @@ export default function VehicleCardPage() {
                             >
                               ✏️
                             </button>
-                            <button
-                              onClick={async () => {
-                                await deleteDoc(
-                                  doc(db, `listing/${id}/receipts`, r.id)
-                                );
-                                window.location.reload();
-                              }}
-                            >
+                            <button onClick={() => setReceiptToDelete(r)}>
                               ✖️
                             </button>
                           </div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              if (r.urls && r.urls.length > 0) {
+                                setSelectedReceiptUrl(r.urls[0]);
+                              }
+                            }}
+                            className="ml-auto"
+                            disabled={!(r.urls && r.urls.length > 0)}
+                          >
+                            {r.urls && r.urls.length > 0 ? (
+                              <Eye className="w-6 h-6 text-blue-400 hover:text-blue-500" />
+                            ) : (
+                              <EyeOff className="w-6 h-6 text-red-500" />
+                            )}
+                          </button>
                         )}
                       </div>
                     ))}
@@ -1266,97 +1284,145 @@ export default function VehicleCardPage() {
                 <h2 className="pb-2 mb-4 text-2xl font-bold text-white border-b">
                   Admin Documents
                 </h2>
-                {/* Nouvelle grille à 3 colonnes pour Title, Registration et Inspection */}
+                {/* Grid for Title, Registration and Inspection */}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   {["title", "registration", "inspection"].map((type) => {
                     const docObj = allDocs.find((d) =>
                       d.name.toLowerCase().includes(type)
                     );
-                    const isDue =
-                      docObj?.name.match(/\d{2}-\d{2}-\d{4}/) &&
-                      new Date(docObj.name.match(/\d{2}-\d{2}-\d{4}/)[0]) <
-                        new Date();
                     const labels = {
                       title: "Title",
                       registration: "Registration",
                       inspection: "Inspection",
                     };
-                    let bgColor = "bg-gray-500";
-                    if (docObj) {
-                      bgColor = isDue
-                        ? "bg-red-500"
-                        : type === "title"
-                        ? "bg-blue-500"
-                        : type === "registration"
-                        ? "bg-green-500"
-                        : type === "inspection"
-                        ? "bg-purple-500"
-                        : "bg-gray-500";
-                    }
                     const IconComponent =
                       type === "title"
                         ? FileText
                         : type === "registration"
                         ? Shield
                         : Clipboard;
+
                     return (
                       <div
                         key={type}
                         className="flex flex-col items-center p-4 bg-gray-700 rounded-lg"
                       >
-                        <div
-                          className={`w-16 h-16 flex items-center justify-center rounded-full mb-2 ${bgColor}`}
-                        >
-                          <IconComponent className="w-8 h-8 text-white" />
-                        </div>
-                        <span className="text-sm font-medium text-white">
-                          {labels[type]}
-                        </span>
-                        {docObj ? (
-                          <div className="flex flex-col items-center mt-1">
-                            <a
-                              href={docObj.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="cursor-pointer"
-                            >
-                              <Eye className="w-8 h-8 text-blue-300 hover:text-blue-400" />
-                            </a>
-                            {vehicle.uid === user.uid && (
-                              <button
-                                onClick={() => removeDocument(type)}
-                                className="mt-1 text-xs text-red-500 hover:text-red-600"
-                              >
-                                Supprimer
-                              </button>
-                            )}
-                          </div>
-                        ) : vehicle.uid === user.uid ? (
+                        {vehicle.uid === user.uid ? (
                           <>
-                            <label
-                              htmlFor={`file-input-${type}`}
-                              className="mt-1 cursor-pointer"
+                            <div
+                              className={`w-16 h-16 flex items-center justify-center rounded-full mb-2 ${
+                                docObj ? "bg-blue-500" : "bg-gray-500"
+                              }`}
                             >
-                              <PlusCircle className="w-8 h-8 text-gray-200 hover:text-gray-100" />
-                            </label>
-                            <input
-                              id={`file-input-${type}`}
-                              type="file"
-                              className="hidden"
-                              onChange={(e) => {
-                                /* upload logic */
-                              }}
-                            />
+                              <IconComponent className="w-8 h-8 text-white" />
+                            </div>
+                            <span className="text-sm font-medium text-white">
+                              {labels[type]}
+                            </span>
+
+                            {docObj ? (
+                              <>
+                                <div className="flex flex-col items-center mt-1 space-y-1">
+                                  <button
+                                    onClick={() =>
+                                      setSelectedAdminDocUrl(docObj.url)
+                                    }
+                                    className="cursor-pointer"
+                                    title="View document"
+                                  >
+                                    <Eye className="w-8 h-8 text-blue-300 hover:text-blue-400" />
+                                  </button>
+                                  <div className="flex space-x-2">
+                                    <button
+                                      onClick={() => removeDocument(type)}
+                                      className="text-red-500 hover:text-red-600"
+                                      title="Delete document"
+                                    >
+                                      <Trash className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() =>
+                                        document
+                                          .getElementById(
+                                            `modify-file-input-${type}`
+                                          )
+                                          .click()
+                                      }
+                                      className="text-green-500 hover:text-green-600"
+                                      title="Modify document"
+                                    >
+                                      <Edit className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                                {/* Hint for owner */}
+
+                                <input
+                                  id={`modify-file-input-${type}`}
+                                  type="file"
+                                  className="hidden"
+                                  onChange={(e) =>
+                                    e.target.files[0] &&
+                                    handleUploadAdminDocument(
+                                      type,
+                                      e.target.files[0]
+                                    )
+                                  }
+                                />
+                              </>
+                            ) : (
+                              <>
+                                <label
+                                  htmlFor={`file-input-${type}`}
+                                  className="mt-1 cursor-pointer"
+                                  title="Add document"
+                                >
+                                  <PlusCircle className="w-8 h-8 text-gray-200 hover:text-gray-100" />
+                                </label>
+                                <input
+                                  id={`file-input-${type}`}
+                                  type="file"
+                                  className="hidden"
+                                  onChange={(e) =>
+                                    e.target.files[0] &&
+                                    handleUploadAdminDocument(
+                                      type,
+                                      e.target.files[0]
+                                    )
+                                  }
+                                />
+                              </>
+                            )}
                           </>
                         ) : (
-                          <span className="mt-1 text-xs text-gray-400">
-                            Owner only
-                          </span>
+                          <>
+                            {/* non-owner: green if exists, red if missing */}
+                            <div
+                              className={`w-16 h-16 flex items-center justify-center rounded-full mb-2 ${
+                                docObj ? "bg-green-500" : "bg-red-500"
+                              }`}
+                            >
+                              <IconComponent className="w-8 h-8 text-white" />
+                            </div>
+                            <h3 className="text-sm font-medium text-white">
+                              {labels[type]}
+                            </h3>
+                            <span className="mt-1 text-xs text-gray-300">
+                              {docObj ? "Added" : "Not Added"}
+                            </span>
+                          </>
                         )}
                       </div>
                     );
                   })}
                 </div>
+
+                {/* notice for non-owners */}
+                {vehicle.uid !== user.uid && (
+                  <p className="mt-4 text-sm text-center text-gray-400">
+                    Only the vehicle owner can view and manage these documents.
+                  </p>
+                )}
               </div>
               {/* Depreciation Chart */}
               <div className="p-6 border rounded-lg shadow-lg bg-neutral-800 border-neutral-700">
@@ -1433,6 +1499,117 @@ export default function VehicleCardPage() {
             onClose={() => setShowManual(false)}
             onSync={() => window.location.reload()}
           />
+        )}
+
+        {/* Receipt Modal */}
+        {selectedReceiptUrl && (
+          <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-70">
+            <div className="relative w-full max-w-3xl p-6 bg-white rounded-lg shadow-xl">
+              <div className="flex justify-between mb-4">
+                <h2 className="text-2xl font-semibold">Receipt Detail</h2>
+                <button
+                  onClick={() => setSelectedReceiptUrl(null)}
+                  className="text-2xl font-bold"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="overflow-auto h-96">
+                <iframe
+                  src={selectedReceiptUrl}
+                  className="w-full h-full border"
+                  title="Receipt"
+                ></iframe>
+              </div>
+              <div className="flex justify-end mt-4 space-x-4">
+                <a
+                  href={selectedReceiptUrl}
+                  download
+                  className="px-4 py-2 text-white transition bg-green-600 rounded hover:bg-green-700"
+                >
+                  Download
+                </a>
+                <button
+                  onClick={() => setSelectedReceiptUrl(null)}
+                  className="px-4 py-2 text-white transition bg-gray-600 rounded hover:bg-gray-700"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Confirmation modal for receipt deletion */}
+        {receiptToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="w-full max-w-sm p-6 rounded shadow-lg bg-zinc-600">
+              <h3 className="mb-4 text-xl font-semibold">
+                Confirmer la suppression
+              </h3>
+              <p className="mb-6">
+                Êtes-vous sûr de vouloir supprimer ce receipt :{" "}
+                <strong>{receiptToDelete.title}</strong> ?
+              </p>
+              <div className="flex justify-end space-x-4">
+                <button
+                  onClick={() => setReceiptToDelete(null)}
+                  className="px-4 py-2 text-red-700 bg-gray-300 rounded hover:bg-gray-400"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={async () => {
+                    await deleteDoc(
+                      doc(db, `listing/${id}/receipts`, receiptToDelete.id)
+                    );
+                    setReceiptToDelete(null);
+                    window.location.reload();
+                  }}
+                  className="px-4 py-2 text-white bg-red-600 rounded hover:bg-red-700"
+                >
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* New Admin Document Modal */}
+        {selectedAdminDocUrl && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
+            <div className="relative w-full max-w-3xl p-6 bg-white rounded-lg shadow-xl">
+              <div className="flex justify-between mb-4">
+                <h2 className="text-2xl font-semibold">Admin Document</h2>
+                <button
+                  onClick={() => setSelectedAdminDocUrl(null)}
+                  className="text-2xl font-bold"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="overflow-auto h-96">
+                <iframe
+                  src={selectedAdminDocUrl}
+                  className="w-full h-full border"
+                  title="Admin Document"
+                ></iframe>
+              </div>
+              <div className="flex justify-end mt-4 space-x-4">
+                <a
+                  href={selectedAdminDocUrl}
+                  download
+                  className="px-4 py-2 text-white transition bg-green-600 rounded hover:bg-green-700"
+                >
+                  Download
+                </a>
+                <button
+                  onClick={() => setSelectedAdminDocUrl(null)}
+                  className="px-4 py-2 text-white transition bg-gray-600 rounded hover:bg-gray-700"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </>

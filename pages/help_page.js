@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import Navbar from "../components/Navbar";
 import { auth } from "../lib/firebase";
 
 export default function HelpPage() {
@@ -41,14 +40,13 @@ export default function HelpPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-b from-black to-gray-800">
-      <Navbar />
       <div className="flex-grow py-12 mt-24">
         <div className="container px-6 mx-auto">
           <div className="max-w-4xl p-8 mx-auto bg-white rounded-lg shadow-md">
-            <h1 className="text-3xl font-bold text-gray-800">Need Help?</h1>
+            <h1 className="text-3xl font-bold text-gray-800">Need Help ?</h1>
             <p className="mt-2 text-gray-600">
-              Have an issue, question, or feedback about MyRide? Send us a
-              message and we'll get back to you ASAP.
+              Have an issue, question, or feedback about MyRide ? <br />Send us a
+              message and we&apos;ll get back to you ASAP.
             </p>
             <form onSubmit={handleSubmit} className="mt-6 space-y-6">
               <div>
@@ -100,6 +98,7 @@ export default function HelpPage() {
                 {confirmation}
               </p>
             )}
+            <p>Don&apos;t hesitate to reach out for support.</p>
           </div>
         </div>
       </div>

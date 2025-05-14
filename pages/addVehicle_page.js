@@ -4,7 +4,6 @@ import { useRouter } from "next/router";
 import { auth, db, storage } from "../lib/firebase"; // Include storage
 import { doc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import Navbar from "../components/Navbar";
 
 export default function AddVehiclePage() {
   const router = useRouter();
@@ -15,8 +14,6 @@ export default function AddVehiclePage() {
   const [selectedModel, setSelectedModel] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
   const [boughtAt, setBoughtAt] = useState("");
-  const [vin, setVin] = useState(""); // VIN remains optional
-  const [purchaseYear, setPurchaseYear] = useState("");
   const [color, setColor] = useState("");
   const [title, setTitle] = useState("");
   const [mileage, setMileage] = useState("");
@@ -25,7 +22,6 @@ export default function AddVehiclePage() {
   const [city, setCity] = useState("");
   const [engine, setEngine] = useState("");
   const [transmission, setTransmission] = useState("");
-  const [horsepower, setHorsepower] = useState("");
   const [fuelType, setFuelType] = useState("");
   const [description, setDescription] = useState("");
 
@@ -40,16 +36,6 @@ export default function AddVehiclePage() {
 
   // Marketplace toggle: if true then all fields (except VIN) are required
   const [marketplace, setMarketplace] = useState(false);
-  const [showMarketplaceModal, setShowMarketplaceModal] = useState(false);
-
-  // Photo categories states
-  const [frontPhotos, setFrontPhotos] = useState([]);
-  const [rearPhotos, setRearPhotos] = useState([]);
-  const [sidePhotos, setSidePhotos] = useState([]);
-  const [interiorPhotos, setInteriorPhotos] = useState([]);
-  const [dashboardPhotos, setDashboardPhotos] = useState([]);
-  const [engineBayPhotos, setEngineBayPhotos] = useState([]);
-
   const [saving, setSaving] = useState(false); // Add saving initialization
 
   const makes = ["Toyota", "BMW", "Ford", "Audi"];
@@ -72,7 +58,6 @@ export default function AddVehiclePage() {
           "selectedYear",
           "boughtAt",
           // "vin", // Removed vin requirement
-          "purchaseYear",
           "color",
           "title",
           "mileage",
@@ -81,7 +66,6 @@ export default function AddVehiclePage() {
           "city",
           "engine",
           "transmission",
-          "horsepower",
           "fuelType",
           "withoutPurchasePrice",
           "repairCost",
@@ -110,8 +94,6 @@ export default function AddVehiclePage() {
       model: selectedModel,
       year: Number(selectedYear),
       boughtAt: Number(boughtAt),
-      vin, // optional
-      purchaseYear: Number(purchaseYear),
       color,
       title,
       mileage: Number(mileage),
@@ -120,7 +102,6 @@ export default function AddVehiclePage() {
       city,
       engine,
       transmission,
-      horsepower: Number(horsepower),
       fuelType,
       withoutPurchasePrice: Number(withoutPurchasePrice),
       repairCost: Number(repairCost),
@@ -307,7 +288,7 @@ Description: ${vehicleData.description}
       onChange: setCity,
     },
     {
-      label: "Engine",
+      label: "Engine OR CC for motorcycle",
       name: "engine",
       value: engine,
       onChange: setEngine,
@@ -352,7 +333,6 @@ Description: ${vehicleData.description}
 
   return (
     <div className="min-h-screen pt-16 text-white bg-gray-900 ">
-      <Navbar />
       <div className="container max-w-6xl px-6 py-1 mx-auto">
         <h1 className="mb-8 text-4xl font-bold text-center">
           Add Your Vehicle
