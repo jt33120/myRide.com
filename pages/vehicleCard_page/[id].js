@@ -48,14 +48,7 @@ import {
 } from "lucide-react";
 
 // Icônes et catégories
-const sumTypes = [
-  "Total Spent",
-  "Without Purchase Price",
-  "Repair",
-  "Scheduled Maintenance",
-  "Cosmetic Mods",
-  "Performance Mods",
-];
+
 const icons = {
   Year: <Key className="w-4 h-4 mr-2" />,
   Make: <Car className="w-4 h-4 mr-2" />,
@@ -210,6 +203,17 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
         receipt,
         { merge: true }
       );
+
+      // Call the updateMaintenanceTable API
+      await fetch("/api/updateMaintenanceTable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vehicleId,
+          currentMileage: mileage, // Pass the current mileage
+          receiptData: receipt,    // Pass the receipt data
+        }),
+      });
       toast.success(isEdit ? "Receipt updated" : "Receipt saved");
       onSaved(receipt);
       onClose();
@@ -308,6 +312,7 @@ export default function VehicleCardPage() {
   const [showReceiptForm, setShowReceiptForm] = useState(false);
   const [editingReceipt, setEditingReceipt] = useState(null);
   const [allDocs, setAllDocs] = useState([]);
+  const [selectedItem, setSelectedItem] = useState(null);
   // Added state for enlarged image index
   const [enlargedIdx, setEnlargedIdx] = useState(null);
   // Add state definition for marketplace modal:
@@ -339,10 +344,9 @@ export default function VehicleCardPage() {
   const [aiQuestion, setAiQuestion] = useState(""); // State for the question
   const [aiAnswer, setAiAnswer] = useState(""); // State for the AI's answer
   const [loadingAiQuestion, setLoadingAiQuestion] = useState(false); // Renamed to avoid conflict
-  const [, setMaintenanceRec] = useState(null);
   // Ajout de l'état manquant pour les maintenance records
   const [, setLoadingMaintenanceRec] = useState(false);
-  const [selectedReceiptUrl, setSelectedReceiptUrl] = useState(null);
+  const [selectedReceiptUrls, setSelectedReceiptUrls] = useState([]); // Updated state
   const [receiptToDelete, setReceiptToDelete] = useState(null);
   const [selectedAdminDocUrl, setSelectedAdminDocUrl] = useState(null); // New state for admin document modal
 
@@ -475,29 +479,20 @@ export default function VehicleCardPage() {
   // Fonction pour obtenir la recommandation de maintenance basée sur le mileage
   const fetchMaintenanceRec = async () => {
     setLoadingMaintenanceRec(true);
-
+  
     try {
-      const res = await fetch("/api/aiMileageRecommendation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mileage: vehicle.mileage,
-          engine: vehicle.engine,
-          model: vehicle.model,
-          year: vehicle.year,
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error(`API error: ${res.status} ${res.statusText}`);
+      // Fetch the vehicle document from Firestore
+      const snap = await getDoc(doc(db, "listing", id));
+      if (!snap.exists()) {
+        throw new Error("Vehicle not found");
       }
-
-      const data = await res.json();
-      setMaintenanceRec(
-        data.recommendation ?? "Aucune recommandation disponible."
-      );
-    } catch {
-      setMaintenanceRec("Erreur lors de la récupération de la recommandation.");
+  
+      // Get the aiRecommendation field from the document
+      const vehicleData = snap.data();
+      setAiRec(vehicleData.aiRecommendation || "No AI recommendation available.");
+    } catch (error) {
+      console.error("Error fetching AI recommendation:", error.message);
+      setAiRec("Error fetching AI recommendation.");
     } finally {
       setLoadingMaintenanceRec(false);
     }
@@ -545,31 +540,24 @@ export default function VehicleCardPage() {
 
   // Calcul des sommes
   // Calcul des sommes
-  const calcSum = (type) => {
-    const receiptsTotal = receipts.reduce(
-      (sum, r) => sum + (Number(r.price) || 0),
-      0
-    );
-    const wpp = Number(vehicle.withoutPurchasePrice) || 0;
-    const rep = Number(vehicle.repairCost) || 0;
-    const sched = Number(vehicle.scheduledMaintenance) || 0;
-    const cos = Number(vehicle.cosmeticMods) || 0;
-    const perf = Number(vehicle.performanceMods) || 0;
+  const calculateSum = (type) => {
     switch (type) {
       case "Total Spent":
-        return receiptsTotal + wpp + rep + sched + cos + perf;
+        return receipts.reduce(
+          (sum, receipt) => sum + (receipt.price || 0),
+          vehicle?.boughtAt || 0
+        );
       case "Without Purchase Price":
-        return wpp;
+        return receipts.reduce((sum, receipt) => sum + (receipt.price || 0), 0);
       case "Repair":
-        return rep;
       case "Scheduled Maintenance":
-        return sched;
+      case "Cosmetic Mods":
       case "Performance Mods":
-        return perf;
-      default:
         return receipts
-          .filter((r) => r.category === type)
-          .reduce((sum, r) => sum + (Number(r.price) || 0), 0);
+          .filter((receipt) => receipt.category === type)
+          .reduce((sum, receipt) => sum + (receipt.price || 0), 0);
+      default:
+        return 0;
     }
   };
 
@@ -952,7 +940,7 @@ export default function VehicleCardPage() {
         {/* Header */}
         <header className="mb-8 text-center">
           <h1 className="text-4xl font-bold">
-            {vehicle.make} {vehicle.model} - {vehicle.engine}
+            {vehicle.year} {vehicle.make} {vehicle.model}
           </h1>
         </header>
         {/* Gallery + Vehicle Info Section */}
@@ -1109,7 +1097,7 @@ export default function VehicleCardPage() {
               <Image
                 src={images[enlargedIdx]} // Utilise l'index pour afficher l'image correcte
                 alt={`Vehicle ${enlargedIdx}`}
-                className="object-contain w-full h-full"
+                className="object-contain max-w-full max-h-full"
                 width={1000}
                 height={700}
                 priority
@@ -1129,8 +1117,6 @@ export default function VehicleCardPage() {
             </div>
           </div>
         )}
-        {/* End of Vehicle Info Card */}
-        {/* End of Vehicle Info Card */}
         {/* NEW: Description Card */}
         <div className="max-w-4xl p-6 mx-auto mt-8 border rounded-lg shadow-lg bg-neutral-800 border-neutral-700">
           <h2 className="mb-4 text-2xl font-bold">Description</h2>
@@ -1144,26 +1130,120 @@ export default function VehicleCardPage() {
           <div className="grid max-w-6xl grid-cols-1 gap-8 mx-auto lg:grid-cols-2">
             {/* Left Column: Maintenance & Receipts */}
             <div className="p-6 border rounded-lg shadow-lg bg-neutral-800 border-neutral-700">
-              <h2 className="pb-2 mb-4 text-2xl font-bold text-white border-b">
-                Maintenance & Receipts
-              </h2>
-              <ul className="space-y-2">
-                {sumTypes.map((type) => (
-                  <li
-                    key={type}
-                    className="flex justify-between p-1 rounded bg-neutral-700"
+              <div className="flex items-center justify-between pb-2 mb-4 border-b">
+                <h2 className="text-2xl font-bold text-white">Maintenance & Receipts</h2>
+                {!vehicle.ownerManual ? (
+                  <button
+                    onClick={() => setShowManual(true)}
+                    className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded hover:bg-purple-700"
                   >
-                    <span>{type}</span>
-                    <span>${calcSum(type).toFixed(2)}</span>
-                  </li>
-                ))}
-              </ul>
+                    Sync Owner Manual
+                  </button>
+                ): (
+                  <span className="text-xs italic text-neutral-600">Owner Manual Synced</span>
+                )}
+              </div>
 
-              <div className="mt-4 text-xl font-semibold text-white">
-                <h3 className="mb-2 text-xl font-semibold text-white">
-                  AI Recommendation
-                </h3>
-                <pre className="p-3 whitespace-pre-wrap rounded bg-neutral-700">
+              <div className="flex items-center space-x-4">
+                {/* Dropdown for selecting a count */}
+                <select
+                  className="p-2 text-white bg-neutral-700 border rounded border-neutral-600"
+                  value={selectedItem || ""}
+                  onChange={(e) => setSelectedItem(e.target.value)}
+                >
+                  <option value="" disabled>
+                    Select a count
+                  </option>
+                  {[
+                    { label: "Total Spent", value: `$${calculateSum("Total").toFixed(2)}` },
+                    { label: "Without Purchase Price", value: `$${calculateSum("Without Purchase Price").toFixed(2)}` },
+                    { label: "Repair", value: `$${calculateSum("Repair").toFixed(2)}` },
+                    { label: "Scheduled Maintenance", value: `$${calculateSum("Scheduled Maintenance").toFixed(2)}` },
+                    { label: "Cosmetic Mods", value: `$${calculateSum("Cosmetic Mods").toFixed(2)}` },
+                    { label: "Performance Mods", value: `$${calculateSum("Performance Mods").toFixed(2)}` },
+                  ].map((item, idx) => (
+                    <option key={idx} value={item.label}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Display the value of the selected count */}
+                <div className="p-4 text-white bg-neutral-800 border rounded border-neutral-600">
+                  {selectedItem ? (
+                    <div>
+                      <h3 className="text-lg font-semibold">{selectedItem}</h3>
+                      <p className="text-sm">
+                        {
+                          [
+                            { label: "Total Spent", value: `$${calculateSum("Total").toFixed(2)}` },
+                            { label: "Without Purchase Price", value: `$${calculateSum("Without Purchase Price").toFixed(2)}` },
+                            { label: "Repair", value: `$${calculateSum("Repair").toFixed(2)}` },
+                            { label: "Scheduled Maintenance", value: `$${calculateSum("Scheduled Maintenance").toFixed(2)}` },
+                            { label: "Cosmetic Mods", value: `$${calculateSum("Cosmetic Mods").toFixed(2)}` },
+                            { label: "Performance Mods", value: `$${calculateSum("Performance Mods").toFixed(2)}` },
+                          ].find((item) => item.label === selectedItem)?.value
+                        }
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-neutral-400">Select a count to see its value</p>
+                  )}
+                </div>
+              </div>
+
+
+              <div className="mt-4 text-xs font-semibold text-white">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xl font-semibold text-white">AI Recommendation</h3>
+                  <button
+                    onClick={async () => {
+                      try {
+                        // Call the analyzeManual API directly
+                        const res = await fetch("/api/analyzeManual", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ vehicleId: id, currentMileage: vehicle.mileage }),
+                        });
+
+                        if (!res.ok) {
+                          throw new Error(`API error: ${res.status} ${res.statusText}`);
+                        }
+
+                        // Fetch the updated aiRecommendation field from Firestore
+                        const snap = await getDoc(doc(db, "listing", id));
+                        if (!snap.exists()) {
+                          throw new Error("Vehicle not found");
+                        }
+
+                        const vehicleData = snap.data();
+                        setAiRec(vehicleData.aiRecommendation || "No AI recommendation available.");
+                        toast.success("AI Recommendation refreshed successfully!");
+                      } catch (error) {
+                        console.error("Error refreshing AI recommendation:", error.message);
+                        toast.error("Failed to refresh AI recommendation.");
+                      }
+                    }}
+                    className="p-2 text-white transition bg-blue-600 rounded hover:bg-blue-700"
+                    title="Refresh AI Recommendation"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth="1.5"
+                      stroke="currentColor"
+                      className="w-6 h-6"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                <pre className="p-3 whitespace-pre-wrap rounded bg-neutral-700 txt-xs">
                   {aiRec}
                 </pre>
               </div>
@@ -1192,7 +1272,7 @@ export default function VehicleCardPage() {
                   </div>
                 )}
               </div>
-              {/* Corrected Receipts Section */}
+              {/* Receipts Section */}
               <div className="mt-4">
                 <h3 className="mb-2 text-xl font-semibold text-white">
                   Receipts
@@ -1205,19 +1285,19 @@ export default function VehicleCardPage() {
                         className="flex items-center justify-between"
                       >
                         <div className="flex flex-col">
-                          <span>
-                            {r.title} - ${r.price.toFixed(2)}
-                          </span>
-                          {vehicle.uid === user.uid &&
-                            r.urls &&
-                            r.urls.length > 0 && (
-                              <button
-                                onClick={() => setSelectedReceiptUrl(r.urls[0])}
-                                className="mt-1 text-sm text-blue-400 hover:underline"
-                              >
-                                View Receipt
-                              </button>
-                            )}
+                          <div className="flex items-center">
+                            <button
+                              onClick={() => {
+                                if (r.urls && r.urls.length > 0) {
+                                  setSelectedReceiptUrls(r.urls);
+                                }
+                              }}
+                              className="text-blue-400 hover:underline text-left"
+                            >
+                              {r.title}
+                            </button>
+                            <span className="ml-2 text-neutral-400">- ${r.price.toFixed(2)}</span>
+                          </div>
                         </div>
                         {vehicle.uid === user.uid ? (
                           <div className="space-x-2">
@@ -1237,7 +1317,7 @@ export default function VehicleCardPage() {
                           <button
                             onClick={() => {
                               if (r.urls && r.urls.length > 0) {
-                                setSelectedReceiptUrl(r.urls[0]);
+                                setSelectedReceiptUrl(r.urls);
                               }
                             }}
                             className="ml-auto"
@@ -1267,22 +1347,16 @@ export default function VehicleCardPage() {
                     >
                       + Add Receipt
                     </button>
-                    <button
-                      onClick={() => setShowManual(true)}
-                      className="px-4 py-2 mt-3 bg-purple-600 rounded hover:bg-purple-700"
-                    >
-                      Sync Owner Manual
-                    </button>
                   </div>
                 )}
               </div>
             </div>
             {/* Right Column: Admin Documents & Depreciation */}
             <div className="space-y-8">
-              {/* Admin Documents */}
+              {/* Documents */}
               <div className="p-6 border rounded-lg shadow-lg bg-neutral-800 border-neutral-700">
                 <h2 className="pb-2 mb-4 text-2xl font-bold text-white border-b">
-                  Admin Documents
+                  Paperwork
                 </h2>
                 {/* Grid for Title, Registration and Inspection */}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -1502,35 +1576,31 @@ export default function VehicleCardPage() {
         )}
 
         {/* Receipt Modal */}
-        {selectedReceiptUrl && (
+        {selectedReceiptUrls.length > 0 && (
           <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-70">
             <div className="relative w-full max-w-3xl p-6 bg-white rounded-lg shadow-xl">
               <div className="flex justify-between mb-4">
-                <h2 className="text-2xl font-semibold">Receipt Detail</h2>
+                <h2 className="text-2xl font-semibold">Receipt Details</h2>
                 <button
-                  onClick={() => setSelectedReceiptUrl(null)}
+                  onClick={() => setSelectedReceiptUrls([])}
                   className="text-2xl font-bold"
                 >
                   ×
                 </button>
               </div>
-              <div className="overflow-auto h-96">
-                <iframe
-                  src={selectedReceiptUrl}
-                  className="w-full h-full border"
-                  title="Receipt"
-                ></iframe>
+              <div className="overflow-auto h-96 space-y-4">
+                {selectedReceiptUrls.map((url, index) => (
+                  <iframe
+                    key={index}
+                    src={url}
+                    className="w-full h-64 border"
+                    title={`Receipt ${index + 1}`}
+                  ></iframe>
+                ))}
               </div>
               <div className="flex justify-end mt-4 space-x-4">
-                <a
-                  href={selectedReceiptUrl}
-                  download
-                  className="px-4 py-2 text-white transition bg-green-600 rounded hover:bg-green-700"
-                >
-                  Download
-                </a>
                 <button
-                  onClick={() => setSelectedReceiptUrl(null)}
+                  onClick={() => setSelectedReceiptUrls([])}
                   className="px-4 py-2 text-white transition bg-gray-600 rounded hover:bg-gray-700"
                 >
                   Close
@@ -1544,10 +1614,10 @@ export default function VehicleCardPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
             <div className="w-full max-w-sm p-6 rounded shadow-lg bg-zinc-600">
               <h3 className="mb-4 text-xl font-semibold">
-                Confirmer la suppression
+                Confirm Deletion
               </h3>
               <p className="mb-6">
-                Êtes-vous sûr de vouloir supprimer ce receipt :{" "}
+                Are you sure you want to delete it? :{" "}
                 <strong>{receiptToDelete.title}</strong> ?
               </p>
               <div className="flex justify-end space-x-4">
@@ -1555,7 +1625,7 @@ export default function VehicleCardPage() {
                   onClick={() => setReceiptToDelete(null)}
                   className="px-4 py-2 text-red-700 bg-gray-300 rounded hover:bg-gray-400"
                 >
-                  Annuler
+                  Cancel
                 </button>
                 <button
                   onClick={async () => {
@@ -1567,7 +1637,7 @@ export default function VehicleCardPage() {
                   }}
                   className="px-4 py-2 text-white bg-red-600 rounded hover:bg-red-700"
                 >
-                  Supprimer
+                  Delete
                 </button>
               </div>
             </div>

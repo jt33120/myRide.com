@@ -1,6 +1,7 @@
 import axios from "axios";
 import { ref, getDownloadURL } from "firebase/storage";
-import { storage } from "../../lib/firebase";
+import { doc, updateDoc } from "firebase/firestore";
+import { storage, db } from "../../lib/firebase"; // Ensure Firestore is imported
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -43,9 +44,10 @@ export default async function handler(req, res) {
     ${JSON.stringify(maintenanceTable, null, 2)}
     The current mileage of the vehicle is ${currentMileage} miles.
 
-    Your output:
-    1. Most urgent task: [Category] at [NextTimeToDo] miles.
-    2. Missing history: [list of blank_categories].`;
+    Your output are these pieces of information (don't display anything else, it's a snapshot for the owner):
+    1. Go through all rows, and get the category (first column value) with the smallest value in NextTimeToDo that is still above ${currentMileage} (row that minimizes  NextTimeToDo - ${currentMileage} being > 0. Display a message as such : "Most urgent to come: [Category] at [value in 'NextTimeToDo'] miles". Obviously, the recommendation has to be for a mileage > ${currentMileage}.
+    2. Add a warning for all maintenance missing history: list of all categories with blank value in column 'NextTimeToDo' (so-called blank_categories). Like this: "No history found for: [list of blank_categories]. We recommend checking them.
+    3. Maintenance Grade: To come`;
 
     // Debugging: Log the constructed prompt
     console.log("Constructed Prompt:", prompt);
@@ -72,6 +74,12 @@ export default async function handler(req, res) {
 
     const recommendation = aiResponse.data.choices[0].message.content.trim();
     console.log("AI Recommendation:", recommendation);
+
+    // Update the aiRecommendation field in Firestore
+    console.log("Updating Firestore with AI recommendation...");
+    const vehicleRef = doc(db, "listing", vehicleId);
+    await updateDoc(vehicleRef, { aiRecommendation: recommendation });
+    console.log("Firestore updated successfully.");
 
     // Return the recommendation
     res.status(200).json({ recommendation });
