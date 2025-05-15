@@ -1,80 +1,78 @@
-import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/router';
-import { auth } from '../lib/firebase';
-import Layout from '../components/Layout';
-import Head from 'next/head';
-import '../styles/globals.css';
-import '../styles/Navbar.css';
-import { UserProvider } from '../context/UserContext';
+// pages/_app.js
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+import { auth } from "../lib/firebase";
+import Layout from "../components/Layout";
+import Head from "next/head";
+
+// → Import de **tous** tes CSS globaux au même endroit
+import "../styles/globals.css";
+import "../styles/Navbar.css";
+
+import { UserProvider } from "../context/UserContext";
 
 function MyApp({ Component, pageProps }) {
   const router = useRouter();
   const [authChecked, setAuthChecked] = useState(false);
-  const [user, setUser] = useState(null);
 
+  // Vérification de l'authentification & redirections
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      setUser(user);
+    const unsubscribe = auth.onAuthStateChanged((u) => {
       setAuthChecked(true);
 
-      if (user) {
-        // Redirect only if the user is on public pages
-        if (['/Welcome_page', '/login_page', '/signup_page'].includes(router.pathname)) {
-          const redirectUrl = router.query.redirect || '/myVehicles_page';
-          router.push(redirectUrl); // Redirect to the intended page or dashboard
+      if (u) {
+        if (
+          ["/Welcome_page", "/login_page", "/signup_page"].includes(
+            router.pathname
+          )
+        ) {
+          const redirectUrl = router.query.redirect || "/";
+          router.push(redirectUrl);
         }
       } else {
-        // Redirect to Welcome_page if not logged in
-        if (router.pathname === '/') {
-          router.push('/Welcome_page');
+        if (router.pathname === "/") {
+          router.push("/");
         }
       }
     });
-
     return () => unsubscribe();
   }, [router]);
 
-  useEffect(() => {
-    if (authChecked) {
-      if (user && ['/Welcome_page', '/login_page', '/signup_page'].includes(router.pathname)) {
-        const redirectUrl = router.query.redirect || '/myVehicles_page';
-        router.push(redirectUrl); // Redirect to the intended page or dashboard
-      } else if (!user && router.pathname === '/') {
-        router.push('/Welcome_page'); // Redirect to Welcome_page if not logged in
-      }
-    }
-  }, [authChecked, user, router]);
-
+  // Timeout de déconnexion pour inactivité (24 h ici)
   useEffect(() => {
     let timeoutId;
-
     const logoutUser = () => {
       auth.signOut().then(() => {
-        console.log('User logged out due to inactivity.');
-        router.push('/login_page'); // Redirect to login page
+        router.push("/login_page");
       });
     };
-
     const resetTimeout = () => {
       clearTimeout(timeoutId);
-      timeoutId = setTimeout(logoutUser, 24 * 60 * 60 * 1000); // 30 minutes of inactivity
+      timeoutId = setTimeout(logoutUser, 24 * 60 * 60 * 1000);
     };
-
-    const activityEvents = ['mousemove', 'keydown', 'click', 'scroll'];
-
-    activityEvents.forEach((event) =>
-      window.addEventListener(event, resetTimeout)
+    ["mousemove", "keydown", "click", "scroll"].forEach((evt) =>
+      window.addEventListener(evt, resetTimeout)
     );
-
-    resetTimeout(); // Start the timeout on mount
-
+    resetTimeout();
     return () => {
       clearTimeout(timeoutId);
-      activityEvents.forEach((event) =>
-        window.removeEventListener(event, resetTimeout)
+      ["mousemove", "keydown", "click", "scroll"].forEach((evt) =>
+        window.removeEventListener(evt, resetTimeout)
       );
     };
-  }, []);
+  }, [router]);
+
+  // Gestion des erreurs globales
+  useEffect(() => {
+    const handleRouteChangeError = (err, url) => {
+      console.error("Erreur de routage vers :", url, err);
+    };
+
+    router.events.on("routeChangeError", handleRouteChangeError);
+    return () => {
+      router.events.off("routeChangeError", handleRouteChangeError);
+    };
+  }, [router]);
 
   if (!authChecked) {
     return <div>Loading...</div>;

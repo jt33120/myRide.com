@@ -1,11 +1,28 @@
 import React, { useEffect, useState } from "react";
-import { storage } from "../lib/firebase";
+import { useRouter } from "next/router";
+import { auth, storage } from "../lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 import { ref, getDownloadURL } from "firebase/storage";
 
 const DocumentsPage = () => {
-  const [buyMotorcycleChecklistUrl, setBuyMotorcycleChecklistUrl] = useState("");
-  const [billOfSaleUrl, setBillOfSaleUrl] = useState("");
-  const [buyCarChecklistUrl, setBuyCarChecklistUrl] = useState("");
+  const [user, setUser] = useState(null);
+  const [documents, setDocuments] = useState({
+    registration: null,
+    insurance: null,
+    maintenance: null,
+  });
+  const router = useRouter();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (!currentUser) {
+        router.push("/login_page"); // Redirect to login page if not logged in
+      } else {
+        setUser(currentUser);
+      }
+    });
+    return () => unsubscribe();
+  }, [router]);
 
   useEffect(() => {
     const fetchDocumentUrls = async () => {
@@ -17,115 +34,118 @@ const DocumentsPage = () => {
         const billOfSaleRef = ref(storage, "public/BillOfSale_Template.pdf");
         const carChecklistRef = ref(storage, "public/BUY_CAR_CHECKLIST.xlsx");
 
-        const motorcycleChecklistUrl = await getDownloadURL(
-          motorcycleChecklistRef
-        );
-        const billOfSaleUrl = await getDownloadURL(billOfSaleRef);
-        const carChecklistUrl = await getDownloadURL(carChecklistRef);
+        const registrationURL = await getDownloadURL(motorcycleChecklistRef);
+        const insuranceURL = await getDownloadURL(billOfSaleRef);
+        const maintenanceURL = await getDownloadURL(carChecklistRef);
 
-        setBuyMotorcycleChecklistUrl(motorcycleChecklistUrl);
-        setBillOfSaleUrl(billOfSaleUrl);
-        setBuyCarChecklistUrl(carChecklistUrl);
+        setDocuments({
+          registration: registrationURL,
+          insurance: insuranceURL,
+          maintenance: maintenanceURL,
+        });
       } catch (error) {
         console.error("Error fetching document URLs:", error);
       }
     };
-
     fetchDocumentUrls();
   }, []);
 
+  // const handleView = (type) => {
+  //   alert(`Viewing ${documents[type]}`);
+  // };
+
+  if (!user) {
+    return <p className="text-center text-white">Loading...</p>; // Show loading message
+  }
+
   return (
-    <div className="min-h-screen pt-20 px-6 bg-gray-100 text-black">
-      <h1 className="page-heading">Documents</h1>
-      <p className="page-subheading">
-        Our goal is to simplify your life with pre-filled documents. To come:
-        all digitalized bill of sale, signed electronically, all safe. We will
-        also add AI guidelines for specific checklists per model.
-      </p>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 space-between-boxes">
-        <div className="card relative">
-          <div className="card-content">
-            <h2 className="card-title">Motorcycle Checklist</h2>
-            <p className="card-description">
-              How to buy a used motorcycle? (XLSX)
-            </p>
-          </div>
-          <a
-            href={buyMotorcycleChecklistUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="absolute top-1/2 right-0 transform -translate-y-1/2 button-primary"
+    <div className="container min-h-screen py-10 mx-auto text-white bg-zmx-auto ">
+      {/* Title Section */}
+      <div className="mb-10 text-center md:mt-32 ">
+        <h1 className="text-4xl font-bold text-white">Documents</h1>
+        <p className="mt-2 text-gray-400">
+          Manage and upload all your essential documents here. Ensure everything
+          is up to date for a seamless experience.
+        </p>
+      </div>
+
+      {/* Cards Section */}
+      <div className="grid grid-cols-1 gap-6 px-6 sm:grid-cols-2 lg:grid-cols-3">
+        {[
+          {
+            type: "registration",
+            title: "Motorcycle Checklist",
+            subtitle: "How to buy a used motorcycle? (XLSX)",
+          },
+          {
+            type: "insurance",
+            title: "Bill of Sale Template",
+            subtitle: "Template for vehicle sale (PDF)",
+          },
+          {
+            type: "maintenance",
+            title: "Car Checklist",
+            subtitle: "How to buy a used car? (XLSX)",
+          },
+        ].map(({ type, title, subtitle }) => (
+          <div
+            key={type}
+            className="p-6 text-center transition bg-white border-4 border-gray-500 shadow-md rounded-xl hover:shadow-lg hover:scale-105"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth="1.5"
-              stroke="currentColor"
-              className="size-6"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"
-              />
-            </svg>
-          </a>
-        </div>
-        <div className="card relative">
-          <div className="card-content">
-            <h2 className="card-title">Bill of Sale Template</h2>
-            <p className="card-description">Template for vehicle sale (PDF)</p>
+            <h2 className="mb-2 text-lg font-semibold text-gray-800">
+              {title}
+            </h2>
+            <p className="mb-4 text-sm text-gray-600">{subtitle}</p>
+            <div className="mb-4">
+              {documents[type] ? (
+                <span className="text-green-500">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-8 h-8 mx-auto"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                </span>
+              ) : (
+                <span className="text-red-500">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-8 h-8 mx-auto"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </span>
+              )}
+            </div>
+            {documents[type] ? (
+              <a
+                href={documents[type]}
+                download
+                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white transition bg-purple-600 rounded-lg hover:bg-purple-700"
+              >
+                Download
+              </a>
+            ) : (
+              <span className="text-gray-500">Not available</span>
+            )}
           </div>
-          <a
-            href={billOfSaleUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="absolute top-1/2 right-0 transform -translate-y-1/2 button-primary"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth="1.5"
-              stroke="currentColor"
-              className="size-6"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"
-              />
-            </svg>
-          </a>
-        </div>
-        <div className="card relative">
-          <div className="card-content">
-            <h2 className="card-title">Car Checklist</h2>
-            <p className="card-description">How to buy a used car? (XLSX)</p>
-          </div>
-          <a
-            href={buyCarChecklistUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="absolute top-1/2 right-0 transform -translate-y-1/2 button-primary"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth="1.5"
-              stroke="currentColor"
-              className="size-6"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"
-              />
-            </svg>
-          </a>
-        </div>
+        ))}
       </div>
     </div>
   );

@@ -1,153 +1,107 @@
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/router'; // Import router for navigation
-import { auth } from '../lib/firebase';
+import React, { useState, useEffect } from "react";
+import { auth } from "../lib/firebase";
 
-const HelpPage = () => {
-  const [topic, setTopic] = useState('');
-  const [message, setMessage] = useState('');
-  const [confirmation, setConfirmation] = useState('');
-  const [userEmail, setUserEmail] = useState('');
-  const router = useRouter(); // Initialize router
+export default function HelpPage() {
+  const [topic, setTopic] = useState("");
+  const [message, setMessage] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
-    const fetchUserEmail = async () => {
-      const user = auth.currentUser;
-      if (user) {
-        console.log("User is logged in:", user.email);
-        setUserEmail(user.email);
-      } else {
-        console.warn("No user logged in!");
-      }
-    };
-
-    fetchUserEmail();
+    const user = auth.currentUser;
+    if (user) setUserEmail(user.email);
   }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!userEmail) {
       setConfirmation("Error: No user email found!");
       return;
     }
-
-    console.log("Sending request to /api/send-email with:", { userEmail, topic, message });
-
     try {
-      const response = await fetch('/api/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userEmail, topic, message }),
       });
-
       const data = await response.json();
-      console.log("Server response:", data);
-
       if (response.ok) {
         setConfirmation("Message sent, will reply ASAP!");
       } else {
-        setConfirmation("Something went wrong: " + data.message);
+        setConfirmation(`Something went wrong: ${data.message}`);
       }
     } catch (error) {
-      console.error("Error sending request:", error);
+      console.error("Error:", error);
       setConfirmation("Error sending email. Please try again.");
     }
-
-    setTopic('');
-    setMessage('');
+    setTopic("");
+    setMessage("");
   };
 
   return (
-    <div style={{ textAlign: 'center', padding: '50px', backgroundColor: '#f9f9f9', position: 'relative' }}>
-      {/* Exit Button */}
-      <button 
-        onClick={() => router.push('/myDashboard_page')}
-        style={{
-          position: 'absolute',
-          top: '15px',
-          left: '15px',
-          background: 'none',
-          border: 'none',
-          fontSize: '20px',
-          color: '#555',
-          cursor: 'pointer'
-        }}
-        title="Back to Dashboard"
-      >
-        ⏎
-      </button>
-
-      <h1 style={{ fontSize: '36px', color: '#333', marginBottom: '30px' }}>Need Help?</h1>
-      <p style={{ fontSize: '18px', color: '#666', marginBottom: '40px' }}>
-        Do you have any issue, question, or remark about MyRide? Send me an email, and I will make sure to answer you ASAP!
-      </p>
-
-      <form onSubmit={handleSubmit} style={{ maxWidth: '600px', margin: '0 auto', backgroundColor: 'white', padding: '30px', borderRadius: '8px', border: '2px solid #e42fee' }}>
-        <div style={{ marginBottom: '20px' }}>
-          <label htmlFor="topic" style={{ display: 'block', fontSize: '16px', fontWeight: 'bold', color: '#333', marginBottom: '8px' }}>Topic:</label>
-          <input 
-            type="text" 
-            id="topic" 
-            value={topic} 
-            onChange={(e) => setTopic(e.target.value)} 
-            placeholder="Enter the topic" 
-            style={{
-              padding: '12px', 
-              width: '100%', 
-              border: '1px solid #ccc', 
-              borderRadius: '6px', 
-              fontSize: '16px', 
-              boxSizing: 'border-box'
-            }} 
-          />
+    <div className="flex flex-col min-h-screen bg-gradient-to-b from-black to-gray-800">
+      <div className="flex-grow py-12 mt-24">
+        <div className="container px-6 mx-auto">
+          <div className="max-w-4xl p-8 mx-auto bg-white rounded-lg shadow-md">
+            <h1 className="text-3xl font-bold text-gray-800">Need Help ?</h1>
+            <p className="mt-2 text-gray-600">
+              Have an issue, question, or feedback about MyRide ? <br />Send us a
+              message and we&apos;ll get back to you ASAP.
+            </p>
+            <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+              <div>
+                <label
+                  htmlFor="topic"
+                  className="block mb-2 text-sm font-medium text-gray-700"
+                >
+                  Topic
+                </label>
+                <select
+                  id="topic"
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  className="w-full px-4 py-2 mb-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="">Select a topic</option>
+                  <option value="Account Issue">Account Issue</option>
+                  <option value="Feature Request">Feature Request</option>
+                  <option value="Bug Report">Bug Report</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label
+                  htmlFor="message"
+                  className="block mb-2 text-sm font-medium text-gray-700"
+                >
+                  Message
+                </label>
+                <textarea
+                  id="message"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Your message here..."
+                  rows={6}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full py-3 text-lg font-semibold text-white transition bg-purple-600 rounded-lg hover:bg-purple-700"
+              >
+                Send Message
+              </button>
+            </form>
+            {confirmation && (
+              <p className="mt-6 font-medium text-center text-green-600">
+                {confirmation}
+              </p>
+            )}
+            <p>Don&apos;t hesitate to reach out for support.</p>
+          </div>
         </div>
-
-        <div style={{ marginBottom: '20px' }}>
-          <label htmlFor="message" style={{ display: 'block', fontSize: '16px', fontWeight: 'bold', color: '#333', marginBottom: '8px' }}>Message:</label>
-          <textarea 
-            id="message" 
-            value={message} 
-            onChange={(e) => setMessage(e.target.value)} 
-            placeholder="Your message here..." 
-            rows="6" 
-            style={{
-              padding: '12px', 
-              width: '100%', 
-              border: '1px solid #ccc', 
-              borderRadius: '6px', 
-              fontSize: '16px', 
-              boxSizing: 'border-box'
-            }}
-          />
-        </div>
-
-        <button 
-          type="submit" 
-          style={{
-            padding: '14px 28px', 
-            backgroundColor: '#e42fee', 
-            color: 'white', 
-            fontSize: '18px', 
-            border: 'none', 
-            borderRadius: '6px', 
-            cursor: 'pointer', 
-            width: '100%', 
-            transition: 'background-color 0.3s ease'
-          }}
-          onMouseEnter={(e) => e.target.style.backgroundColor = '#d631f7'}
-          onMouseLeave={(e) => e.target.style.backgroundColor = '#e42fee'}
-        >
-          Send
-        </button>
-      </form>
-
-      {confirmation && (
-        <div style={{ marginTop: '30px', color: 'black', fontWeight: 'bold', fontSize: '18px' }}>
-          {confirmation}
-        </div>
-      )}
+      </div>
     </div>
   );
-};
-
-export default HelpPage;
+}

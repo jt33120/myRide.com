@@ -67,10 +67,29 @@ Your output should be the updated JSON format of the maintenance table, exact sa
     };
     await uploadString(storageRef, JSON.stringify(updatedTable, null, 2), "raw", metadata);
     console.log("Updated maintenance table saved successfully at:", new Date().toISOString());
-    res.status(200).json({
-      message: "Maintenance table updated successfully.",
-      timestamp: new Date().toISOString(),
-    });
+
+        // Call analyzeManual to update aiRec and aiRecommendation
+        console.log("Calling analyzeManual to update AI recommendations...");
+        const analyzeResponse = await axios.post(
+          "/api/analyzeManual",
+          { vehicleId, currentMileage },
+          {
+            headers: {
+              "Content-Type": "application/json",
+            }
+          }
+        );
+    
+        if (!analyzeResponse.data || !analyzeResponse.data.success) {
+          throw new Error("Failed to update AI recommendations via analyzeManual.");
+        }
+    
+        console.log("AI recommendations updated successfully via analyzeManual.");
+    
+        res.status(200).json({
+          message: "Maintenance table and AI recommendations updated successfully.",
+          timestamp: new Date().toISOString(),
+        });
   } catch (error) {
     console.error("Error updating maintenance table at:", new Date().toISOString(), error.message);
 
