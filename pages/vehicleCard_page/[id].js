@@ -203,17 +203,38 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
         receipt,
         { merge: true }
       );
-
-      // Call the updateMaintenanceTable API
-      await fetch("/api/updateMaintenanceTable", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          vehicleId,
-          currentMileage: mileage, // Pass the current mileage
-          receiptData: receipt,    // Pass the receipt data
-        }),
-      });
+  
+      // Call the aiEstimator API
+      const vehicleSnap = await getDoc(doc(db, "listing", vehicleId));
+      if (vehicleSnap.exists()) {
+        const vehicleData = vehicleSnap.data();
+        const response = await fetch("/api/aiEstimator", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            make: vehicleData.make,
+            model: vehicleData.model,
+            year: vehicleData.year,
+            mileage: vehicleData.mileage,
+            city: vehicleData.city,
+            state: vehicleData.state,
+            zip: vehicleData.zip,
+            color: vehicleData.color,
+            title: vehicleData.title,
+            vehicleId: vehicleId,
+          }),
+        });
+  
+        if (!response.ok) {
+          console.error("Failed to fetch AI estimation");
+          toast.error("Failed to fetch AI estimation");
+        } else {
+          toast.success("AI estimation updated successfully");
+        }
+      }
+  
       toast.success(isEdit ? "Receipt updated" : "Receipt saved");
       onSaved(receipt);
       onClose();
@@ -304,6 +325,7 @@ export default function VehicleCardPage() {
   const [ownerName, setOwnerName] = useState("");
   const [receipts, setReceipts] = useState([]);
   const [images, setImages] = useState([]);
+  const [, setLoading] = useState(true);
   const [aiRec, setAiRec] = useState("");
   const [timeWindow, setTimeWindow] = useState("Last Year");
   const [isListed, setIsListed] = useState(false);
@@ -400,6 +422,65 @@ export default function VehicleCardPage() {
       setAllDocs(docs);
     })();
   }, [id]);
+
+  // Update AI value estimation
+    useEffect(() => {
+      if (!id) return;
+
+      async function fetchVehicleData() {
+        try {
+          // Fetch vehicle data from Firestore
+          const vehicleRef = doc(db, "listing", id);
+          const vehicleSnap = await getDoc(vehicleRef);
+
+          if (vehicleSnap.exists()) {
+            const vehicleData = vehicleSnap.data();
+            setVehicle(vehicleData);
+
+            // Call the aiEstimator API for this vehicle
+            const response = await fetch("/api/aiEstimator", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                make: vehicleData.make,
+                model: vehicleData.model,
+                year: vehicleData.year,
+                mileage: vehicleData.mileage,
+                city: vehicleData.city,
+                state: vehicleData.state,
+                zip: vehicleData.zip,
+                color: vehicleData.color,
+                title: vehicleData.title,
+                vehicleId: id,
+              }),
+            });
+
+            if (!response.ok) {
+              console.error("Failed to fetch AI estimation");
+              toast.error("Failed to fetch AI estimation");
+            } else {
+              // Refetch the vehicle data to get the updated `ai_estimated_value`
+              const updatedVehicleSnap = await getDoc(vehicleRef);
+              if (updatedVehicleSnap.exists()) {
+                setVehicle(updatedVehicleSnap.data());
+              }
+            }
+          } else {
+            console.error("Vehicle not found in Firestore.");
+            toast.error("Vehicle not found.");
+          }
+        } catch (error) {
+          console.error("Error fetching vehicle data:", error);
+          toast.error("Error fetching vehicle data.");
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      fetchVehicleData();
+    }, [id]);
 
   // Update formData when vehicle is loaded in edit mode
   useEffect(() => {
@@ -539,7 +620,6 @@ export default function VehicleCardPage() {
   };
 
   // Calcul des sommes
-  // Calcul des sommes
   const calculateSum = (type) => {
     switch (type) {
       case "Total Spent":
@@ -603,23 +683,87 @@ export default function VehicleCardPage() {
     };
   }, [vehicle, timeWindow]);
 
-  // Chart avec points AI
-  const chartData = useMemo(() => {
-    const aiArray = Array.isArray(vehicle?.ai_estimated_value)
-      ? vehicle.ai_estimated_value
-      : []; // Ajoutez une valeur par défaut
-    const aiPts = aiArray.map((e) => {
-      const [val, date] = e.split("-");
-      return { x: new Date(date), y: +val };
-    });
+// Chart avec points AI
+const chartData = useMemo(() => {
+  if (!vehicle || !Array.isArray(vehicle.ai_estimated_value)) {
+    console.warn("Vehicle data or AI estimated values are missing.");
     return {
       ...baseChart,
-      datasets: [
-        ...baseChart.datasets,
-        { label: "AI Estimated", data: aiPts, parsing: false, pointRadius: 4 },
-      ],
+      datasets: [...baseChart.datasets],
     };
-  }, [baseChart, vehicle]);
+  }
+
+  const aiArray = vehicle.ai_estimated_value;
+
+  // Define the start date based on the selected time window
+  const now = new Date();
+  let startDate;
+  if (timeWindow === "Last Week") {
+    startDate = new Date(now);
+    startDate.setDate(now.getDate() - 7);
+  } else if (timeWindow === "Last Month") {
+    startDate = new Date(now);
+    startDate.setMonth(now.getMonth() - 1);
+  } else if (timeWindow === "Last Year") {
+    startDate = new Date(now);
+    startDate.setFullYear(now.getFullYear() - 1);
+  } else {
+    startDate = new Date(0); // Default to include all dates if no valid time window is selected
+  }
+
+  // Parse and filter AI points based on the time window
+  const aiPts = aiArray
+    .map((e) => {
+      const [val, date] = e.split(/-(.+)/); // Split on the first "-"
+      const parsedDate = new Date(date); // Parse the date
+      if (isNaN(parsedDate)) {
+        console.error(`Invalid date format: ${date}`);
+        return null; // Skip invalid entries
+      }
+      return { x: parsedDate, y: +val }; // Keep the raw date object for filtering
+    })
+    .filter(
+      (point) => point && point.x >= startDate && point.x <= now // Filter points within the time window
+    )
+    .map((point) => ({
+      x: point.x.toLocaleDateString("en-US"), // Format date for x-axis
+      y: point.y,
+    }));
+
+  // Add a point for `boughtAt` using `createdAt` as the x-axis, and filter it
+  const boughtAtPoint =
+    vehicle?.boughtAt && vehicle?.createdAt
+      ? {
+          x: new Date(vehicle.createdAt.seconds * 1000), // Convert Firestore timestamp to Date
+          y: vehicle.boughtAt, // Use `boughtAt` as the y-value
+        }
+      : null;
+
+  // Filter the `boughtAtPoint` based on the time window
+  const filteredBoughtAtPoint =
+    boughtAtPoint && boughtAtPoint.x >= startDate && boughtAtPoint.x <= now
+      ? {
+          x: boughtAtPoint.x.toLocaleDateString("en-US"), // Format date for x-axis
+          y: boughtAtPoint.y,
+        }
+      : null;
+
+  return {
+    ...baseChart,
+    datasets: [
+      ...baseChart.datasets,
+      { label: "AI Estimated", data: aiPts, parsing: false, pointRadius: 4, borderColor: "blue", backgroundColor: "blue" },
+      {
+        label: "Bought At",
+        data: filteredBoughtAtPoint ? [filteredBoughtAtPoint] : [],
+        borderColor: "red",
+        backgroundColor: "red",
+        pointRadius: 6,
+        pointStyle: "circle",
+      },
+    ],
+  };
+}, [baseChart, vehicle, timeWindow]);
 
   if (!user) return null;
   if (!vehicle) return <p>Loading…</p>;
@@ -915,14 +1059,26 @@ export default function VehicleCardPage() {
 
   // New helper function to upload or modify admin documents
   const handleUploadAdminDocument = async (type, file) => {
+    // Prompt the user for the deadline date
+    const deadline = prompt(
+      `Please enter the deadline (end of validity) for the ${type} document in the format MM-DD-YYYY:`
+    );
+  
+    // Validate the entered date
+    if (!deadline || !/^\d{2}-\d{2}-\d{4}$/.test(deadline)) {
+      toast.error("Invalid date format. Please use MM-DD-YYYY.");
+      return;
+    }
+  
     const ext = file.name.substring(file.name.lastIndexOf("."));
-    const name = `${type}-${Date.now()}${ext}`;
+    const name = `${type}-${deadline}${ext}`; // Append the deadline to the document name
     const path = `listing/${id}/docs/${name}`;
     const storageRef = ref(storage, path);
+  
     try {
       await uploadBytesResumable(storageRef, file);
       const url = await getDownloadURL(storageRef);
-      toast.success(`${type} document uploaded`);
+      toast.success(`${type} document uploaded with deadline ${deadline}`);
       setAllDocs((prevDocs) => [
         ...prevDocs.filter((d) => !d.name.toLowerCase().includes(type)),
         { name, url },
@@ -1039,33 +1195,6 @@ export default function VehicleCardPage() {
                 Excellent
               </span>
             </div>
-            {user.uid === vehicle.uid && (
-              <div className="mt-6 text-center">
-                {isListed ? (
-                  <button
-                    onClick={removeFromMarketplace}
-                    className="px-6 py-2 text-white transition bg-red-600 rounded hover:bg-red-700"
-                  >
-                    Remove from Marketplace
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => {
-                      if (!vehicle.vin || vehicle.vin.trim() === "") {
-                        toast.error(
-                          "Veuillez renseigner le VIN avant de lister sur le marketplace"
-                        );
-                        return;
-                      }
-                      setShowMarketplaceModal(true);
-                    }}
-                    className="px-6 py-2 text-white transition bg-green-600 rounded hover:bg-green-700"
-                  >
-                    Add to Marketplace
-                  </button>
-                )}
-              </div>
-            )}
           </div>
         </div>
         {/* Enlarged image modal showing full gallery */}
@@ -1361,9 +1490,7 @@ export default function VehicleCardPage() {
                 {/* Grid for Title, Registration and Inspection */}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   {["title", "registration", "inspection"].map((type) => {
-                    const docObj = allDocs.find((d) =>
-                      d.name.toLowerCase().includes(type)
-                    );
+                    const docObj = allDocs.find((d) => d.name.toLowerCase().includes(type));
                     const labels = {
                       title: "Title",
                       registration: "Registration",
@@ -1376,18 +1503,27 @@ export default function VehicleCardPage() {
                         ? Shield
                         : Clipboard;
 
+                    // Extract the deadline from the document name (MM-DD-YYYY format)
+                    const deadlineMatch = docObj?.name.match(/\d{2}-\d{2}-\d{4}/);
+                    const deadline = deadlineMatch ? new Date(deadlineMatch[0]) : null;
+                    const isExpired = deadline && deadline < new Date(); // Check if the deadline has passed
+
                     return (
                       <div
                         key={type}
-                        className="flex flex-col items-center p-4 bg-gray-700 rounded-lg"
+                        className={`flex flex-col items-center p-4 rounded-lg ${
+                          type === "title"
+                            ? "bg-blue-900" // Title is always blue
+                            : docObj
+                            ? isExpired
+                              ? "bg-red-900" // Red if deadline has passed
+                              : "bg-blue-900" // Blue if deadline is valid
+                            : "bg-gray-500" // Gray if no document
+                        }`}
                       >
                         {vehicle.uid === user.uid ? (
                           <>
-                            <div
-                              className={`w-16 h-16 flex items-center justify-center rounded-full mb-2 ${
-                                docObj ? "bg-blue-500" : "bg-gray-500"
-                              }`}
-                            >
+                            <div className="w-16 h-16 flex items-center justify-center rounded-full mb-2">
                               <IconComponent className="w-8 h-8 text-white" />
                             </div>
                             <span className="text-sm font-medium text-white">
@@ -1398,9 +1534,7 @@ export default function VehicleCardPage() {
                               <>
                                 <div className="flex flex-col items-center mt-1 space-y-1">
                                   <button
-                                    onClick={() =>
-                                      setSelectedAdminDocUrl(docObj.url)
-                                    }
+                                    onClick={() => setSelectedAdminDocUrl(docObj.url)}
                                     className="cursor-pointer"
                                     title="View document"
                                   >
@@ -1417,9 +1551,7 @@ export default function VehicleCardPage() {
                                     <button
                                       onClick={() =>
                                         document
-                                          .getElementById(
-                                            `modify-file-input-${type}`
-                                          )
+                                          .getElementById(`modify-file-input-${type}`)
                                           .click()
                                       }
                                       className="text-green-500 hover:text-green-600"
@@ -1429,18 +1561,13 @@ export default function VehicleCardPage() {
                                     </button>
                                   </div>
                                 </div>
-                                {/* Hint for owner */}
-
                                 <input
                                   id={`modify-file-input-${type}`}
                                   type="file"
                                   className="hidden"
                                   onChange={(e) =>
                                     e.target.files[0] &&
-                                    handleUploadAdminDocument(
-                                      type,
-                                      e.target.files[0]
-                                    )
+                                    handleUploadAdminDocument(type, e.target.files[0])
                                   }
                                 />
                               </>
@@ -1459,10 +1586,7 @@ export default function VehicleCardPage() {
                                   className="hidden"
                                   onChange={(e) =>
                                     e.target.files[0] &&
-                                    handleUploadAdminDocument(
-                                      type,
-                                      e.target.files[0]
-                                    )
+                                    handleUploadAdminDocument(type, e.target.files[0])
                                   }
                                 />
                               </>
@@ -1470,19 +1594,20 @@ export default function VehicleCardPage() {
                           </>
                         ) : (
                           <>
-                            {/* non-owner: green if exists, red if missing */}
                             <div
                               className={`w-16 h-16 flex items-center justify-center rounded-full mb-2 ${
-                                docObj ? "bg-green-500" : "bg-red-500"
+                                docObj
+                                  ? isExpired
+                                    ? "bg-red-500"
+                                    : "bg-green-500"
+                                  : "bg-gray-500"
                               }`}
                             >
                               <IconComponent className="w-8 h-8 text-white" />
                             </div>
-                            <h3 className="text-sm font-medium text-white">
-                              {labels[type]}
-                            </h3>
+                            <h3 className="text-sm font-medium text-white">{labels[type]}</h3>
                             <span className="mt-1 text-xs text-gray-300">
-                              {docObj ? "Added" : "Not Added"}
+                              {docObj ? (isExpired ? "Expired" : "Valid") : "Not Added"}
                             </span>
                           </>
                         )}
@@ -1498,11 +1623,38 @@ export default function VehicleCardPage() {
                   </p>
                 )}
               </div>
-              {/* Depreciation Chart */}
+              {/* Finance section */}
               <div className="p-6 border rounded-lg shadow-lg bg-neutral-800 border-neutral-700">
-                <h2 className="pb-2 mb-4 text-2xl font-bold text-white border-b">
-                  Depreciation Curve
-                </h2>
+                <div className="flex items-center justify-between pb-2 mb-4 border-b">
+                  <h2 className="text-2xl font-bold text-white">Finance Section</h2>
+                  {user.uid === vehicle.uid && (
+                    <>
+                      {isListed ? (
+                        <button
+                          onClick={removeFromMarketplace}
+                          className="px-6 py-2 text-white transition bg-red-600 rounded hover:bg-red-700"
+                        >
+                          Remove from Marketplace
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            if (!vehicle.vin || vehicle.vin.trim() === "") {
+                              toast.error(
+                                "Veuillez renseigner le VIN avant de lister sur le marketplace"
+                              );
+                              return;
+                            }
+                            setShowMarketplaceModal(true);
+                          }}
+                          className="px-6 py-2 text-white transition bg-green-600 rounded hover:bg-green-700"
+                        >
+                          Add to Marketplace
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
                 <select
                   className="p-2 mb-4 text-white rounded bg-neutral-700"
                   value={timeWindow}

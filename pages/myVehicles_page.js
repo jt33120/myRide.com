@@ -94,17 +94,40 @@ export default function MyGarage() {
                   if (!vSnap.exists()) return null;
                   const vData = vSnap.data();
 
-                  // fetch images
+                  // Call the aiEstimator API
+                  const response = await fetch("/api/aiEstimator", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      make: vData.make,
+                      model: vData.model,
+                      year: vData.year,
+                      mileage: vData.mileage,
+                      city: vData.city, // Add city
+                      state: vData.state, // Add state
+                      zip: vData.zip, // Add zip
+                      color: vData.color, // Add color
+                      title: vData.title, // Add title
+                      vehicleId: id, // Add vehicleId
+                    }),
+                  }); 
+
+                  if (!response.ok) {
+                    console.error("Failed to fetch AI estimation");
+                    return null;
+                  }
+
+                  // Fetch images
                   const imgsRef = ref(storage, `listing/${id}/photos`);
                   const files = await listAll(imgsRef);
                   const urls = await Promise.all(
                     files.items.map((f) => getDownloadURL(f))
                   );
-                  const images = urls.filter(
-                    (u) => !u.includes("vehicleVideo")
-                  );
+                  const images = urls.filter((u) => !u.includes("vehicleVideo"));
 
-                  // fetch receipts
+                  // Fetch receipts
                   const rSnap = await getDocs(
                     collection(db, `listing/${id}/receipts`)
                   );
