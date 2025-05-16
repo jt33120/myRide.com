@@ -138,6 +138,7 @@ function OwnerManualModal({ vehicleId, onClose, onSync }) {
           </p>
         ) : (
           <button
+            type="button"
             className="w-full py-2 mb-2 text-white bg-purple-600 rounded hover:bg-purple-700"
             onClick={handleSync}
           >
@@ -145,6 +146,7 @@ function OwnerManualModal({ vehicleId, onClose, onSync }) {
           </button>
         )}
         <button
+          type="button"
           className="w-full py-2 text-white rounded bg-neutral-600 hover:bg-neutral-500"
           onClick={onClose}
         >
@@ -203,7 +205,7 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
         receipt,
         { merge: true }
       );
-  
+
       // Call the aiEstimator API
       const vehicleSnap = await getDoc(doc(db, "listing", vehicleId));
       if (vehicleSnap.exists()) {
@@ -226,7 +228,7 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
             vehicleId: vehicleId,
           }),
         });
-  
+
         if (!response.ok) {
           console.error("Failed to fetch AI estimation");
           toast.error("Failed to fetch AI estimation");
@@ -234,7 +236,7 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
           toast.success("AI estimation updated successfully");
         }
       }
-  
+
       toast.success(isEdit ? "Receipt updated" : "Receipt saved");
       onSaved(receipt);
       onClose();
@@ -296,12 +298,14 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
         />
         <div className="flex justify-between">
           <button
+            type="button"
             onClick={onClose}
             className="px-4 py-2 text-white rounded bg-neutral-600 hover:bg-neutral-500"
           >
             Cancel
           </button>
           <button
+            type="button"
             onClick={handleSubmit}
             disabled={uploading}
             className="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700"
@@ -424,63 +428,63 @@ export default function VehicleCardPage() {
   }, [id]);
 
   // Update AI value estimation
-    useEffect(() => {
-      if (!id) return;
+  useEffect(() => {
+    if (!id) return;
 
-      async function fetchVehicleData() {
-        try {
-          // Fetch vehicle data from Firestore
-          const vehicleRef = doc(db, "listing", id);
-          const vehicleSnap = await getDoc(vehicleRef);
+    async function fetchVehicleData() {
+      try {
+        // Fetch vehicle data from Firestore
+        const vehicleRef = doc(db, "listing", id);
+        const vehicleSnap = await getDoc(vehicleRef);
 
-          if (vehicleSnap.exists()) {
-            const vehicleData = vehicleSnap.data();
-            setVehicle(vehicleData);
+        if (vehicleSnap.exists()) {
+          const vehicleData = vehicleSnap.data();
+          setVehicle(vehicleData);
 
-            // Call the aiEstimator API for this vehicle
-            const response = await fetch("/api/aiEstimator", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                make: vehicleData.make,
-                model: vehicleData.model,
-                year: vehicleData.year,
-                mileage: vehicleData.mileage,
-                city: vehicleData.city,
-                state: vehicleData.state,
-                zip: vehicleData.zip,
-                color: vehicleData.color,
-                title: vehicleData.title,
-                vehicleId: id,
-              }),
-            });
+          // Call the aiEstimator API for this vehicle
+          const response = await fetch("/api/aiEstimator", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              make: vehicleData.make,
+              model: vehicleData.model,
+              year: vehicleData.year,
+              mileage: vehicleData.mileage,
+              city: vehicleData.city,
+              state: vehicleData.state,
+              zip: vehicleData.zip,
+              color: vehicleData.color,
+              title: vehicleData.title,
+              vehicleId: id,
+            }),
+          });
 
-            if (!response.ok) {
-              console.error("Failed to fetch AI estimation");
-              toast.error("Failed to fetch AI estimation");
-            } else {
-              // Refetch the vehicle data to get the updated `ai_estimated_value`
-              const updatedVehicleSnap = await getDoc(vehicleRef);
-              if (updatedVehicleSnap.exists()) {
-                setVehicle(updatedVehicleSnap.data());
-              }
-            }
+          if (!response.ok) {
+            console.error("Failed to fetch AI estimation");
+            toast.error("Failed to fetch AI estimation");
           } else {
-            console.error("Vehicle not found in Firestore.");
-            toast.error("Vehicle not found.");
+            // Refetch the vehicle data to get the updated `ai_estimated_value`
+            const updatedVehicleSnap = await getDoc(vehicleRef);
+            if (updatedVehicleSnap.exists()) {
+              setVehicle(updatedVehicleSnap.data());
+            }
           }
-        } catch (error) {
-          console.error("Error fetching vehicle data:", error);
-          toast.error("Error fetching vehicle data.");
-        } finally {
-          setLoading(false);
+        } else {
+          console.error("Vehicle not found in Firestore.");
+          toast.error("Vehicle not found.");
         }
+      } catch (error) {
+        console.error("Error fetching vehicle data:", error);
+        toast.error("Error fetching vehicle data.");
+      } finally {
+        setLoading(false);
       }
+    }
 
-      fetchVehicleData();
-    }, [id]);
+    fetchVehicleData();
+  }, [id]);
 
   // Update formData when vehicle is loaded in edit mode
   useEffect(() => {
@@ -560,17 +564,19 @@ export default function VehicleCardPage() {
   // Fonction pour obtenir la recommandation de maintenance basée sur le mileage
   const fetchMaintenanceRec = async () => {
     setLoadingMaintenanceRec(true);
-  
+
     try {
       // Fetch the vehicle document from Firestore
       const snap = await getDoc(doc(db, "listing", id));
       if (!snap.exists()) {
         throw new Error("Vehicle not found");
       }
-  
+
       // Get the aiRecommendation field from the document
       const vehicleData = snap.data();
-      setAiRec(vehicleData.aiRecommendation || "No AI recommendation available.");
+      setAiRec(
+        vehicleData.aiRecommendation || "No AI recommendation available."
+      );
     } catch (error) {
       console.error("Error fetching AI recommendation:", error.message);
       setAiRec("Error fetching AI recommendation.");
@@ -683,87 +689,94 @@ export default function VehicleCardPage() {
     };
   }, [vehicle, timeWindow]);
 
-// Chart avec points AI
-const chartData = useMemo(() => {
-  if (!vehicle || !Array.isArray(vehicle.ai_estimated_value)) {
-    console.warn("Vehicle data or AI estimated values are missing.");
+  // Chart avec points AI
+  const chartData = useMemo(() => {
+    if (!vehicle || !Array.isArray(vehicle.ai_estimated_value)) {
+      console.warn("Vehicle data or AI estimated values are missing.");
+      return {
+        ...baseChart,
+        datasets: [...baseChart.datasets],
+      };
+    }
+
+    const aiArray = vehicle.ai_estimated_value;
+
+    // Define the start date based on the selected time window
+    const now = new Date();
+    let startDate;
+    if (timeWindow === "Last Week") {
+      startDate = new Date(now);
+      startDate.setDate(now.getDate() - 7);
+    } else if (timeWindow === "Last Month") {
+      startDate = new Date(now);
+      startDate.setMonth(now.getMonth() - 1);
+    } else if (timeWindow === "Last Year") {
+      startDate = new Date(now);
+      startDate.setFullYear(now.getFullYear() - 1);
+    } else {
+      startDate = new Date(0); // Default to include all dates if no valid time window is selected
+    }
+
+    // Parse and filter AI points based on the time window
+    const aiPts = aiArray
+      .map((e) => {
+        const [val, date] = e.split(/-(.+)/); // Split on the first "-"
+        const parsedDate = new Date(date); // Parse the date
+        if (isNaN(parsedDate)) {
+          console.error(`Invalid date format: ${date}`);
+          return null; // Skip invalid entries
+        }
+        return { x: parsedDate, y: +val }; // Keep the raw date object for filtering
+      })
+      .filter(
+        (point) => point && point.x >= startDate && point.x <= now // Filter points within the time window
+      )
+      .map((point) => ({
+        x: point.x.toLocaleDateString("en-US"), // Format date for x-axis
+        y: point.y,
+      }));
+
+    // Add a point for `boughtAt` using `createdAt` as the x-axis, and filter it
+    const boughtAtPoint =
+      vehicle?.boughtAt && vehicle?.createdAt
+        ? {
+            x: new Date(vehicle.createdAt.seconds * 1000), // Convert Firestore timestamp to Date
+            y: vehicle.boughtAt, // Use `boughtAt` as the y-value
+          }
+        : null;
+
+    // Filter the `boughtAtPoint` based on the time window
+    const filteredBoughtAtPoint =
+      boughtAtPoint && boughtAtPoint.x >= startDate && boughtAtPoint.x <= now
+        ? {
+            x: boughtAtPoint.x.toLocaleDateString("en-US"), // Format date for x-axis
+            y: boughtAtPoint.y,
+          }
+        : null;
+
     return {
       ...baseChart,
-      datasets: [...baseChart.datasets],
+      datasets: [
+        ...baseChart.datasets,
+        {
+          label: "AI Estimated",
+          data: aiPts,
+          parsing: false,
+          pointRadius: 4,
+          borderColor: "blue",
+          backgroundColor: "blue",
+        },
+        {
+          label: "Bought At",
+          data: filteredBoughtAtPoint ? [filteredBoughtAtPoint] : [],
+          borderColor: "red",
+          backgroundColor: "red",
+          pointRadius: 6,
+          pointStyle: "circle",
+        },
+      ],
     };
-  }
-
-  const aiArray = vehicle.ai_estimated_value;
-
-  // Define the start date based on the selected time window
-  const now = new Date();
-  let startDate;
-  if (timeWindow === "Last Week") {
-    startDate = new Date(now);
-    startDate.setDate(now.getDate() - 7);
-  } else if (timeWindow === "Last Month") {
-    startDate = new Date(now);
-    startDate.setMonth(now.getMonth() - 1);
-  } else if (timeWindow === "Last Year") {
-    startDate = new Date(now);
-    startDate.setFullYear(now.getFullYear() - 1);
-  } else {
-    startDate = new Date(0); // Default to include all dates if no valid time window is selected
-  }
-
-  // Parse and filter AI points based on the time window
-  const aiPts = aiArray
-    .map((e) => {
-      const [val, date] = e.split(/-(.+)/); // Split on the first "-"
-      const parsedDate = new Date(date); // Parse the date
-      if (isNaN(parsedDate)) {
-        console.error(`Invalid date format: ${date}`);
-        return null; // Skip invalid entries
-      }
-      return { x: parsedDate, y: +val }; // Keep the raw date object for filtering
-    })
-    .filter(
-      (point) => point && point.x >= startDate && point.x <= now // Filter points within the time window
-    )
-    .map((point) => ({
-      x: point.x.toLocaleDateString("en-US"), // Format date for x-axis
-      y: point.y,
-    }));
-
-  // Add a point for `boughtAt` using `createdAt` as the x-axis, and filter it
-  const boughtAtPoint =
-    vehicle?.boughtAt && vehicle?.createdAt
-      ? {
-          x: new Date(vehicle.createdAt.seconds * 1000), // Convert Firestore timestamp to Date
-          y: vehicle.boughtAt, // Use `boughtAt` as the y-value
-        }
-      : null;
-
-  // Filter the `boughtAtPoint` based on the time window
-  const filteredBoughtAtPoint =
-    boughtAtPoint && boughtAtPoint.x >= startDate && boughtAtPoint.x <= now
-      ? {
-          x: boughtAtPoint.x.toLocaleDateString("en-US"), // Format date for x-axis
-          y: boughtAtPoint.y,
-        }
-      : null;
-
-  return {
-    ...baseChart,
-    datasets: [
-      ...baseChart.datasets,
-      { label: "AI Estimated", data: aiPts, parsing: false, pointRadius: 4, borderColor: "blue", backgroundColor: "blue" },
-      {
-        label: "Bought At",
-        data: filteredBoughtAtPoint ? [filteredBoughtAtPoint] : [],
-        borderColor: "red",
-        backgroundColor: "red",
-        pointRadius: 6,
-        pointStyle: "circle",
-      },
-    ],
-  };
-}, [baseChart, vehicle, timeWindow]);
+  }, [baseChart, vehicle, timeWindow]);
 
   if (!user) return null;
   if (!vehicle) return <p>Loading…</p>;
@@ -805,70 +818,74 @@ const chartData = useMemo(() => {
               <div>
                 <label className="block mb-1 text-sm font-semibold">
                   Model
+                  <input
+                    type="text"
+                    name="model"
+                    value={formData.model}
+                    onChange={handleFormChange}
+                    className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
+                  />
                 </label>
-                <input
-                  type="text"
-                  name="model"
-                  value={formData.model}
-                  onChange={handleFormChange}
-                  className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
-                />
               </div>
               <div>
-                <label className="block mb-1 text-sm font-semibold">City</label>
-                <input
-                  type="text"
-                  name="city"
-                  value={formData.city}
-                  onChange={handleFormChange}
-                  className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
-                />
+                <label className="block mb-1 text-sm font-semibold">
+                  City
+                  <input
+                    type="text"
+                    name="city"
+                    value={formData.city}
+                    onChange={handleFormChange}
+                    className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
+                  />
+                </label>
               </div>
               <div>
                 <label className="block mb-1 text-sm font-semibold">
                   State
+                  <input
+                    type="text"
+                    name="state"
+                    value={formData.state}
+                    onChange={handleFormChange}
+                    className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
+                  />
                 </label>
-                <input
-                  type="text"
-                  name="state"
-                  value={formData.state}
-                  onChange={handleFormChange}
-                  className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
-                />
               </div>
               <div>
-                <label className="block mb-1 text-sm font-semibold">VIN</label>
-                <input
-                  type="text"
-                  name="vin"
-                  value={formData.vin}
-                  onChange={handleFormChange}
-                  className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
-                />
+                <label className="block mb-1 text-sm font-semibold">
+                  VIN
+                  <input
+                    type="text"
+                    name="vin"
+                    value={formData.vin}
+                    onChange={handleFormChange}
+                    className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
+                  />
+                </label>
               </div>
               <div>
                 <label className="block mb-1 text-sm font-semibold">
                   Mileage
+                  <input
+                    type="number"
+                    name="mileage"
+                    value={formData.mileage}
+                    onChange={handleFormChange}
+                    className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
+                  />
                 </label>
-                <input
-                  type="number"
-                  name="mileage"
-                  value={formData.mileage}
-                  onChange={handleFormChange}
-                  className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
-                />
               </div>
               <div>
                 <label className="block mb-1 text-sm font-semibold">
                   Color
+                  <input
+                    type="text"
+                    name="color"
+                    value={formData.color}
+                    onChange={handleFormChange}
+                    className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
+                  />
                 </label>
-                <input
-                  type="text"
-                  name="color"
-                  value={formData.color}
-                  onChange={handleFormChange}
-                  className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
-                />
               </div>
             </div>
             {/* Technical Fields */}
@@ -876,151 +893,153 @@ const chartData = useMemo(() => {
               <div>
                 <label className="block mb-1 text-sm font-semibold">
                   Engine
+                  <input
+                    type="text"
+                    name="engine"
+                    value={formData.engine}
+                    onChange={handleFormChange}
+                    className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
+                  />
                 </label>
-                <input
-                  type="text"
-                  name="engine"
-                  value={formData.engine}
-                  onChange={handleFormChange}
-                  className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
-                />
               </div>
               <div>
                 <label className="block mb-1 text-sm font-semibold">
                   Transmission
+                  <input
+                    type="text"
+                    name="transmission"
+                    value={formData.transmission}
+                    onChange={handleFormChange}
+                    className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
+                  />
                 </label>
-                <input
-                  type="text"
-                  name="transmission"
-                  value={formData.transmission}
-                  onChange={handleFormChange}
-                  className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
-                />
               </div>
               <div>
                 <label className="block mb-1 text-sm font-semibold">
                   Horsepower
+                  <input
+                    type="text"
+                    name="horsepower"
+                    value={formData.horsepower}
+                    onChange={handleFormChange}
+                    className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
+                  />
                 </label>
-                <input
-                  type="text"
-                  name="horsepower"
-                  value={formData.horsepower}
-                  onChange={handleFormChange}
-                  className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
-                />
               </div>
               <div>
                 <label className="block mb-1 text-sm font-semibold">
                   Fuel Type
+                  <input
+                    type="text"
+                    name="fuelType"
+                    value={formData.fuelType}
+                    onChange={handleFormChange}
+                    className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
+                  />
                 </label>
-                <input
-                  type="text"
-                  name="fuelType"
-                  value={formData.fuelType}
-                  onChange={handleFormChange}
-                  className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
-                />
               </div>
               <div>
                 <label className="block mb-1 text-sm font-semibold">
                   Vehicle Type
+                  <input
+                    type="text"
+                    name="vehicleType"
+                    value={formData.vehicleType}
+                    onChange={handleFormChange}
+                    className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
+                  />
                 </label>
-                <input
-                  type="text"
-                  name="vehicleType"
-                  value={formData.vehicleType}
-                  onChange={handleFormChange}
-                  className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
-                />
               </div>
               <div>
                 <label className="block mb-1 text-sm font-semibold">
                   Purchase Price
+                  <input
+                    type="number"
+                    name="boughtAt"
+                    value={formData.boughtAt}
+                    onChange={handleFormChange}
+                    className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
+                  />
                 </label>
-                <input
-                  type="number"
-                  name="boughtAt"
-                  value={formData.boughtAt}
-                  onChange={handleFormChange}
-                  className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
-                />
               </div>
               <div>
                 <label className="block mb-1 text-sm font-semibold">
                   Purchase Year
+                  <input
+                    type="number"
+                    name="purchaseYear"
+                    value={formData.purchaseYear}
+                    onChange={handleFormChange}
+                    className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
+                  />
                 </label>
-                <input
-                  type="number"
-                  name="purchaseYear"
-                  value={formData.purchaseYear}
-                  onChange={handleFormChange}
-                  className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
-                />
               </div>
             </div>
             {/* Maintenance Fields */}
             <div className="space-y-4">
               <div>
                 {/* Fixed the label syntax */}
-                <label>Repair Cost</label>
-                <input
-                  type="number"
-                  name="repairCost"
-                  value={formData.repairCost}
-                  onChange={handleFormChange}
-                  className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
-                />
+                <label>
+                  Repair Cost
+                  <input
+                    type="number"
+                    name="repairCost"
+                    value={formData.repairCost}
+                    onChange={handleFormChange}
+                    className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
+                  />
+                </label>
               </div>
               <div>
                 <label className="block mb-1 text-sm font-semibold">
                   Scheduled Maintenance
+                  <input
+                    type="number"
+                    name="scheduledMaintenance"
+                    value={formData.scheduledMaintenance}
+                    onChange={handleFormChange}
+                    className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
+                  />
                 </label>
-                <input
-                  type="number"
-                  name="scheduledMaintenance"
-                  value={formData.scheduledMaintenance}
-                  onChange={handleFormChange}
-                  className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
-                />
               </div>
               <div>
                 <label className="block mb-1 text-sm font-semibold">
                   Cosmetic Mods
+                  <input
+                    type="number"
+                    name="cosmeticMods"
+                    value={formData.cosmeticMods}
+                    onChange={handleFormChange}
+                    className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
+                  />
                 </label>
-                <input
-                  type="number"
-                  name="cosmeticMods"
-                  value={formData.cosmeticMods}
-                  onChange={handleFormChange}
-                  className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
-                />
               </div>
               <div>
                 <label className="block mb-1 text-sm font-semibold">
                   Performance Mods
+                  <input
+                    type="number"
+                    name="performanceMods"
+                    value={formData.performanceMods}
+                    onChange={handleFormChange}
+                    className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
+                  />
                 </label>
-                <input
-                  type="number"
-                  name="performanceMods"
-                  value={formData.performanceMods}
-                  onChange={handleFormChange}
-                  className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
-                />
               </div>
             </div>
             {/* Full-width Description Field */}
             <div className="md:col-span-3">
               <label className="block mb-1 text-sm font-semibold">
                 Description
+                <textarea
+                  name="description"
+                  value={formData.description || ""}
+                  onChange={handleFormChange}
+                  className="w-full p-2 border rounded-md resize-y border-neutral-600 bg-neutral-700"
+                  rows="4"
+                  placeholder="Edit vehicle description..."
+                ></textarea>
               </label>
-              <textarea
-                name="description"
-                value={formData.description || ""}
-                onChange={handleFormChange}
-                className="w-full p-2 border rounded-md resize-y border-neutral-600 bg-neutral-700"
-                rows="4"
-                placeholder="Edit vehicle description..."
-              ></textarea>
             </div>
             <div className="flex justify-center mt-6 space-x-6 md:col-span-3">
               <button
@@ -1063,18 +1082,18 @@ const chartData = useMemo(() => {
     const deadline = prompt(
       `Please enter the deadline (end of validity) for the ${type} document in the format MM-DD-YYYY:`
     );
-  
+
     // Validate the entered date
     if (!deadline || !/^\d{2}-\d{2}-\d{4}$/.test(deadline)) {
       toast.error("Invalid date format. Please use MM-DD-YYYY.");
       return;
     }
-  
+
     const ext = file.name.substring(file.name.lastIndexOf("."));
     const name = `${type}-${deadline}${ext}`; // Append the deadline to the document name
     const path = `listing/${id}/docs/${name}`;
     const storageRef = ref(storage, path);
-  
+
     try {
       await uploadBytesResumable(storageRef, file);
       const url = await getDownloadURL(storageRef);
@@ -1260,7 +1279,9 @@ const chartData = useMemo(() => {
             {/* Left Column: Maintenance & Receipts */}
             <div className="p-6 border rounded-lg shadow-lg bg-neutral-800 border-neutral-700">
               <div className="flex items-center justify-between pb-2 mb-4 border-b">
-                <h2 className="text-2xl font-bold text-white">Maintenance & Receipts</h2>
+                <h2 className="text-2xl font-bold text-white">
+                  Maintenance & Receipts
+                </h2>
                 {!vehicle.ownerManual ? (
                   <button
                     onClick={() => setShowManual(true)}
@@ -1268,15 +1289,17 @@ const chartData = useMemo(() => {
                   >
                     Sync Owner Manual
                   </button>
-                ): (
-                  <span className="text-xs italic text-neutral-600">Owner Manual Synced</span>
+                ) : (
+                  <span className="text-xs italic text-neutral-600">
+                    Owner Manual Synced
+                  </span>
                 )}
               </div>
 
               <div className="flex items-center space-x-4">
                 {/* Dropdown for selecting a count */}
                 <select
-                  className="p-2 text-white bg-neutral-700 border rounded border-neutral-600"
+                  className="p-2 text-white border rounded bg-neutral-700 border-neutral-600"
                   value={selectedItem || ""}
                   onChange={(e) => setSelectedItem(e.target.value)}
                 >
@@ -1284,12 +1307,34 @@ const chartData = useMemo(() => {
                     Select a count
                   </option>
                   {[
-                    { label: "Total Spent", value: `$${calculateSum("Total").toFixed(2)}` },
-                    { label: "Without Purchase Price", value: `$${calculateSum("Without Purchase Price").toFixed(2)}` },
-                    { label: "Repair", value: `$${calculateSum("Repair").toFixed(2)}` },
-                    { label: "Scheduled Maintenance", value: `$${calculateSum("Scheduled Maintenance").toFixed(2)}` },
-                    { label: "Cosmetic Mods", value: `$${calculateSum("Cosmetic Mods").toFixed(2)}` },
-                    { label: "Performance Mods", value: `$${calculateSum("Performance Mods").toFixed(2)}` },
+                    {
+                      label: "Total Spent",
+                      value: `$${calculateSum("Total").toFixed(2)}`,
+                    },
+                    {
+                      label: "Without Purchase Price",
+                      value: `$${calculateSum("Without Purchase Price").toFixed(
+                        2
+                      )}`,
+                    },
+                    {
+                      label: "Repair",
+                      value: `$${calculateSum("Repair").toFixed(2)}`,
+                    },
+                    {
+                      label: "Scheduled Maintenance",
+                      value: `$${calculateSum("Scheduled Maintenance").toFixed(
+                        2
+                      )}`,
+                    },
+                    {
+                      label: "Cosmetic Mods",
+                      value: `$${calculateSum("Cosmetic Mods").toFixed(2)}`,
+                    },
+                    {
+                      label: "Performance Mods",
+                      value: `$${calculateSum("Performance Mods").toFixed(2)}`,
+                    },
                   ].map((item, idx) => (
                     <option key={idx} value={item.label}>
                       {item.label}
@@ -1298,33 +1343,62 @@ const chartData = useMemo(() => {
                 </select>
 
                 {/* Display the value of the selected count */}
-                <div className="p-4 text-white bg-neutral-800 border rounded border-neutral-600">
+                <div className="p-4 text-white border rounded bg-neutral-800 border-neutral-600">
                   {selectedItem ? (
                     <div>
                       <h3 className="text-lg font-semibold">{selectedItem}</h3>
                       <p className="text-sm">
                         {
                           [
-                            { label: "Total Spent", value: `$${calculateSum("Total").toFixed(2)}` },
-                            { label: "Without Purchase Price", value: `$${calculateSum("Without Purchase Price").toFixed(2)}` },
-                            { label: "Repair", value: `$${calculateSum("Repair").toFixed(2)}` },
-                            { label: "Scheduled Maintenance", value: `$${calculateSum("Scheduled Maintenance").toFixed(2)}` },
-                            { label: "Cosmetic Mods", value: `$${calculateSum("Cosmetic Mods").toFixed(2)}` },
-                            { label: "Performance Mods", value: `$${calculateSum("Performance Mods").toFixed(2)}` },
+                            {
+                              label: "Total Spent",
+                              value: `$${calculateSum("Total").toFixed(2)}`,
+                            },
+                            {
+                              label: "Without Purchase Price",
+                              value: `$${calculateSum(
+                                "Without Purchase Price"
+                              ).toFixed(2)}`,
+                            },
+                            {
+                              label: "Repair",
+                              value: `$${calculateSum("Repair").toFixed(2)}`,
+                            },
+                            {
+                              label: "Scheduled Maintenance",
+                              value: `$${calculateSum(
+                                "Scheduled Maintenance"
+                              ).toFixed(2)}`,
+                            },
+                            {
+                              label: "Cosmetic Mods",
+                              value: `$${calculateSum("Cosmetic Mods").toFixed(
+                                2
+                              )}`,
+                            },
+                            {
+                              label: "Performance Mods",
+                              value: `$${calculateSum(
+                                "Performance Mods"
+                              ).toFixed(2)}`,
+                            },
                           ].find((item) => item.label === selectedItem)?.value
                         }
                       </p>
                     </div>
                   ) : (
-                    <p className="text-sm text-neutral-400">Select a count to see its value</p>
+                    <p className="text-sm text-neutral-400">
+                      Select a count to see its value
+                    </p>
                   )}
                 </div>
               </div>
 
-
               <div className="mt-4 text-xs font-semibold text-white">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xl font-semibold text-white">AI Recommendation</h3>
+                  <h3 className="text-xl font-semibold text-white">
+                    AI Recommendation
+                  </h3>
                   <button
                     onClick={async () => {
                       try {
@@ -1332,11 +1406,16 @@ const chartData = useMemo(() => {
                         const res = await fetch("/api/analyzeManual", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ vehicleId: id, currentMileage: vehicle.mileage }),
+                          body: JSON.stringify({
+                            vehicleId: id,
+                            currentMileage: vehicle.mileage,
+                          }),
                         });
 
                         if (!res.ok) {
-                          throw new Error(`API error: ${res.status} ${res.statusText}`);
+                          throw new Error(
+                            `API error: ${res.status} ${res.statusText}`
+                          );
                         }
 
                         // Fetch the updated aiRecommendation field from Firestore
@@ -1346,10 +1425,18 @@ const chartData = useMemo(() => {
                         }
 
                         const vehicleData = snap.data();
-                        setAiRec(vehicleData.aiRecommendation || "No AI recommendation available.");
-                        toast.success("AI Recommendation refreshed successfully!");
+                        setAiRec(
+                          vehicleData.aiRecommendation ||
+                            "No AI recommendation available."
+                        );
+                        toast.success(
+                          "AI Recommendation refreshed successfully!"
+                        );
                       } catch (error) {
-                        console.error("Error refreshing AI recommendation:", error.message);
+                        console.error(
+                          "Error refreshing AI recommendation:",
+                          error.message
+                        );
                         toast.error("Failed to refresh AI recommendation.");
                       }
                     }}
@@ -1421,11 +1508,13 @@ const chartData = useMemo(() => {
                                   setSelectedReceiptUrls(r.urls);
                                 }
                               }}
-                              className="text-blue-400 hover:underline text-left"
+                              className="text-left text-blue-400 hover:underline"
                             >
                               {r.title}
                             </button>
-                            <span className="ml-2 text-neutral-400">- ${r.price.toFixed(2)}</span>
+                            <span className="ml-2 text-neutral-400">
+                              - ${r.price.toFixed(2)}
+                            </span>
                           </div>
                         </div>
                         {vehicle.uid === user.uid ? (
@@ -1490,7 +1579,9 @@ const chartData = useMemo(() => {
                 {/* Grid for Title, Registration and Inspection */}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   {["title", "registration", "inspection"].map((type) => {
-                    const docObj = allDocs.find((d) => d.name.toLowerCase().includes(type));
+                    const docObj = allDocs.find((d) =>
+                      d.name.toLowerCase().includes(type)
+                    );
                     const labels = {
                       title: "Title",
                       registration: "Registration",
@@ -1504,8 +1595,11 @@ const chartData = useMemo(() => {
                         : Clipboard;
 
                     // Extract the deadline from the document name (MM-DD-YYYY format)
-                    const deadlineMatch = docObj?.name.match(/\d{2}-\d{2}-\d{4}/);
-                    const deadline = deadlineMatch ? new Date(deadlineMatch[0]) : null;
+                    const deadlineMatch =
+                      docObj?.name.match(/\d{2}-\d{2}-\d{4}/);
+                    const deadline = deadlineMatch
+                      ? new Date(deadlineMatch[0])
+                      : null;
                     const isExpired = deadline && deadline < new Date(); // Check if the deadline has passed
 
                     return (
@@ -1523,7 +1617,7 @@ const chartData = useMemo(() => {
                       >
                         {vehicle.uid === user.uid ? (
                           <>
-                            <div className="w-16 h-16 flex items-center justify-center rounded-full mb-2">
+                            <div className="flex items-center justify-center w-16 h-16 mb-2 rounded-full">
                               <IconComponent className="w-8 h-8 text-white" />
                             </div>
                             <span className="text-sm font-medium text-white">
@@ -1534,7 +1628,9 @@ const chartData = useMemo(() => {
                               <>
                                 <div className="flex flex-col items-center mt-1 space-y-1">
                                   <button
-                                    onClick={() => setSelectedAdminDocUrl(docObj.url)}
+                                    onClick={() =>
+                                      setSelectedAdminDocUrl(docObj.url)
+                                    }
                                     className="cursor-pointer"
                                     title="View document"
                                   >
@@ -1551,7 +1647,9 @@ const chartData = useMemo(() => {
                                     <button
                                       onClick={() =>
                                         document
-                                          .getElementById(`modify-file-input-${type}`)
+                                          .getElementById(
+                                            `modify-file-input-${type}`
+                                          )
                                           .click()
                                       }
                                       className="text-green-500 hover:text-green-600"
@@ -1567,7 +1665,10 @@ const chartData = useMemo(() => {
                                   className="hidden"
                                   onChange={(e) =>
                                     e.target.files[0] &&
-                                    handleUploadAdminDocument(type, e.target.files[0])
+                                    handleUploadAdminDocument(
+                                      type,
+                                      e.target.files[0]
+                                    )
                                   }
                                 />
                               </>
@@ -1586,7 +1687,10 @@ const chartData = useMemo(() => {
                                   className="hidden"
                                   onChange={(e) =>
                                     e.target.files[0] &&
-                                    handleUploadAdminDocument(type, e.target.files[0])
+                                    handleUploadAdminDocument(
+                                      type,
+                                      e.target.files[0]
+                                    )
                                   }
                                 />
                               </>
@@ -1605,9 +1709,15 @@ const chartData = useMemo(() => {
                             >
                               <IconComponent className="w-8 h-8 text-white" />
                             </div>
-                            <h3 className="text-sm font-medium text-white">{labels[type]}</h3>
+                            <h3 className="text-sm font-medium text-white">
+                              {labels[type]}
+                            </h3>
                             <span className="mt-1 text-xs text-gray-300">
-                              {docObj ? (isExpired ? "Expired" : "Valid") : "Not Added"}
+                              {docObj
+                                ? isExpired
+                                  ? "Expired"
+                                  : "Valid"
+                                : "Not Added"}
                             </span>
                           </>
                         )}
@@ -1626,11 +1736,14 @@ const chartData = useMemo(() => {
               {/* Finance section */}
               <div className="p-6 border rounded-lg shadow-lg bg-neutral-800 border-neutral-700">
                 <div className="flex items-center justify-between pb-2 mb-4 border-b">
-                  <h2 className="text-2xl font-bold text-white">Finance Section</h2>
+                  <h2 className="text-2xl font-bold text-white">
+                    Finance Section
+                  </h2>
                   {user.uid === vehicle.uid && (
                     <>
                       {isListed ? (
                         <button
+                        type="button"
                           onClick={removeFromMarketplace}
                           className="px-6 py-2 text-white transition bg-red-600 rounded hover:bg-red-700"
                         >
@@ -1638,6 +1751,7 @@ const chartData = useMemo(() => {
                         </button>
                       ) : (
                         <button
+                        type="button"
                           onClick={() => {
                             if (!vehicle.vin || vehicle.vin.trim() === "") {
                               toast.error(
@@ -1690,22 +1804,24 @@ const chartData = useMemo(() => {
               <h2 className="mb-4 text-xl font-bold text-center">
                 Add to Marketplace
               </h2>
-              <label className="block mb-2 text-white">Price ($):</label>
+              <label className="block mb-2 text-white">Price ($):
               <input
                 type="number"
                 step="0.01"
                 value={salePrice || ""}
                 onChange={(e) => setSalePrice(e.target.value)}
                 className="w-full p-2 mb-4 text-white border rounded border-neutral-600 bg-neutral-700"
-              />
+              /></label>
               <div className="flex justify-end space-x-4">
                 <button
+                type="button"
                   onClick={() => setShowMarketplaceModal(false)}
                   className="px-4 py-2 rounded bg-neutral-600 hover:bg-neutral-500"
                 >
                   Cancel
                 </button>
                 <button
+                type="button"
                   onClick={() => {
                     confirmAdd(salePrice);
                     setShowMarketplaceModal(false);
@@ -1734,13 +1850,14 @@ const chartData = useMemo(() => {
               <div className="flex justify-between mb-4">
                 <h2 className="text-2xl font-semibold">Receipt Details</h2>
                 <button
+                type="button"
                   onClick={() => setSelectedReceiptUrls([])}
                   className="text-2xl font-bold"
                 >
                   ×
                 </button>
               </div>
-              <div className="overflow-auto h-96 space-y-4">
+              <div className="space-y-4 overflow-auto h-96">
                 {selectedReceiptUrls.map((url, index) => (
                   <iframe
                     key={index}
@@ -1752,6 +1869,7 @@ const chartData = useMemo(() => {
               </div>
               <div className="flex justify-end mt-4 space-x-4">
                 <button
+                type="button"
                   onClick={() => setSelectedReceiptUrls([])}
                   className="px-4 py-2 text-white transition bg-gray-600 rounded hover:bg-gray-700"
                 >
@@ -1765,21 +1883,21 @@ const chartData = useMemo(() => {
         {receiptToDelete && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
             <div className="w-full max-w-sm p-6 rounded shadow-lg bg-zinc-600">
-              <h3 className="mb-4 text-xl font-semibold">
-                Confirm Deletion
-              </h3>
+              <h3 className="mb-4 text-xl font-semibold">Confirm Deletion</h3>
               <p className="mb-6">
                 Are you sure you want to delete it? :{" "}
                 <strong>{receiptToDelete.title}</strong> ?
               </p>
               <div className="flex justify-end space-x-4">
                 <button
+                type="button"
                   onClick={() => setReceiptToDelete(null)}
                   className="px-4 py-2 text-red-700 bg-gray-300 rounded hover:bg-gray-400"
                 >
                   Cancel
                 </button>
                 <button
+                type="button"
                   onClick={async () => {
                     await deleteDoc(
                       doc(db, `listing/${id}/receipts`, receiptToDelete.id)
@@ -1802,6 +1920,7 @@ const chartData = useMemo(() => {
               <div className="flex justify-between mb-4">
                 <h2 className="text-2xl font-semibold">Admin Document</h2>
                 <button
+                type="button"
                   onClick={() => setSelectedAdminDocUrl(null)}
                   className="text-2xl font-bold"
                 >
@@ -1824,6 +1943,7 @@ const chartData = useMemo(() => {
                   Download
                 </a>
                 <button
+                type="button"
                   onClick={() => setSelectedAdminDocUrl(null)}
                   className="px-4 py-2 text-white transition bg-gray-600 rounded hover:bg-gray-700"
                 >
