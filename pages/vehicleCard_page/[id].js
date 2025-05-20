@@ -25,6 +25,7 @@ import "chart.js/auto";
 import { onAuthStateChanged } from "firebase/auth";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { Share2 } from "lucide-react";
 import {
   Car,
   MapPin,
@@ -172,7 +173,6 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
   const [files, setFiles] = useState([]);
   const [existing] = useState(initialData?.urls || []);
   const [uploading, setUploading] = useState(false);
-
   const handleSubmit = async () => {
     if (!title || !date || !category || !price) {
       return toast.error("All fields are required");
@@ -321,6 +321,7 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
 // Composant principal
 export default function VehicleCardPage() {
   const router = useRouter();
+  const [showInfo, setShowInfo] = useState(false);
   const { id } = router.query;
 
   // Hooks dans un ordre fixe
@@ -375,6 +376,45 @@ export default function VehicleCardPage() {
   const [selectedReceiptUrls, setSelectedReceiptUrls] = useState([]); // Updated state
   const [receiptToDelete, setReceiptToDelete] = useState(null);
   const [selectedAdminDocUrl, setSelectedAdminDocUrl] = useState(null); // New state for admin document modal
+
+  // ...inside VehicleCardPage component...
+const handleShare = async () => {
+  try {
+    // Fetch the current user's firstName from Firebase
+    const userRef = doc(db, 'members', auth.currentUser.uid);
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists()) {
+      console.error('User data not found.');
+      return;
+    }
+
+    const { firstName } = userSnap.data();
+
+    // Prepare the share data
+    const shareData = {
+      title: `${firstName} invites you to check this ${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+      url: window.location.href,
+    };
+
+    // Use the Web Share API if available
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+        console.log('Page shared successfully');
+      } catch (error) {
+        console.error('Error sharing the page:', error);
+      }
+    } else {
+      // Fallback for browsers that don't support the Web Share API
+      navigator.clipboard.writeText(shareData.url).then(() => {
+        alert('Link copied to clipboard!');
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching user data for sharing:', error);
+  }
+};
 
   useEffect(() => setLogLevel("debug"), []);
   useEffect(() => {
@@ -1113,10 +1153,18 @@ export default function VehicleCardPage() {
       <ToastContainer />
       <div className="container px-4 py-10 mx-auto text-white md:pt-28 bg-zinc-900">
         {/* Header */}
-        <header className="mb-8 text-center">
+        <header className="mb-8 text-center flex items-center justify-center gap-2">
           <h1 className="text-4xl font-bold">
             {vehicle.year} {vehicle.make} {vehicle.model}
           </h1>
+          <button
+            onClick={handleShare}
+            className="ml-3 p-2 rounded-full bg-blue-700 hover:bg-blue-800 transition"
+            title="Share this vehicle"
+            type="button"
+          >
+            <Share2 className="w-6 h-6 text-white" />
+          </button>
         </header>
         {/* Gallery + Vehicle Info Section */}
         <div className="grid gap-8 md:grid-cols-2">
@@ -1137,9 +1185,20 @@ export default function VehicleCardPage() {
               </div>
             ))}
           </div>
+          
+
+          <div className="flex items-center justify-between md:hidden mb-2">
+            <h2 className="text-2xl font-bold">Vehicle Info</h2>
+            <button
+              onClick={() => setShowInfo((v) => !v)}
+              className="px-3 py-1 text-sm bg-blue-600 rounded text-white"
+            >
+              {showInfo ? "Hide" : "Show"}
+            </button>
+          </div>
 
           {/* Vehicle Info & Actions Card */}
-          <div className="hidden p-6 border rounded-lg shadow-lg bg-neutral-800 border-neutral-700 md:block">
+          <div className={`p-6 border rounded-lg shadow-lg bg-neutral-800 border-neutral-700 ${showInfo ? "" : "hidden"} md:block`}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold">Vehicle Info</h2>
               {user.uid === vehicle.uid && (
