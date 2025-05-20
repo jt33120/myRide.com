@@ -16,6 +16,8 @@ import {
 } from "react-icons/hi2";
 import { HiOutlineQuestionMarkCircle } from "react-icons/hi2";
 import { IoLogOutOutline } from "react-icons/io5";
+import { Building, Building2, Car, CarFront, CarFrontIcon, Store, StoreIcon } from "lucide-react";
+import { isPropertyAccessExpression } from "typescript";
 
 export default function Navbar() {
   const router = useRouter();
@@ -30,14 +32,14 @@ export default function Navbar() {
 
   const items = [
     { label: "Home", Icon: HiOutlineHome, path: "/Welcome_page" },
-    { label: "Garage", Icon: HiOutlineTruck, path: "/myVehicles_page" },
+    { label: "Garage", Icon: Car, path: "/myVehicles_page" },
     {
       label: "Chat",
       Icon: HiOutlineChatBubbleLeftRight,
       path: "/myMessages_page",
     },
     { label: "Docs", Icon: HiOutlineDocumentText, path: "/documents_page" },
-    { label: "Market", Icon: HiOutlineBanknotes, path: "/marketplace_page" },
+    { label: "Market", Icon: StoreIcon, path: "/marketplace_page" },
   ];
 
   // Hide mobile nav on scroll

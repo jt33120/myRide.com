@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/router";
 import {
-  MagnifyingGlassIcon,
   WrenchIcon,
   UserPlusIcon,
   PlusCircleIcon,
@@ -14,6 +13,7 @@ import {
 import { auth, db, storage } from "../lib/firebase"; // Assurez-vous que `auth` est bien importé
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { ref, listAll, getDownloadURL } from "firebase/storage";
+import { TrendingUpIcon } from "lucide-react";
 
 export default function WelcomePage() {
   const router = useRouter();
@@ -136,37 +136,77 @@ export default function WelcomePage() {
         <div className="absolute inset-0 bg-black" />
         <div className="relative z-10 px-6 text-center md:mt-40">
           <h2 className="text-4xl font-extrabold text-white max-sm:mt-5 md:text-7xl">
-            Find Your Next Ride
+            Track. Optimize. Sell.
           </h2>
-          <p className="mt-4 text-xl text-gray-300">
-            Your marketplace & garage in one place
+          <p className="mt-4 text-l text-gray-300">
+            MyRide is the ultimate garage management app. Track all your vehicles, from the maintenance to the resale value. Get real time AI improved-valuation, maintenance guidelines, to optimize all your vehicles to sell them on the safest private marketplace ever built.
           </p>
 
           {/* CTA */}
           <div className="flex flex-col justify-center gap-4 pb-5 mt-8 sm:flex-row">
-            <Link
-              href="/login_page"
-              className="px-8 py-3 font-semibold text-white rounded-lg shadow-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-            >
-              Sign In
-            </Link>
+
             <Link
               href="/signup_page"
-              className="px-8 py-3 font-semibold text-white rounded-lg shadow-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+              className="px-4 py-3 font-semibold text-white rounded-lg shadow-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
             >
-              Sign Up 🚀
+              Get started
             </Link>
-            <Link
-              href="/addVehicle_page"
-              className="px-8 py-3 font-semibold text-white rounded-lg shadow-lg bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
-            >
-              Log a Vehicle 🛠️
-            </Link>
+          </div>
+        <div className="flex justify-center mt-6 w-full">
+            <div className="relative w-full max-w-4xl h-56 sm:h-80">
+              <Image
+                src="/myride_maquette.png"
+                alt="maquette"
+                fill
+                className="object-cover rounded-lg shadow-lg"
+                priority
+              />
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Marketplace Carousel Section */}
+      {/* How It Works */}
+      <section className="py-12 text-white bg-gray-900">
+        <h2 className="mb-10 text-3xl font-bold text-center">How It Works</h2>
+        <div className="grid grid-cols-1 gap-6 px-6 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            {
+              icon: UserPlusIcon,
+              title: "Create Account",
+              desc: "Set up your profile in seconds.",
+            },
+            {
+              icon: PlusCircleIcon,
+              title: "Add Vehicle",
+              desc: "Import VIN, photos & details.",
+            },
+            {
+              icon: WrenchIcon,
+              title: "Log Maintenance",
+              desc: "Keep your history up to date.",
+            },
+            {
+              icon: TrendingUpIcon,
+              title: "Optimize your assets",
+              desc: "Increase your resale value.",
+            }
+          ].map(({ icon: Icon, title, desc }, i) => (
+            <div
+              key={i}
+              className="flex flex-col items-center p-6 text-center transition bg-gray-800 rounded-lg shadow-md hover:shadow-lg hover:bg-gray-700"
+            >
+              <div className="flex items-center justify-center mb-4 bg-purple-600 rounded-full w-14 h-14">
+                <Icon className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="mb-2 text-lg font-semibold">{title}</h3>
+              <p className="text-sm text-gray-300">{desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+            {/* Marketplace Carousel Section */}
       <section className="py-12 bg-gray-800">
         {/* Featured Cars */}
         <h2 className="mb-8 text-4xl font-extrabold text-center text-white">
@@ -268,46 +308,6 @@ export default function WelcomePage() {
                   />
                 ))}
           </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="py-12 text-white bg-gray-900">
-        <h2 className="mb-10 text-3xl font-bold text-center">How It Works</h2>
-        <div className="grid grid-cols-1 gap-6 px-6 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            {
-              icon: UserPlusIcon,
-              title: "Create Account",
-              desc: "Set up your profile in seconds.",
-            },
-            {
-              icon: PlusCircleIcon,
-              title: "Add Vehicle",
-              desc: "Import VIN, photos & details.",
-            },
-            {
-              icon: MagnifyingGlassIcon,
-              title: "Browse Marketplace",
-              desc: "Find what you need with AI power.",
-            },
-            {
-              icon: WrenchIcon,
-              title: "Log Maintenance",
-              desc: "Keep your history up to date.",
-            },
-          ].map(({ icon: Icon, title, desc }, i) => (
-            <div
-              key={i}
-              className="flex flex-col items-center p-6 text-center transition bg-gray-800 rounded-lg shadow-md hover:shadow-lg hover:bg-gray-700"
-            >
-              <div className="flex items-center justify-center mb-4 bg-purple-600 rounded-full w-14 h-14">
-                <Icon className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="mb-2 text-lg font-semibold">{title}</h3>
-              <p className="text-sm text-gray-300">{desc}</p>
-            </div>
-          ))}
         </div>
       </section>
 
