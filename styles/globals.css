@@ -394,7 +394,7 @@
 body {
   margin: 0;
   padding: 0;
-  background-color: #18181b; /* Mise à jour avec la nouvelle teinte */
+  background-color: oklch(27.8% 0.033 256.848); /* Mise à jour avec la nouvelle teinte */
   color: #eaeaea;
   font-family: 'Arial', sans-serif;
 }
@@ -608,4 +608,12 @@ nav a {
     margin: 0 auto;
     background-color: #18181b;
   }
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
