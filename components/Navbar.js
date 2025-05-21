@@ -170,99 +170,107 @@ export default function Navbar() {
       </nav>
 
       {/* Mobile Navbar */}
-      <nav
-        className={`
-          md:hidden fixed bottom-0 w-full bg-white text-gray-900 flex justify-around py-2
-          transition-transform duration-300
-          ${showMobile ? "translate-y-0" : "translate-y-full"} z-50
-        `}
-      >
-        {items.map(({ label, Icon, path }) => (
-          <Link
-            key={label}
-            href={path}
-            className="flex flex-col items-center hover:text-pink-500 focus:outline-none"
-          >
-            <Icon className="w-6 h-6" />
-            <span className="mt-1 text-xs">{label}</span>
-          </Link>
-        ))}
+      {router.pathname !== "/Welcome_page" && (
+        <nav
+          className={`
+            md:hidden fixed bottom-0 w-full bg-white text-gray-900 flex justify-around py-2
+            transition-transform duration-300
+            ${showMobile ? "translate-y-0" : "translate-y-full"} z-50
+          `}
+        >
+          {items
+            .filter(
+              (item) =>
+                // remove Home only when signed in
+                !(currentUser && item.label === "Home")
+            )
+            .map(({ label, Icon, path }) => (
+              <Link
+                key={label}
+                href={path}
+                className="flex flex-col items-center hover:text-pink-500 focus:outline-none"
+              >
+                <Icon className="w-6 h-6" />
+                <span className="mt-1 text-xs">{label}</span>
+              </Link>
+            ))}
 
-        {/* Mobile Dropdown */}
-        <div className="relative" ref={mobileRef}>
-          <button
-            onClick={() => setMobileOpen((o) => !o)}
-            className="p-1 rounded-full hover:text-pink-500 focus:outline-none"
-          >
-            {profileImage ? (
-              <Image
-                src={profileImage}
-                alt="profile"
-                width={32}
-                height={32}
-                className="rounded-full"
-              />
-            ) : (
-              <HiOutlineUserCircle className="w-7 h-7" />
-            )}
-          </button>
-          {mobileOpen && (
-            <div className="absolute w-40 text-gray-900 bg-white rounded shadow-lg right-4 bottom-12">
-              {currentUser ? (
-                <>
-                  <Link
-                    href="/userProfile_page"
-                    className="block w-full px-4 py-2 text-left hover:bg-gray-100"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    Profile
-                  </Link>
-                  <button
-                    onClick={() => {
-                      setMobileOpen(false);
-                      logout();
-                    }}
-                    className="w-full px-4 py-2 text-left hover:bg-gray-100"
-                  >
-                    Logout
-                  </button>
-                  <Link
-                    href="/help_page"
-                    className="block w-full px-4 py-2 text-left hover:bg-gray-100"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    Help
-                  </Link>
-                </>
+          {/* Mobile Dropdown */}
+          <div className="relative" ref={mobileRef}>
+            <button
+              onClick={() => setMobileOpen((o) => !o)}
+              className="p-1 rounded-full hover:text-pink-500 focus:outline-none"
+            >
+              {profileImage ? (
+                <Image
+                  src={profileImage}
+                  alt="profile"
+                  width={32}
+                  height={32}
+                  className="rounded-full"
+                />
               ) : (
-                <>
-                  <Link
-                    href="/login_page"
-                    className="block w-full px-4 py-2 text-left hover:bg-gray-100"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    Log In
-                  </Link>
-                  <Link
-                    href="/signup_page"
-                    className="block w-full px-4 py-2 text-left hover:bg-gray-100"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    Sign Up
-                  </Link>
-                  <Link
-                    href="/help_page"
-                    className="block w-full px-4 py-2 text-left hover:bg-gray-100"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    Help
-                  </Link>
-                </>
+                <HiOutlineUserCircle className="w-7 h-7" />
               )}
-            </div>
-          )}
-        </div>
-      </nav>
+            </button>
+            {mobileOpen && (
+              <div className="absolute w-40 text-gray-900 bg-white rounded shadow-lg right-4 bottom-12">
+                {currentUser ? (
+                  <>
+                    <Link
+                      href="/userProfile_page"
+                      className="block w-full px-4 py-2 text-left hover:bg-gray-100"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      Profile
+                    </Link>
+                    <button
+                      onClick={() => {
+                        setMobileOpen(false);
+                        logout();
+                      }}
+                      className="w-full px-4 py-2 text-left hover:bg-gray-100"
+                    >
+                      Logout
+                    </button>
+                    <Link
+                      href="/help_page"
+                      className="block w-full px-4 py-2 text-left hover:bg-gray-100"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      Help
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/login_page"
+                      className="block w-full px-4 py-2 text-left hover:bg-gray-100"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      Log In
+                    </Link>
+                    <Link
+                      href="/signup_page"
+                      className="block w-full px-4 py-2 text-left hover:bg-gray-100"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      Sign Up
+                    </Link>
+                    <Link
+                      href="/help_page"
+                      className="block w-full px-4 py-2 text-left hover:bg-gray-100"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      Help
+                    </Link>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </nav>
+      )}
     </>
   );
 }
