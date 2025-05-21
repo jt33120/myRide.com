@@ -310,71 +310,80 @@ export default function MyGarage() {
                 const totalCost = receiptsTotal + maintenanceTotal + (Number(veh.boughtAt) || 0); // Include purchase price
 
                 return (
+                  
                   <motion.div
-                    key={veh.id}
-                    className="overflow-hidden bg-gray-800 shadow-lg rounded-xl hover:shadow-2xl"
-                  >
-                    <div className="grid h-48 grid-cols-2 gap-1">
-                      {veh.images.slice(0, 4).map((img, idx) => (
-                        <div key={idx} className="relative w-full h-24">
-                          <Image
-                            src={img}
-                            alt={veh.make}
-                            fill
-                            className="object-cover"
-                          />
+      key={veh.id}
+      className="overflow-hidden bg-gray-800 shadow-lg rounded-xl hover:shadow-2xl cursor-pointer"
+      onClick={() => openVehicle(veh.id)}
+    >
+      <div className="grid h-48 grid-cols-2 gap-1">
+        {veh.images.slice(0, 4).map((img, idx) => (
+          <div key={idx} className="relative w-full h-24">
+            <Image
+              src={img}
+              alt={veh.make}
+              fill
+              className="object-cover"
+            />
+          </div>
+        ))}
+      </div>
+      <div className="p-4">
+        <h3 className="mb-2 text-xl font-bold">
+          {veh.year} {veh.make} {veh.model}
+        </h3>
+          <div className="grid grid-cols-2 text-sm text-gray-300 gap-x-4">
+                          <p>
+                            <strong>Color:</strong> {veh.color}
+                          </p>
+                          <p>
+                            <strong>Mileage:</strong> {veh.mileage} miles
+                          </p>
+                          <p>
+                            <strong>Power:</strong> {veh.horsepower} HP
+                          </p>
+                          <p>
+                            <strong>Fuel:</strong> {veh.fuelType}
+                          </p>
+                          <p>
+                            <strong>Transmission:</strong> {veh.transmission}
+                          </p>
                         </div>
-                      ))}
-                    </div>
-                    <div className="p-4">
-                      <h3 className="mb-2 text-xl font-bold">
-                        {veh.year} {veh.make} {veh.model}
-                      </h3>
-                      <div className="grid grid-cols-2 text-sm text-gray-300 gap-x-4">
-                        <p>
-                          <strong>Color:</strong> {veh.color}
-                        </p>
-                        <p>
-                          <strong>Mileage:</strong> {veh.mileage} miles
-                        </p>
-                        <p>
-                          <strong>Power:</strong> {veh.horsepower} HP
-                        </p>
-                        <p>
-                          <strong>Fuel:</strong> {veh.fuelType}
-                        </p>
-                        <p>
-                          <strong>Transmission:</strong> {veh.transmission}
-                        </p>
-                      </div>
-                      <div className="pt-2 mt-4 text-sm text-gray-300 border-t border-gray-700">
-                        <h4 className="mb-1 font-semibold">Maintenance</h4>
-                        {maintenanceItems.map((it) => {
-                          const val = it.value;
-                          return (
-                            <div
-                              key={it.label}
-                              className="flex justify-between"
-                            >
-                              <span>{it.label}:</span>
-                              <span>${val.toFixed(2)}</span>
-                            </div>
-                          );
-                        })}
-                        <div className="flex justify-between mt-2 font-semibold text-green-400">
-                          <span>Total Spent:</span>
-                          <span>${totalCost.toFixed(2)}</span>
+                        <div className="pt-2 mt-4 text-sm text-gray-300 border-t border-gray-700">
+                          <h4 className="mb-1 font-semibold">Maintenance</h4>
+                          {maintenanceItems.map((it) => {
+                            const val = it.value;
+                            return (
+                              <div
+                                key={it.label}
+                                className="flex justify-between"
+                              >
+                                <span>{it.label}:</span>
+                                <span>${val.toFixed(2)}</span>
+                              </div>
+                            );
+                          })}
+                          <div className="flex justify-between mt-2 font-semibold text-green-400">
+                            <span>Total Spent:</span>
+                            <span>${totalCost.toFixed(2)}</span>
+                          </div>
                         </div>
-                      </div>
+
                       <div className="flex flex-col gap-2 mt-4 md:flex-row md:justify-between">
                         <button
-                          onClick={() => openVehicle(veh.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openVehicle(veh.id);
+                          }}
                           className="px-10 py-2 font-medium bg-purple-600 rounded-lg hover:bg-purple-700"
                         >
-                          Details
+                          View more
                         </button>
                         <button
-                          onClick={() => deleteVehicle(veh.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteVehicle(veh.id);
+                          }}
                           className="px-10 py-2 font-medium bg-red-600 rounded-lg hover:bg-red-700"
                         >
                           Delete
