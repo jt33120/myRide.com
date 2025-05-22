@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { auth, db, storage } from "../lib/firebase";
-import { createUserWithEmailAndPassword, fetchSignInMethodsForEmail, signInWithPopup, OAuthProvider } from "firebase/auth";
+import { createUserWithEmailAndPassword, fetchSignInMethodsForEmail, signInWithPopup, OAuthProvider, signInWithEmailAndPassword, linkWithCredential } from "firebase/auth";
 import { doc, setDoc, collection, getDocs } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import Cropper from "react-easy-crop";
@@ -12,9 +12,9 @@ export default function SignUp() {
   // ────────────────────────────────────────────────────────────────────────────────
   // State hooks
   // ────────────────────────────────────────────────────────────────────────────────
-  const [firstName, setFirstName] = useState("");    // First Name / Prénom
-  const [lastName, setLastName] = useState("");      // Last Name / Nom
-  const [middleName, setMiddleName] = useState("");  // Middle Name / Deuxième prénom
+  //const [firstName, setFirstName] = useState("");    // First Name / Prénom
+  //const [lastName, setLastName] = useState("");      // Last Name / Nom
+  //const [middleName, setMiddleName] = useState("");  // Middle Name / Deuxième prénom
   const [email, setEmail] = useState("");            // Email address / Adresse e-mail
   const [password, setPassword] = useState("");      // Password / Mot de passe
   const [image, setImage] = useState(null);          // Profile image file / Fichier image
@@ -37,6 +37,10 @@ export default function SignUp() {
 
   // Add state for email check feedback
   const [emailCheckMsg, setEmailCheckMsg] = useState("");
+
+  // Add state for pre-auth first name
+  const [preAuthFirstName, setPreAuthFirstName] = useState("");
+  const [showPreAuthFirstName, setShowPreAuthFirstName] = useState(true);
 
   // ────────────────────────────────────────────────────────────────────────────────
   // Validation helpers
@@ -125,11 +129,7 @@ export default function SignUp() {
   // ────────────────────────────────────────────────────────────────────────────────
   const validateStep = async () => {
     const newErrors = {};
-    if (step === 1) {
-      if (!firstName) newErrors.firstName = "Required field";
-      if (!lastName) newErrors.lastName = "Required field";
-    }
-    if (step === 2) {
+    if (authMethod === "email" && step === 1) {
       if (!email) newErrors.email = "Required field";
       else if (!validateEmail(email)) newErrors.email = "Invalid format";
       if (!password) newErrors.password = "Required field";
@@ -152,6 +152,7 @@ export default function SignUp() {
         setCheckingEmail(false);
       }
     }
+    // For profile picture step, no required fields unless you want to enforce image
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -162,7 +163,12 @@ export default function SignUp() {
   const handleNext = async () => {
     const valid = await validateStep();
     if (valid) {
-      setStep(step + 1);
+      // For email sign up, skip to step 2 (profile picture) after email/password
+      if (authMethod === "email" && step === 1) {
+        setStep(2);
+      } else {
+        setStep(step + 1);
+      }
       setFormError("");
     } else {
       setFormError("Please fill all required fields.");
@@ -212,7 +218,7 @@ export default function SignUp() {
         );
       }
       await setDoc(doc(db, "members", user.uid), {
-        firstName,
+        firstName: formatFirstName(preAuthFirstName || firstName),
         lastName,
         middleName,
         email,
@@ -231,34 +237,96 @@ export default function SignUp() {
     }
   };
 
-  // Apple sign in handler
+  // Apple sign in handler (robust and user-friendly)
   const handleAppleSignIn = async () => {
+    if (loading) return; // Prevent double click
     setLoading(true);
     setFormError("");
     try {
       const provider = new OAuthProvider('apple.com');
-      // Optionally, you can add scopes: provider.addScope('email');
+      provider.addScope('email');
+      provider.addScope('name');
+      provider.setCustomParameters({ prompt: 'consent' });
+
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
-      // Check if user profile exists in Firestore
-      const userDoc = await doc(db, "members", user.uid);
-      // If not, create a minimal profile (you can expand this logic as needed)
-      await setDoc(userDoc, {
-        firstName: user.displayName ? user.displayName.split(" ")[0] : "",
-        lastName: user.displayName ? user.displayName.split(" ").slice(1).join(" ") : "",
+
+      // Extract Apple credential info
+      let firstName = "";
+      // Apple only provides name on the FIRST sign-in, and only if user consents
+      if (result._tokenResponse && result._tokenResponse.fullName && result._tokenResponse.fullName.givenName) {
+        firstName = result._tokenResponse.fullName.givenName;
+      } else if (user.displayName) {
+        // Sometimes displayName is set (rare for Apple)
+        firstName = user.displayName.split(" ")[0] || "";
+      }
+      // If not available, use preAuthFirstName as fallback
+      if (!firstName) firstName = preAuthFirstName;
+      firstName = formatFirstName(firstName);
+
+      // Always use default anonymous profile image for Apple sign-in
+      const profileImageUrl = "/anonymous.png";
+
+      // Save user profile in Firestore
+      await setDoc(doc(db, "members", user.uid), {
+        firstName: firstName,
+        lastName: "",
         middleName: "",
-        dob: "",
-        email: user.email,
+        email: user.email || (result._tokenResponse && result._tokenResponse.email) || "",
         inviter: "frenchy",
         rating: 5,
         vehicles: [],
-        profileImage: user.photoURL || "/profile_icon.png",
+        profileImage: profileImageUrl,
         createdAt: new Date(),
         appleProvider: true,
       }, { merge: true });
+
       router.push("/myVehicles_page");
     } catch (err) {
-      setFormError("Apple sign in failed. Please try again.");
+      let msg = "Apple sign in failed. Please try again.";
+      if (err.code === "auth/operation-not-allowed") {
+        msg = `Apple sign-in is not enabled or not fully configured in your Firebase project.
+Please:
+1. Go to Firebase Console > Authentication > Sign-in method.
+2. Make sure Apple is ENABLED (not just configured).
+3. Double-check your Service ID (should be a Service ID, not App ID), Team ID, Key ID, and Private Key.
+4. Save and try again.`;
+      } else if (err.code === "auth/account-exists-with-different-credential") {
+        // Account exists with same email, prompt for password and link
+        const pendingCred = OAuthProvider.credentialFromError(err);
+        const email = err.customData?.email;
+        const methods = await fetchSignInMethodsForEmail(auth, email);
+        if (methods.includes("password")) {
+          // Prompt user for password (replace with a secure modal in production)
+          const userPassword = window.prompt(
+            "An account already exists with this email. Please enter your password to link your Apple account:"
+          );
+          if (userPassword) {
+            try {
+              const userCredential = await signInWithEmailAndPassword(auth, email, userPassword);
+              await linkWithCredential(userCredential.user, pendingCred);
+              // Optionally update Firestore with appleProvider: true
+              await setDoc(doc(db, "members", userCredential.user.uid), {
+                appleProvider: true,
+              }, { merge: true });
+              router.push("/myVehicles_page");
+              setLoading(false);
+              return;
+            } catch (linkErr) {
+              msg = "Failed to link Apple account: " + (linkErr.message || linkErr.code);
+            }
+          } else {
+            msg = "Linking cancelled. Please sign in with your password to link your Apple account.";
+          }
+        } else if (methods.length > 0) {
+          msg = `An account already exists with this email using: ${methods[0]}. Please sign in with that provider to link your Apple account.`;
+        } else {
+          msg = "An account already exists with the same email address but different sign-in credentials.";
+        }
+      } else if (err.code === "auth/popup-closed-by-user") {
+        msg = "Apple sign-in was cancelled.";
+      }
+      setFormError(msg);
       console.error(err);
     } finally {
       setLoading(false);
@@ -298,11 +366,51 @@ export default function SignUp() {
     setCheckingEmail(false);
   };
 
+  // Utility to capitalize first letter and lowercase the rest
+  function formatFirstName(name) {
+    if (!name) return "";
+    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  }
+
   // ────────────────────────────────────────────────────────────────────────────────
   // JSX return (multi-step)
   // ────────────────────────────────────────────────────────────────────────────────
   return (
     <div className="flex items-center justify-center min-h-screen p-4 bg-zinc-900">
+      {/* Pre-auth First Name Form */}
+      {showPreAuthFirstName && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+          <form
+            className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md"
+            onSubmit={e => {
+              e.preventDefault();
+              if (preAuthFirstName.trim()) {
+                setShowPreAuthFirstName(false);
+              }
+            }}
+          >
+            <h2 className="mb-6 text-2xl font-semibold text-center text-black">Welcome!</h2>
+            <div>
+              <label className="block mb-1 text-black">First Name *</label>
+              <input
+                type="text"
+                value={preAuthFirstName}
+                onChange={e => setPreAuthFirstName(e.target.value)}
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                required
+                autoFocus
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full py-2 mt-6 font-bold text-white bg-gradient-to-r from-pink-500 to-purple-700 rounded-lg hover:from-pink-600 hover:to-purple-800"
+              disabled={!preAuthFirstName.trim()}
+            >
+              Continue
+            </button>
+          </form>
+        </div>
+      )}
       <div className="relative w-full max-w-2xl flex flex-row bg-white shadow-lg rounded-2xl">
         {/* Profile Picture Preview (left) - only show in Step 3 */}
         {step === 3 && (
@@ -388,7 +496,7 @@ export default function SignUp() {
           )}
 
           {/* Step 0: Choose authentication method */}
-          {authMethod === null && (
+          {!showPreAuthFirstName && authMethod === null && (
             <div className="flex flex-col gap-6">
               <h2 className="mb-4 text-2xl font-semibold text-center text-black">Sign Up</h2>
               <button
@@ -419,52 +527,8 @@ export default function SignUp() {
           {/* Email sign up flow */}
           {authMethod === "email" && (
             <div className="grid grid-cols-1 gap-4">
+              {/* Step 1: Email & Password */}
               {step === 1 && (
-                <>
-                  <div>
-                    <label className="block mb-1 text-black">First Name *</label>
-                    <input
-                      type="text"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
-                    {errors.firstName && (
-                      <p className="text-sm text-red-500">{errors.firstName}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block mb-1 text-black">Last Name *</label>
-                    <input
-                      type="text"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
-                    {errors.lastName && (
-                      <p className="text-sm text-red-500">{errors.lastName}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block mb-1 text-black">Middle Name</label>
-                    <input
-                      type="text"
-                      value={middleName}
-                      onChange={(e) => setMiddleName(e.target.value)}
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
-                  </div>
-                  <button
-                    onClick={handleNext}
-                    className="w-full py-2 mt-4 font-bold text-white transition rounded-lg bg-gradient-to-r from-pink-500 to-purple-700 hover:from-pink-600 hover:to-purple-800"
-                  >
-                    Continue
-                  </button>
-                </>
-              )}
-
-              {/* Step 2: Email & Password */}
-              {step === 2 && (
                 <>
                   <div>
                     <label className="block mb-1 text-black">Email *</label>
@@ -530,13 +594,7 @@ export default function SignUp() {
                       </p>
                     )}
                   </div>
-                  <div className="flex justify-between mt-4">
-                    <button
-                      onClick={handleBack}
-                      className="px-4 py-2 font-bold text-purple-700 bg-white border border-purple-500 rounded-lg hover:bg-purple-50"
-                    >
-                      Back
-                    </button>
+                  <div className="flex justify-end mt-4">
                     <button
                       onClick={handleNext}
                       className="px-4 py-2 font-bold text-white bg-gradient-to-r from-pink-500 to-purple-700 rounded-lg hover:from-pink-600 hover:to-purple-800"
@@ -554,43 +612,97 @@ export default function SignUp() {
                 </>
               )}
 
-              {/* Step 3: Profile Picture */}
-              {step === 3 && (
-                <>
-                  <div>
-                    <label className="block mb-1 text-black">
-                      Profile Picture{" "}
-                      <span className="text-xs text-gray-500">(jpg, png | max. 2 MB)</span>
-                    </label>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/png, image/jpeg"
-                      onChange={handleImageChange}
-                      className="w-full px-4 py-2 border border-purple-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
-                    {errors.profileImage && (
-                      <p className="mt-1 text-sm text-red-500">
-                        {errors.profileImage}
-                      </p>
-                    )}
+              {/* Step 2: Profile Picture with preview and cropping on the left */}
+              {step === 2 && (
+                <div className="flex flex-row">
+                  {/* Profile Picture Preview (left) */}
+                  <div className="flex flex-col items-center justify-center w-1/3 p-4 border-r border-gray-200">
+                    <div className="relative w-32 h-32 rounded-full overflow-hidden shadow-lg bg-gray-100">
+                      <img
+                        src={
+                          croppedImage
+                            ? croppedImage
+                            : image
+                            ? URL.createObjectURL(image)
+                            : anonymousPng.src || "/anonymous.png"
+                        }
+                        alt="Profile Preview"
+                        className="object-cover w-full h-full"
+                      />
+                      {/* Cropping Modal */}
+                      {cropping && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+                          <div className="bg-white p-6 rounded-xl shadow-xl flex flex-col items-center">
+                            <div className="relative w-72 h-72">
+                              <Cropper
+                                image={image ? URL.createObjectURL(image) : undefined}
+                                crop={crop}
+                                zoom={zoom}
+                                aspect={1}
+                                onCropChange={setCrop}
+                                onZoomChange={setZoom}
+                                onCropComplete={onCropComplete}
+                              />
+                            </div>
+                            <div className="flex gap-4 mt-4">
+                              <button
+                                className="px-4 py-2 bg-purple-600 text-white rounded-lg font-bold"
+                                onClick={handleCropDone}
+                              >
+                                Crop
+                              </button>
+                              <button
+                                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-bold"
+                                onClick={() => setCropping(false)}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-4 text-center text-gray-500 text-xs">
+                      Preview
+                    </div>
                   </div>
-                  <div className="flex justify-between mt-4">
-                    <button
-                      onClick={handleBack}
-                      className="px-4 py-2 font-bold text-purple-700 bg-white border border-purple-500 rounded-lg hover:bg-purple-50"
-                    >
-                      Back
-                    </button>
-                    <button
-                      onClick={handleSignUp}
-                      disabled={loading}
-                      className="px-4 py-2 font-bold text-white bg-gradient-to-r from-pink-500 to-purple-700 rounded-lg hover:from-pink-600 hover:to-purple-800"
-                    >
-                      {loading ? "Signing up..." : "Sign Up"}
-                    </button>
+                  {/* Profile Picture Upload (right) */}
+                  <div className="flex-1 p-4">
+                    <div>
+                      <label className="block mb-1 text-black">
+                        Profile Picture{" "}
+                        <span className="text-xs text-gray-500">(jpg, png | max. 2 MB)</span>
+                      </label>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/png, image/jpeg"
+                        onChange={handleImageChange}
+                        className="w-full px-4 py-2 border border-purple-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                      {errors.profileImage && (
+                        <p className="mt-1 text-sm text-red-500">
+                          {errors.profileImage}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex justify-between mt-4">
+                      <button
+                        onClick={handleBack}
+                        className="px-4 py-2 font-bold text-purple-700 bg-white border border-purple-500 rounded-lg hover:bg-purple-50"
+                      >
+                        Back
+                      </button>
+                      <button
+                        onClick={handleSignUp}
+                        disabled={loading}
+                        className="px-4 py-2 font-bold text-white bg-gradient-to-r from-pink-500 to-purple-700 rounded-lg hover:from-pink-600 hover:to-purple-800"
+                      >
+                        {loading ? "Signing up..." : "Sign Up"}
+                      </button>
+                    </div>
                   </div>
-                </>
+                </div>
               )}
             </div>
           )}
