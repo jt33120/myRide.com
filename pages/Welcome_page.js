@@ -7,6 +7,7 @@ import {
   WrenchIcon,
   UserPlusIcon,
   PlusCircleIcon,
+  ArrowTrendingUpIcon,
 } from "@heroicons/react/24/outline";
 // import intro3D from "../public/icons/intro-3d.png";
 // import track3D from "../public/icons/track-3d.png";
@@ -16,7 +17,7 @@ import { auth, db, storage } from "../lib/firebase";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { ref, listAll, getDownloadURL } from "firebase/storage";
 import Spinner from "../components/Spinner"; // or your preferred loader
-
+import { CarFront } from "lucide-react";
 export default function WelcomePage() {
   const router = useRouter();
   const [vehicles, setVehicles] = useState([]);
@@ -28,29 +29,29 @@ export default function WelcomePage() {
       key: "INTRO",
       title: "WELCOME",
       graphic: "/welcome.png",
-      headline: "MyRide: Your all-in-one garage & marketplace.",
-      desc: "Track, optimise and sell your vehicles with real-time AI insights and seamless workflow.",
+      headline: "MyRideYour all-in-one garage & marketplace.",
+      desc: "Your vehicle is one of your most important assets. Unlike other assets, it depreciates. Limiting that depreciation is challenging — even professionals struggle with it. At MyRide, we make it easy for everyone.",
     },
     {
       key: "TRACK",
       title: "TRACK",
       graphic: "/track.png",
-      headline: "Monitor your vehicle health in real time.",
-      desc: "Mileage, fuel, maintenance logs: everything synced automatically.",
+      headline: "Save all your receipts related to all your vehicles",
+      desc: "The AI tracks your spending on repairs, modifications, and regular maintenance — and guides you on exactly what maintenance task to perform next.",
     },
     {
       key: "OPTIMISE",
-      title: "OPTIMISE",
+      title: "OPTIMIZE",
       graphic: "/optimise.png",
-      headline: "Get AI-driven tips to extend your ride’s life.",
-      desc: "Personalized reminders, efficiency scores, and smart alerts.",
+      headline: "AI-support car valuation and tracking over time",
+      desc: "Our AI gives you an accurate, real-time estimate of your car’s value based on its condition, maintenance, and usage. Track it over time and get tips to boost it — no more lowball offers.",
     },
     {
       key: "SELL",
       title: "SELL",
       graphic: "/sell.png",
-      headline: "List your vehicle in under 2 minutes.",
-      desc: "Instant valuation, secure escrow, private marketplace access.",
+      headline: "Add a vehicle in 30sec. List it in 10sec.",
+      desc: "We’re building the safest vehicle marketplace ever. With full maintenance records, invite-only access, and crypto-enabled smart transactions, we ensure a trusted community of serious buyers and sellers.",
     },
   ];
 
@@ -160,10 +161,10 @@ export default function WelcomePage() {
 
   // map slide.key to icon
   const SlideIcon = {
-    INTRO: UserPlusIcon,
+    INTRO: CarFront,
     TRACK: MagnifyingGlassIcon,
     OPTIMISE: WrenchIcon,
-    SELL: PlusCircleIcon,
+    SELL: ArrowTrendingUpIcon,
   };
 
   return loading ? (
@@ -203,9 +204,9 @@ export default function WelcomePage() {
             <span className="ml-3 text-2xl font-bold text-white">MyRide</span>
           </div>
           <h1 className="mb-4 text-5xl font-bold text-white">
-            Find your
+            Track. Optimize.
             <br />
-            next ride
+            Sell for more.
           </h1>
           {/* Carousel */}
           <div
@@ -221,40 +222,33 @@ export default function WelcomePage() {
                   key={slide.key}
                   className="flex flex-col items-center flex-shrink-0 w-full px-4 text-center snap-start"
                 >
-                  {/* Slide Title */}
                   <h2 className="w-full mt-10 mb-4 text-3xl font-semibold text-center text-white uppercase border-b-2 rounded-3xl">
                     {slide.title}
                   </h2>
-
-                  {/* Two cards per slide */}
                   <div className="grid grid-cols-1 gap-4 px-4 mt-5 mb-12 md:grid-cols-2">
                     {[slide.headline, slide.desc].map((text, i) => (
                       <div
                         key={i}
                         className="flex flex-col items-center p-6 rounded-lg bg-opacity-70 bg-zinc-500"
                       >
-                        <Icon className="w-8 h-8 mb-3 text-white" />
+                        {/* Only show the icon in the first box (headline) */}
+                        {i === 0 && <Icon className="w-8 h-8 mb-3 text-white" />}
+                        {/* Show nothing in the second box (desc) */}
                         <p className="text-white">{text}</p>
                       </div>
                     ))}
-                  </div>
-
-                  {/* Fixed footer */}
-                  <div className="mt-auto">
-                    <p className="mb-4 text-center text-gray-200 text-md">
-                      Your marketplace & garage in one app
-                    </p>
-                    <Link
-                      href="/login_page"
-                      className="block mx-auto py-3 px-8 bg-[#E31FFF] rounded-3xl text-lg font-semibold text-white text-center"
-                    >
-                      Get started
-                    </Link>
                   </div>
                 </div>
               );
             })}
           </div>
+          <Link
+            href="/signup_page"
+            className="button-main mt-4 mb-4 text-center mx-auto"
+            style={{ marginBottom: "60px" }} // extra bottom margin for navbar
+          >
+            Get Started
+          </Link>
         </div>
       </section>
       {/* FIN HOME MOBILE */}

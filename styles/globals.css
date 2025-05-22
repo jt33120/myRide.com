@@ -117,8 +117,8 @@
 }
 
 .button-main:hover {
-  background: linear-gradient(to right, #2563eb, #9333ea); /* Matches hover:from-blue-600 hover:to-blue-800 */
-  transform: scale(1.05); /* Slight scaling effect on hover */
+  background: linear-gradient(to right, #2563eb, #ec4899); /* Matches hover:from-blue-600 hover:to-blue-800 */
+  transform: scale(1.0); /* Slight scaling effect on hover */
 }
 
 /* Form Layout */
