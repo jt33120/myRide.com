@@ -10,14 +10,11 @@ import {
   HiOutlineHome,
   HiOutlineChatBubbleLeftRight,
   HiOutlineDocumentText,
-  HiOutlineBanknotes,
   HiOutlineUserCircle,
-  HiOutlineTruck,
 } from "react-icons/hi2";
 import { HiOutlineQuestionMarkCircle } from "react-icons/hi2";
 import { IoLogOutOutline } from "react-icons/io5";
-import { Building, Building2, Car, CarFront, CarFrontIcon, Store, StoreIcon } from "lucide-react";
-import { isPropertyAccessExpression } from "typescript";
+import { Car,StoreIcon } from "lucide-react";
 
 export default function Navbar() {
   const router = useRouter();
