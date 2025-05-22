@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/router";
 import { auth, db, storage } from "../../lib/firebase";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import {
   doc,
   getDoc,
@@ -38,13 +39,9 @@ import {
   Info,
   Zap,
   Droplets,
-  FileText, // added for Registration Document
-  Shield, // added for Insurance Certificate
-  Clipboard, // added for Inspection Document
   PlusCircle, // added for file upload icon
   Eye, // added for view document icon
   EyeOff, // <-- added EyeOff icon
-  Trash, // new delete icon
   Edit, // new modify icon
 } from "lucide-react";
 
@@ -173,12 +170,43 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
   const [files, setFiles] = useState([]);
   const [existing] = useState(initialData?.urls || []);
   const [uploading, setUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null); // For full preview modal
+  const [toDelete, setToDelete] = useState([]); // Track files marked for deletion
+
+  // Mark a file for deletion (but don't delete from storage yet)
+  const handleMarkDelete = (url) => {
+    setToDelete((prev) => [...prev, url]);
+  };
+
+  // Unmark a file for deletion
+  const handleUnmarkDelete = (url) => {
+    setToDelete((prev) => prev.filter((u) => u !== url));
+  };
+
+  // Actually delete files from Firebase Storage after Save
+  const deleteMarkedFiles = async () => {
+    for (const url of toDelete) {
+      try {
+        const baseUrl = `listing/${vehicleId}/docs/receipts/`;
+        const fileName = url.split("%2F").pop().split("?")[0];
+        const filePath = baseUrl + decodeURIComponent(fileName);
+        await deleteObject(ref(storage, filePath));
+      } catch (e) {
+        console.error(e);
+        toast.error("Error deleting file: " + url);
+      }
+    }
+  };
+
   const handleSubmit = async () => {
     if (!title || !date || !category || !price) {
       return toast.error("All fields are required");
     }
     setUploading(true);
     try {
+      // Remove marked-for-deletion files from the urls array
+      const keptExisting = existing.filter((url) => !toDelete.includes(url));
+      // Upload new files
       const receiptId =
         initialData?.id ||
         doc(collection(db, `listing/${vehicleId}/receipts`)).id;
@@ -198,7 +226,7 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
         category,
         mileage: isNaN(+mileage) ? null : +mileage,
         price: +price,
-        urls: [...existing, ...uploadedUrls],
+        urls: [...keptExisting, ...uploadedUrls],
       };
       await setDoc(
         doc(db, `listing/${vehicleId}/receipts`, receiptId),
@@ -206,9 +234,24 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
         { merge: true }
       );
 
-      // Call the aiEstimator API
-      const vehicleSnap = await getDoc(doc(db, "listing", vehicleId));
+      // Delete files from storage only after successful save
+      await deleteMarkedFiles();
+
+      // --- Update vehicle mileage if needed ---
+      const vehicleRef = doc(db, "listing", vehicleId);
+      const vehicleSnap = await getDoc(vehicleRef);
       if (vehicleSnap.exists()) {
+        const vehicleData = vehicleSnap.data();
+        const currentMileage = Number(vehicleData.mileage) || 0;
+        const newMileage = isNaN(+mileage) ? currentMileage : Number(mileage);
+        if (newMileage > currentMileage) {
+          await setDoc(vehicleRef, { mileage: newMileage }, { merge: true });
+        }
+      }
+
+      // Call the aiEstimator API
+      const vehicleSnap2 = await getDoc(doc(db, "listing", vehicleId));
+      if (vehicleSnap2.exists()) {
         const vehicleData = vehicleSnap.data();
         const response = await fetch("/api/aiEstimator", {
           method: "POST",
@@ -246,6 +289,13 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
     } finally {
       setUploading(false);
     }
+  };
+
+  // Reset all changes if cancel is clicked
+  const handleCancel = () => {
+    setToDelete([]);
+    setFiles([]);
+    onClose();
   };
 
   return (
@@ -290,6 +340,134 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
           value={price}
           onChange={(e) => setPrice(e.target.value)}
         />
+
+        {/* Existing files preview and delete */}
+        {existing.length > 0 && (
+          <div className="mb-4">
+            <div className="mb-2 text-white font-semibold">Existing Files:</div>
+            <div className="flex flex-wrap gap-3">
+              {existing.map((url, idx) => {
+                const marked = toDelete.includes(url);
+                return (
+                  <div key={url} className="relative group">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewUrl(url)}
+                      style={{
+                        padding: 0,
+                        border: "none",
+                        background: "none",
+                        cursor: marked ? "not-allowed" : "pointer",
+                        opacity: marked ? 0.4 : 1,
+                      }}
+                      title={marked ? "Will be deleted" : "Click to enlarge"}
+                      disabled={marked}
+                    >
+                      {url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                        <img
+                          src={url}
+                          alt={`Receipt file ${idx + 1}`}
+                          className="w-20 h-20 object-contain rounded border bg-white"
+                          style={{ maxWidth: 80, maxHeight: 80 }}
+                        />
+                      ) : (
+                        <iframe
+                          src={url}
+                          title={`PDF preview ${idx + 1}`}
+                          className="rounded border bg-white"
+                          style={{
+                            width: 80,
+                            height: 80,
+                            objectFit: "contain",
+                            display: "block",
+                            background: "#fff",
+                            pointerEvents: "none",
+                          }}
+                        />
+                      )}
+                    </button>
+                    {/* Delete/Undo button: simple cross, no background */}
+                    {marked ? (
+                      <button
+                        type="button"
+                        onClick={() => handleUnmarkDelete(url)}
+                        className="absolute top-0 right-0 p-1 text-green-400 text-lg hover:text-green-600"
+                        title="Undo delete"
+                        style={{ background: "none", border: "none" }}
+                      >
+                        &#8634;
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleMarkDelete(url)}
+                        className="absolute top-0 right-0 p-1 text-white text-lg hover:text-pink-400"
+                        title="Mark for deletion"
+                        style={{ background: "none", border: "none" }}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {toDelete.length > 0 && (
+              <div className="mt-2 text-xs text-pink-400">
+                Files marked for deletion will be removed after saving.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Full preview modal */}
+        {previewUrl && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80">
+            <div className="relative bg-white rounded-lg shadow-xl p-4 max-w-2xl w-full flex flex-col items-center">
+              <button
+                className="absolute top-2 right-2 text-2xl text-gray-700 hover:text-pink-500"
+                onClick={() => setPreviewUrl(null)}
+                title="Close"
+                style={{ background: "none", border: "none" }}
+              >
+                ×
+              </button>
+              {previewUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                <div
+                  style={{
+                    width: "100%",
+                    height: "70vh",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: "#fff",
+                  }}
+                >
+                  <img
+                    src={previewUrl}
+                    alt="Full preview"
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "100%",
+                      objectFit: "contain",
+                      borderRadius: "0.5rem",
+                      background: "#fff",
+                      display: "block",
+                    }}
+                  />
+                </div>
+              ) : (
+                <iframe
+                  src={previewUrl}
+                  title="PDF Full Preview"
+                  className="w-full"
+                  style={{ minHeight: "70vh", background: "#fff" }}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
         <input
           type="file"
           multiple
@@ -299,7 +477,7 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
         <div className="flex justify-between">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleCancel}
             className="px-4 py-2 text-white rounded bg-neutral-600 hover:bg-neutral-500"
           >
             Cancel
@@ -308,7 +486,7 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
             type="button"
             onClick={handleSubmit}
             disabled={uploading}
-            className="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700"
+            className="button-main"
           >
             {uploading ? "Uploading..." : "Save Receipt"}
           </button>
@@ -339,7 +517,7 @@ export default function VehicleCardPage() {
   const [showReceiptForm, setShowReceiptForm] = useState(false);
   const [editingReceipt, setEditingReceipt] = useState(null);
   const [allDocs, setAllDocs] = useState([]);
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedItem, setSelectedItem] = useState("Total Spent");
   // Added state for enlarged image index
   const [enlargedIdx, setEnlargedIdx] = useState(null);
   // Add state definition for marketplace modal:
@@ -669,10 +847,10 @@ const handleShare = async () => {
   const calculateSum = (type) => {
     switch (type) {
       case "Total Spent":
-        return receipts.reduce(
-          (sum, receipt) => sum + (receipt.price || 0),
-          vehicle?.boughtAt || 0
-        );
+        return (
+        receipts.reduce((sum, receipt) => sum + (receipt.price || 0), 0) +
+        (Number(vehicle?.boughtAt) || 0)
+      );
       case "Without Purchase Price":
         return receipts.reduce((sum, receipt) => sum + (receipt.price || 0), 0);
       case "Repair":
@@ -1159,7 +1337,7 @@ const handleShare = async () => {
           </h1>
           <button
             onClick={handleShare}
-            className="ml-3 p-2 rounded-full bg-blue-700 hover:bg-blue-800 transition"
+            className="ml-3 w-10 h-10 flex items-center justify-center rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 transition"
             title="Share this vehicle"
             type="button"
           >
@@ -1191,9 +1369,15 @@ const handleShare = async () => {
             <h2 className="text-2xl font-bold">Vehicle Info</h2>
             <button
               onClick={() => setShowInfo((v) => !v)}
-              className="px-3 py-1 text-sm bg-blue-600 rounded text-white"
+              className="ml-3 p-2 group transition" // No rounded, no bg, just padding for click area
+              title={showInfo ? "Hide Info" : "Show Info"}
+              type="button"
             >
-              {showInfo ? "Hide" : "Show"}
+              {showInfo ? (
+                <ChevronUp className="w-6 h-6 text-purple-400 group-hover:text-pink-500 transition-colors" />
+              ) : (
+                <ChevronDown className="w-6 h-6 text-purple-400 group-hover:text-pink-500 transition-colors" />
+              )}
             </button>
           </div>
 
@@ -1203,11 +1387,13 @@ const handleShare = async () => {
               <h2 className="text-2xl font-bold">Vehicle Info</h2>
               {user.uid === vehicle.uid && (
                 <button
-                  onClick={() => setEditMode(true)}
-                  className="px-4 py-2 text-sm font-medium text-white transition bg-blue-600 rounded hover:bg-blue-700"
-                >
-                  ✏️ Edit
-                </button>
+                onClick={() => setEditMode(true)}
+                className="group p-1 transition"
+                title="Edit Vehicle"
+                type="button"
+              >
+                <Edit className="w-6 h-6 text-purple-400 group-hover:text-pink-500 transition-colors" />
+              </button>
               )}
             </div>
             {/* Updated Vehicle Info container: force 2 columns on all screens */}
@@ -1368,7 +1554,7 @@ const handleShare = async () => {
                   {[
                     {
                       label: "Total Spent",
-                      value: `$${calculateSum("Total").toFixed(2)}`,
+                      value: `$${calculateSum("Total Spent").toFixed(2)}`,
                     },
                     {
                       label: "Without Purchase Price",
@@ -1411,7 +1597,7 @@ const handleShare = async () => {
                           [
                             {
                               label: "Total Spent",
-                              value: `$${calculateSum("Total").toFixed(2)}`,
+                              value: `$${calculateSum("Total Spent").toFixed(2)}`,
                             },
                             {
                               label: "Without Purchase Price",
@@ -1499,24 +1685,24 @@ const handleShare = async () => {
                         toast.error("Failed to refresh AI recommendation.");
                       }
                     }}
-                    className="p-2 text-white transition bg-blue-600 rounded hover:bg-blue-700"
-                    title="Refresh AI Recommendation"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      strokeWidth="1.5"
-                      stroke="currentColor"
-                      className="w-6 h-6"
+                      className="p-2 rounded-full  text-purple-500 transition hover:text-pink-500"
+                      title="Refresh AI Recommendation"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
-                      />
-                    </svg>
-                  </button>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth="1.5"
+                        stroke="currentColor"
+                        className="w-6 h-6"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
+                        />
+                      </svg>
+                    </button>
                 </div>
                 <pre className="p-3 whitespace-pre-wrap rounded bg-neutral-700 txt-xs">
                   {aiRec}
@@ -1536,7 +1722,7 @@ const handleShare = async () => {
                 <button
                   onClick={askAi}
                   disabled={loadingAiQuestion}
-                  className="w-full py-2 mb-4 text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50"
+                  className="button-main w-full mb-4"
                 >
                   {loadingAiQuestion ? "Loading..." : "Ask AI"}
                 </button>
@@ -1549,70 +1735,90 @@ const handleShare = async () => {
               </div>
               {/* Receipts Section */}
               <div className="mt-4">
-                <h3 className="mb-2 text-xl font-semibold text-white">
-                  Receipts
-                </h3>
-                {receipts.length ? (
-                  <div className="space-y-2">
-                    {receipts.map((r) => (
-                      <div
-                        key={r.id}
-                        className="flex items-center justify-between"
-                      >
-                        <div className="flex flex-col">
-                          <div className="flex items-center">
+                <h3 className="mb-2 text-xl font-semibold text-white">Receipts</h3>
+                <div className="max-h-[30vh] overflow-y-auto">
+                  {receipts.length ? (
+                    <div className="space-y-2">
+                      {receipts.map((r) => (
+                        <div
+                          key={r.id}
+                          className="flex items-center justify-between gap-4"
+                        >
+                          {/* Title left, price center, icons right */}
+                          <div className="flex-1 min-w-0">
                             <button
                               onClick={() => {
                                 if (r.urls && r.urls.length > 0) {
                                   setSelectedReceiptUrls(r.urls);
                                 }
                               }}
-                              className="text-left text-blue-400 hover:underline"
+                              className="block text-left text-purple-500 hover:underline hover:text-pink-500 truncate w-full"
+                              title={r.title}
                             >
-                              {r.title}
+                              {r.date
+                                ? `${new Date(
+                                    r.date.seconds ? r.date.seconds * 1000 : r.date
+                                  ).toISOString().split("T")[0]}`
+                                : ""}
+                              <br />
+                              <span className="font-medium">{r.title}</span>
                             </button>
-                            <span className="ml-2 text-neutral-400">
-                              - ${r.price.toFixed(2)}
+                          </div>
+                          <div className="flex items-center flex-shrink-0 min-w-[100px] justify-center">
+                            <span className="text-neutral-400 font-semibold">
+                              ${r.price.toFixed(2)}
                             </span>
                           </div>
-                        </div>
-                        {vehicle.uid === user.uid ? (
-                          <div className="space-x-2">
-                            <button
-                              onClick={() => {
-                                setEditingReceipt(r);
-                                setShowReceiptForm(true);
-                              }}
-                            >
-                              ✏️
-                            </button>
-                            <button onClick={() => setReceiptToDelete(r)}>
-                              ✖️
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              if (r.urls && r.urls.length > 0) {
-                                setSelectedReceiptUrl(r.urls);
-                              }
-                            }}
-                            className="ml-auto"
-                            disabled={!(r.urls && r.urls.length > 0)}
-                          >
-                            {r.urls && r.urls.length > 0 ? (
-                              <Eye className="w-6 h-6 text-blue-400 hover:text-blue-500" />
+                          <div className="flex items-center flex-shrink-0 min-w-[70px] justify-end">
+                            {vehicle.uid === user.uid ? (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setEditingReceipt(r);
+                                    setShowReceiptForm(true);
+                                  }}
+                                  className="p-1 rounded text-purple-400 hover:text-pink-500 transition"
+                                  title="Edit Receipt"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => setReceiptToDelete(r)}
+                                  className="p-1 rounded text-purple-500 hover:text-pink-500 transition"
+                                  title="Delete Receipt"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </>
                             ) : (
-                              <EyeOff className="w-6 h-6 text-red-500" />
+                              <button
+                                onClick={() => {
+                                  if (r.urls && r.urls.length > 0) {
+                                    setSelectedReceiptUrl(r.urls);
+                                  }
+                                }}
+                                className="ml-auto"
+                                disabled={!(r.urls && r.urls.length > 0)}
+                              >
+                                {r.urls && r.urls.length > 0 ? (
+                                  <Eye className="w-6 h-6 text-blue-400 hover:text-blue-500" />
+                                ) : (
+                                  <EyeOff className="w-6 h-6 text-red-500" />
+                                )}
+                              </button>
                             )}
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p>No receipts</p>
-                )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p>No receipts</p>
+                  )}
+                </div>
                 {vehicle.uid === user.uid && (
                   <div className="flex space-x-4">
                     <button
@@ -1620,7 +1826,7 @@ const handleShare = async () => {
                         setEditingReceipt(null);
                         setShowReceiptForm(true);
                       }}
-                      className="px-4 py-2 mt-3 bg-blue-600 rounded hover:bg-blue-700"
+                      className="button-main mt-3"
                     >
                       + Add Receipt
                     </button>
@@ -1636,154 +1842,165 @@ const handleShare = async () => {
                   Paperwork
                 </h2>
                 {/* Grid for Title, Registration and Inspection */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                  {["title", "registration", "inspection"].map((type) => {
-                    const docObj = allDocs.find((d) =>
-                      d.name.toLowerCase().includes(type)
-                    );
-                    const labels = {
-                      title: "Title",
-                      registration: "Registration",
-                      inspection: "Inspection",
-                    };
-                    const IconComponent =
-                      type === "title"
-                        ? FileText
-                        : type === "registration"
-                        ? Shield
-                        : Clipboard;
+                  <div className="flex gap-4 justify-center">
+                    {["title", "registration", "inspection"].map((type) => {
+                      const docObj = allDocs.find((d) =>
+                        d.name.toLowerCase().includes(type)
+                      );
+                      const labels = {
+                        title: "Title",
+                        registration: "Registration",
+                        inspection: "Inspection",
+                      };
+                      // Use PNG icons from public/
+                      const iconSrcs = {
+                        title: "/title_icon.png",
+                        registration: "/registration_icon.png",
+                        inspection: "/inspection_icon.png",
+                      };
 
-                    // Extract the deadline from the document name (MM-DD-YYYY format)
-                    const deadlineMatch =
-                      docObj?.name.match(/\d{2}-\d{2}-\d{4}/);
-                    const deadline = deadlineMatch
-                      ? new Date(deadlineMatch[0])
-                      : null;
-                    const isExpired = deadline && deadline < new Date(); // Check if the deadline has passed
+                      // Extract the deadline from the document name (MM-DD-YYYY format)
+                      const deadlineMatch = docObj?.name.match(/\d{2}-\d{2}-\d{4}/);
+                      const deadline = deadlineMatch ? new Date(deadlineMatch[0]) : null;
+                      const isExpired = deadline && deadline < new Date();
 
-                    return (
-                      <div
-                        key={type}
-                        className={`flex flex-col items-center p-4 rounded-lg ${
-                          type === "title"
-                            ? "bg-blue-900" // Title is always blue
-                            : docObj
-                            ? isExpired
-                              ? "bg-red-900" // Red if deadline has passed
-                              : "bg-blue-900" // Blue if deadline is valid
-                            : "bg-gray-500" // Gray if no document
-                        }`}
-                      >
-                        {vehicle.uid === user.uid ? (
-                          <>
-                            <div className="flex items-center justify-center w-16 h-16 mb-2 rounded-full">
-                              <IconComponent className="w-8 h-8 text-white" />
-                            </div>
-                            <span className="text-sm font-medium text-white">
-                              {labels[type]}
-                            </span>
+                      // Color logic: purple for valid, pink for expired, gray for missing
+                      const bgColor =
+                        type === "title"
+                          ? "bg-purple-900"
+                          : docObj
+                          ? isExpired
+                            ? "bg-pink-900"
+                            : "bg-purple-900"
+                          : "bg-gray-500";
 
-                            {docObj ? (
-                              <>
-                                <div className="flex flex-col items-center mt-1 space-y-1">
-                                  <button
-                                    onClick={() =>
-                                      setSelectedAdminDocUrl(docObj.url)
-                                    }
-                                    className="cursor-pointer"
-                                    title="View document"
-                                  >
-                                    <Eye className="w-8 h-8 text-blue-300 hover:text-blue-400" />
-                                  </button>
-                                  <div className="flex space-x-2">
+                      // Pick icon filter based on bgColor for best match
+                      // For purple: invert(1) hue-rotate(270deg) brightness(1.2)
+                      // For pink: invert(1) sepia(1) hue-rotate(290deg) saturate(4) brightness(1.1)
+                      // For gray: invert(0.7) brightness(1.2)
+                      let iconFilter = "";
+                      if (bgColor.includes("purple")) {
+                        iconFilter = "invert(1) hue-rotate(270deg) brightness(1.2)";
+                      } else if (bgColor.includes("pink")) {
+                        iconFilter = "invert(1) sepia(1) hue-rotate(290deg) saturate(4) brightness(1.1)";
+                      } else {
+                        iconFilter = "invert(0.7) brightness(1.2)";
+                      }
+
+                      return (
+                        <div
+                          key={type}
+                          className={`flex flex-col items-center p-4 rounded-lg ${bgColor}`}
+                          style={{ width: "auto", minWidth: 140, maxWidth: 180 }}
+                        >
+                          {vehicle.uid === user.uid ? (
+                            <>
+                              <div className="flex items-center justify-center w-16 h-16 mb-2">
+                                <img
+                                  src={iconSrcs[type]}
+                                  alt={labels[type]}
+                                  className="w-8 h-8 object-contain"
+                                  style={{ filter: iconFilter }}
+                                />
+                              </div>
+                              <span className="text-sm font-medium text-white">
+                                {labels[type]}
+                              </span>
+
+                              {docObj ? (
+                                <>
+                                  <div className="flex flex-col items-center mt-1 space-y-1">
                                     <button
-                                      onClick={() => removeDocument(type)}
-                                      className="text-red-500 hover:text-red-600"
-                                      title="Delete document"
+                                      onClick={() => setSelectedAdminDocUrl(docObj.url)}
+                                      className="cursor-pointer"
+                                      title="View document"
                                     >
-                                      <Trash className="w-4 h-4" />
+                                      <Eye className="w-8 h-8 text-purple-300 hover:text-purple-400" />
                                     </button>
-                                    <button
-                                      onClick={() =>
-                                        document
-                                          .getElementById(
-                                            `modify-file-input-${type}`
-                                          )
-                                          .click()
-                                      }
-                                      className="text-green-500 hover:text-green-600"
-                                      title="Modify document"
-                                    >
-                                      <Edit className="w-4 h-4" />
-                                    </button>
+                                    <div className="flex space-x-2">
+                                      {/* Edit button on the left */}
+                                      <button
+                                        onClick={() =>
+                                          document
+                                            .getElementById(`modify-file-input-${type}`)
+                                            .click()
+                                        }
+                                        className="text-purple-200 hover:text-pink-200"
+                                        title="Modify document"
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </button>
+                                      {/* Cross (delete) button on the right */}
+                                      <button
+                                        onClick={() => removeDocument(type)}
+                                        className="text-purple-200 hover:text-pink-200"
+                                        title="Delete document"
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                        </svg>
+                                      </button>
+                                    </div>
                                   </div>
-                                </div>
-                                <input
-                                  id={`modify-file-input-${type}`}
-                                  type="file"
-                                  className="hidden"
-                                  onChange={(e) =>
-                                    e.target.files[0] &&
-                                    handleUploadAdminDocument(
-                                      type,
-                                      e.target.files[0]
-                                    )
-                                  }
+                                  <input
+                                    id={`modify-file-input-${type}`}
+                                    type="file"
+                                    className="hidden"
+                                    onChange={(e) =>
+                                      e.target.files[0] &&
+                                      handleUploadAdminDocument(type, e.target.files[0])
+                                    }
+                                  />
+                                </>
+                              ) : (
+                                <>
+                                  <label
+                                    htmlFor={`file-input-${type}`}
+                                    className="mt-1 cursor-pointer"
+                                    title="Add document"
+                                  >
+                                    <PlusCircle className="w-8 h-8 text-gray-200 hover:text-gray-100" />
+                                  </label>
+                                  <input
+                                    id={`file-input-${type}`}
+                                    type="file"
+                                    className="hidden"
+                                    onChange={(e) =>
+                                      e.target.files[0] &&
+                                      handleUploadAdminDocument(type, e.target.files[0])
+                                    }
+                                  />
+                                </>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <div
+                                className={`w-16 h-16 flex items-center justify-center mb-2`}
+                              >
+                                <img
+                                  src={iconSrcs[type]}
+                                  alt={labels[type]}
+                                  className="w-8 h-8 object-contain"
+                                  style={{ filter: iconFilter }}
                                 />
-                              </>
-                            ) : (
-                              <>
-                                <label
-                                  htmlFor={`file-input-${type}`}
-                                  className="mt-1 cursor-pointer"
-                                  title="Add document"
-                                >
-                                  <PlusCircle className="w-8 h-8 text-gray-200 hover:text-gray-100" />
-                                </label>
-                                <input
-                                  id={`file-input-${type}`}
-                                  type="file"
-                                  className="hidden"
-                                  onChange={(e) =>
-                                    e.target.files[0] &&
-                                    handleUploadAdminDocument(
-                                      type,
-                                      e.target.files[0]
-                                    )
-                                  }
-                                />
-                              </>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <div
-                              className={`w-16 h-16 flex items-center justify-center rounded-full mb-2 ${
-                                docObj
+                              </div>
+                              <h3 className="text-sm font-medium text-white">
+                                {labels[type]}
+                              </h3>
+                              <span className="mt-1 text-xs text-gray-300">
+                                {docObj
                                   ? isExpired
-                                    ? "bg-red-500"
-                                    : "bg-green-500"
-                                  : "bg-gray-500"
-                              }`}
-                            >
-                              <IconComponent className="w-8 h-8 text-white" />
-                            </div>
-                            <h3 className="text-sm font-medium text-white">
-                              {labels[type]}
-                            </h3>
-                            <span className="mt-1 text-xs text-gray-300">
-                              {docObj
-                                ? isExpired
-                                  ? "Expired"
-                                  : "Valid"
-                                : "Not Added"}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                                    ? "Expired"
+                                    : "Valid"
+                                  : "Not Added"}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
 
                 {/* notice for non-owners */}
                 {vehicle.uid !== user.uid && (
@@ -1804,7 +2021,7 @@ const handleShare = async () => {
                         <button
                         type="button"
                           onClick={removeFromMarketplace}
-                          className="px-6 py-2 text-white transition bg-red-600 rounded hover:bg-red-700"
+                          className="px-1 py-2 font-xs border border-gray-300 text-gray-400 bg-transparent rounded-lg hover:border-red-400 hover:text-red-600 transition"
                         >
                           Remove from Marketplace
                         </button>
@@ -1973,45 +2190,77 @@ const handleShare = async () => {
           </div>
         )}
         {/* New Admin Document Modal */}
-        {selectedAdminDocUrl && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
-            <div className="relative w-full max-w-3xl p-6 bg-white rounded-lg shadow-xl">
-              <div className="flex justify-between mb-4">
-                <h2 className="text-2xl font-semibold">Admin Document</h2>
-                <button
-                type="button"
-                  onClick={() => setSelectedAdminDocUrl(null)}
-                  className="text-2xl font-bold"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="overflow-auto h-96">
-                <iframe
-                  src={selectedAdminDocUrl}
-                  className="w-full h-full border"
-                  title="Admin Document"
-                ></iframe>
-              </div>
-              <div className="flex justify-end mt-4 space-x-4">
-                <a
-                  href={selectedAdminDocUrl}
-                  download
-                  className="px-4 py-2 text-white transition bg-green-600 rounded hover:bg-green-700"
-                >
-                  Download
-                </a>
-                <button
-                type="button"
-                  onClick={() => setSelectedAdminDocUrl(null)}
-                  className="px-4 py-2 text-white transition bg-gray-600 rounded hover:bg-gray-700"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+{selectedAdminDocUrl && (
+  <div
+    className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90"
+    onClick={() => setSelectedAdminDocUrl(null)}
+    style={{ cursor: "zoom-out" }}
+  >
+    <button
+      className="absolute text-3xl text-white top-6 right-8 hover:text-gray-300"
+      onClick={e => {
+        e.stopPropagation();
+        setSelectedAdminDocUrl(null);
+      }}
+      style={{ zIndex: 10 }}
+    >
+      &times;
+    </button>
+    <div className="flex items-center justify-center w-full h-full">
+      {selectedAdminDocUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+        <img
+          src={selectedAdminDocUrl}
+          alt="Document Preview"
+          style={{
+            maxWidth: "100vw",
+            maxHeight: "100vh",
+            width: "auto",
+            height: "auto",
+            objectFit: "contain",
+            borderRadius: "0.5rem",
+            background: "#fff",
+            display: "block",
+            margin: "0 auto",
+            boxShadow: "0 4px 32px rgba(0,0,0,0.4)"
+          }}
+        />
+      ) : (
+        <iframe
+          src={selectedAdminDocUrl}
+          className="w-full h-[90vh] rounded-lg"
+          style={{
+            backgroundColor: "#fff",
+            border: "none",
+            maxWidth: "90vw",
+            borderRadius: "0.5rem",
+            boxShadow: "0 4px 32px rgba(0,0,0,0.4)"
+          }}
+          title="Admin Document"
+        />
+      )}
+    </div>
+    <div className="absolute bottom-8 right-8 flex space-x-4 z-20">
+      <a
+        href={selectedAdminDocUrl}
+        download
+        className="button-main"
+        onClick={e => e.stopPropagation()}
+      >
+        Download
+      </a>
+      <button
+        type="button"
+        onClick={e => {
+          e.stopPropagation();
+          setSelectedAdminDocUrl(null);
+        }}
+        className="px-4 py-2 text-white transition bg-gray-600 rounded hover:bg-gray-700"
+      >
+        Close
+      </button>
+    </div>
+  </div>
+)}
       </div>
     </>
   );

@@ -10,14 +10,11 @@ import {
   HiOutlineHome,
   HiOutlineChatBubbleLeftRight,
   HiOutlineDocumentText,
-  HiOutlineBanknotes,
   HiOutlineUserCircle,
-  HiOutlineTruck,
 } from "react-icons/hi2";
 import { HiOutlineQuestionMarkCircle } from "react-icons/hi2";
 import { IoLogOutOutline } from "react-icons/io5";
-import { Building, Building2, Car, CarFront, CarFrontIcon, Store, StoreIcon } from "lucide-react";
-import { isPropertyAccessExpression } from "typescript";
+import { StoreIcon } from "lucide-react";
 
 export default function Navbar() {
   const router = useRouter();
@@ -32,7 +29,11 @@ export default function Navbar() {
 
   const items = [
     { label: "Home", Icon: HiOutlineHome, path: "/Welcome_page" },
-    { label: "Garage", Icon: Car, path: "/myVehicles_page" },
+    {
+      label: "Garage",
+      Icon: null, // We'll handle this separately below
+      path: "/myVehicles_page",
+    },
     {
       label: "Chat",
       Icon: HiOutlineChatBubbleLeftRight,
@@ -98,7 +99,7 @@ export default function Navbar() {
   return (
     <>
       {/* Desktop Navbar */}
-      <nav className="hidden md:fixed md:top-3 md:left-1/2 md:-translate-x-1/2 md:z-50 md:flex md:items-center md:justify-center md:w-[90%] md:max-w-5xl md:px-10 md:py-4 md:text-gray-900 md:bg-white/80 md:backdrop-blur md:border md:border-gray-200 md:rounded-xl md:shadow-lg md:transition-all md:m-0">
+      <nav className="hidden md:fixed md:top-3 md:left-1/2 md:-translate-x-1/2 md:z-50 md:flex md:items-center md:justify-center md:w-[90%] md:max-w-5xl md:px-10 md:py-4 md:text-white md:bg-gray-900 md:backdrop-blur md:border md:border-gray-800 md:rounded-xl md:shadow-lg md:transition-all md:m-0">
         <div className="flex items-center space-x-8">
           {items.map(({ label, Icon, path }) => (
             <Link
@@ -106,12 +107,26 @@ export default function Navbar() {
               href={path}
               className={`
               flex flex-col items-center px-3 py-1 rounded-lg transition-colors
-              hover:bg-gray-100 hover:text-pink-500 focus:outline-none
-              ${router.pathname === path ? "text-pink-600 font-semibold" : ""}
+              hover:bg-gray-800 focus:outline-none
+              ${router.pathname === path ? "font-semibold" : ""}
             `}
             >
-              <Icon className="w-6 h-6" />
-              <span className="mt-1 text-xs">{label}</span>
+              {label === "Garage" ? (
+                <Image
+                  src="/garage.svg"
+                  alt="Garage"
+                  width={24}
+                  height={24}
+                  className="w-6 h-6"
+                  style={{
+                    filter: "invert(100%) sepia(0%) saturate(0%) hue-rotate(180deg) brightness(100%) contrast(100%)",
+                  }}
+                  priority={false}
+                />
+              ) : (
+                <Icon className="w-6 h-6 text-white" />
+              )}
+              <span className="mt-1 text-xs text-white">{label}</span>
             </Link>
           ))}
 
@@ -120,10 +135,10 @@ export default function Navbar() {
             href="/help_page"
             className={`
               flex flex-col items-center px-3 py-1 rounded-lg transition-colors
-              hover:bg-gray-100 hover:text-pink-500 focus:outline-none
+              hover:bg-gray-800 focus:outline-none
               ${
                 router.pathname === "/help_page"
-                  ? "text-pink-600 font-semibold"
+                  ? "font-semibold"
                   : ""
               }
             `}
@@ -137,10 +152,10 @@ export default function Navbar() {
             href="/userProfile_page"
             className={`
               flex flex-col items-center px-3 py-1 rounded-lg transition-colors
-              hover:bg-gray-100 hover:text-pink-500 focus:outline-none
+              hover:bg-gray-800 focus:outline-none
               ${
                 router.pathname === "/userProfile_page"
-                  ? "text-pink-600 font-semibold"
+                  ? "font-semibold"
                   : ""
               }
             `}
@@ -163,7 +178,7 @@ export default function Navbar() {
           {currentUser && (
             <button
               onClick={logout}
-              className="flex flex-col items-center px-3 py-1 transition-colors rounded-lg hover:bg-gray-100 hover:text-pink-500 focus:outline-none"
+              className="flex flex-col items-center px-3 py-1 transition-colors rounded-lg hover:bg-gray-800 focus:outline-none"
             >
               <IoLogOutOutline className="w-6 h-6" />
               <span className="mt-1 text-xs">Logout</span>
@@ -173,99 +188,124 @@ export default function Navbar() {
       </nav>
 
       {/* Mobile Navbar */}
-      <nav
-        className={`
-          md:hidden fixed bottom-0 w-full bg-white text-gray-900 flex justify-around py-2
-          transition-transform duration-300
-          ${showMobile ? "translate-y-0" : "translate-y-full"} z-50
-        `}
-      >
-        {items.map(({ label, Icon, path }) => (
-          <Link
-            key={label}
-            href={path}
-            className="flex flex-col items-center hover:text-pink-500 focus:outline-none"
-          >
-            <Icon className="w-6 h-6" />
-            <span className="mt-1 text-xs">{label}</span>
-          </Link>
-        ))}
-
-        {/* Mobile Dropdown */}
-        <div className="relative" ref={mobileRef}>
-          <button
-            onClick={() => setMobileOpen((o) => !o)}
-            className="p-1 rounded-full hover:text-pink-500 focus:outline-none"
-          >
-            {profileImage ? (
-              <Image
-                src={profileImage}
-                alt="profile"
-                width={32}
-                height={32}
-                className="rounded-full"
-              />
-            ) : (
-              <HiOutlineUserCircle className="w-7 h-7" />
-            )}
-          </button>
-          {mobileOpen && (
-            <div className="absolute w-40 text-gray-900 bg-white rounded shadow-lg right-4 bottom-12">
-              {currentUser ? (
-                <>
-                  <Link
-                    href="/userProfile_page"
-                    className="block w-full px-4 py-2 text-left hover:bg-gray-100"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    Profile
-                  </Link>
-                  <button
-                    onClick={() => {
-                      setMobileOpen(false);
-                      logout();
+      {router.pathname !== "/Welcome_page" && (
+        <nav
+          className={`
+            md:hidden fixed bottom-0 w-full bg-gray-900 text-white flex justify-around py-2
+            transition-transform duration-300
+            ${showMobile ? "translate-y-0" : "translate-y-full"} z-50
+          `}
+        >
+          {items
+            .filter(
+              (item) =>
+                // remove Home only when signed in
+                !(currentUser && item.label === "Home")
+            )
+            .map(({ label, Icon, path }) => (
+              <Link
+                key={label}
+                href={path}
+                className={`
+                  flex flex-col items-center focus:outline-none
+                  ${router.pathname === path ? "font-semibold" : ""}
+                `}
+              >
+                {label === "Garage" ? (
+                  <Image
+                    src="/garage.svg"
+                    alt="Garage"
+                    width={24}
+                    height={24}
+                    className="w-6 h-6"
+                    style={{
+                      filter: "invert(100%) sepia(0%) saturate(0%) hue-rotate(180deg) brightness(100%) contrast(100%)",
                     }}
-                    className="w-full px-4 py-2 text-left hover:bg-gray-100"
-                  >
-                    Logout
-                  </button>
-                  <Link
-                    href="/help_page"
-                    className="block w-full px-4 py-2 text-left hover:bg-gray-100"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    Help
-                  </Link>
-                </>
+                    priority={false}
+                  />
+                ) : (
+                  <Icon className="w-6 h-6 text-white" />
+                )}
+                <span className="mt-1 text-xs text-white">{label}</span>
+              </Link>
+            ))}
+
+          {/* Mobile Dropdown */}
+          <div className="relative" ref={mobileRef}>
+            <button
+              onClick={() => setMobileOpen((o) => !o)}
+              className="p-1 rounded-full hover:text-purple-400 focus:outline-none"
+            >
+              {profileImage ? (
+                <Image
+                  src={profileImage}
+                  alt="profile"
+                  width={32}
+                  height={32}
+                  className="rounded-full"
+                />
               ) : (
-                <>
-                  <Link
-                    href="/login_page"
-                    className="block w-full px-4 py-2 text-left hover:bg-gray-100"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    Log In
-                  </Link>
-                  <Link
-                    href="/signup_page"
-                    className="block w-full px-4 py-2 text-left hover:bg-gray-100"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    Sign Up
-                  </Link>
-                  <Link
-                    href="/help_page"
-                    className="block w-full px-4 py-2 text-left hover:bg-gray-100"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    Help
-                  </Link>
-                </>
+                <HiOutlineUserCircle className="w-7 h-7" />
               )}
-            </div>
-          )}
-        </div>
-      </nav>
+            </button>
+            {mobileOpen && (
+              <div className="absolute w-40 text-gray-900 bg-white rounded shadow-lg right-4 bottom-12">
+                {currentUser ? (
+                  <>
+                    <Link
+                      href="/userProfile_page"
+                      className="block w-full px-4 py-2 text-left hover:bg-gray-100"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      Profile
+                    </Link>
+                    <button
+                      onClick={() => {
+                        setMobileOpen(false);
+                        logout();
+                      }}
+                      className="w-full px-4 py-2 text-left hover:bg-gray-100"
+                    >
+                      Logout
+                    </button>
+                    <Link
+                      href="/help_page"
+                      className="block w-full px-4 py-2 text-left hover:bg-gray-100"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      Help
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/login_page"
+                      className="block w-full px-4 py-2 text-left hover:bg-gray-100"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      Log In
+                    </Link>
+                    <Link
+                      href="/signup_page"
+                      className="block w-full px-4 py-2 text-left hover:bg-gray-100"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      Sign Up
+                    </Link>
+                    <Link
+                      href="/help_page"
+                      className="block w-full px-4 py-2 text-left hover:bg-gray-100"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      Help
+                    </Link>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </nav>
+      )}
     </>
   );
 }
