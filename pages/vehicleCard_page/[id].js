@@ -170,12 +170,43 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
   const [files, setFiles] = useState([]);
   const [existing] = useState(initialData?.urls || []);
   const [uploading, setUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null); // For full preview modal
+  const [toDelete, setToDelete] = useState([]); // Track files marked for deletion
+
+  // Mark a file for deletion (but don't delete from storage yet)
+  const handleMarkDelete = (url) => {
+    setToDelete((prev) => [...prev, url]);
+  };
+
+  // Unmark a file for deletion
+  const handleUnmarkDelete = (url) => {
+    setToDelete((prev) => prev.filter((u) => u !== url));
+  };
+
+  // Actually delete files from Firebase Storage after Save
+  const deleteMarkedFiles = async () => {
+    for (const url of toDelete) {
+      try {
+        const baseUrl = `listing/${vehicleId}/docs/receipts/`;
+        const fileName = url.split("%2F").pop().split("?")[0];
+        const filePath = baseUrl + decodeURIComponent(fileName);
+        await deleteObject(ref(storage, filePath));
+      } catch (e) {
+        console.error(e);
+        toast.error("Error deleting file: " + url);
+      }
+    }
+  };
+
   const handleSubmit = async () => {
     if (!title || !date || !category || !price) {
       return toast.error("All fields are required");
     }
     setUploading(true);
     try {
+      // Remove marked-for-deletion files from the urls array
+      const keptExisting = existing.filter((url) => !toDelete.includes(url));
+      // Upload new files
       const receiptId =
         initialData?.id ||
         doc(collection(db, `listing/${vehicleId}/receipts`)).id;
@@ -195,7 +226,7 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
         category,
         mileage: isNaN(+mileage) ? null : +mileage,
         price: +price,
-        urls: [...existing, ...uploadedUrls],
+        urls: [...keptExisting, ...uploadedUrls],
       };
       await setDoc(
         doc(db, `listing/${vehicleId}/receipts`, receiptId),
@@ -203,17 +234,20 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
         { merge: true }
       );
 
+      // Delete files from storage only after successful save
+      await deleteMarkedFiles();
+
       // --- Update vehicle mileage if needed ---
-    const vehicleRef = doc(db, "listing", vehicleId);
-    const vehicleSnap = await getDoc(vehicleRef);
-    if (vehicleSnap.exists()) {
-      const vehicleData = vehicleSnap.data();
-      const currentMileage = Number(vehicleData.mileage) || 0;
-      const newMileage = isNaN(+mileage) ? currentMileage : Number(mileage);
-      if (newMileage > currentMileage) {
-        await setDoc(vehicleRef, { mileage: newMileage }, { merge: true });
+      const vehicleRef = doc(db, "listing", vehicleId);
+      const vehicleSnap = await getDoc(vehicleRef);
+      if (vehicleSnap.exists()) {
+        const vehicleData = vehicleSnap.data();
+        const currentMileage = Number(vehicleData.mileage) || 0;
+        const newMileage = isNaN(+mileage) ? currentMileage : Number(mileage);
+        if (newMileage > currentMileage) {
+          await setDoc(vehicleRef, { mileage: newMileage }, { merge: true });
+        }
       }
-    }
 
       // Call the aiEstimator API
       const vehicleSnap2 = await getDoc(doc(db, "listing", vehicleId));
@@ -255,6 +289,13 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
     } finally {
       setUploading(false);
     }
+  };
+
+  // Reset all changes if cancel is clicked
+  const handleCancel = () => {
+    setToDelete([]);
+    setFiles([]);
+    onClose();
   };
 
   return (
@@ -299,6 +340,134 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
           value={price}
           onChange={(e) => setPrice(e.target.value)}
         />
+
+        {/* Existing files preview and delete */}
+        {existing.length > 0 && (
+          <div className="mb-4">
+            <div className="mb-2 text-white font-semibold">Existing Files:</div>
+            <div className="flex flex-wrap gap-3">
+              {existing.map((url, idx) => {
+                const marked = toDelete.includes(url);
+                return (
+                  <div key={url} className="relative group">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewUrl(url)}
+                      style={{
+                        padding: 0,
+                        border: "none",
+                        background: "none",
+                        cursor: marked ? "not-allowed" : "pointer",
+                        opacity: marked ? 0.4 : 1,
+                      }}
+                      title={marked ? "Will be deleted" : "Click to enlarge"}
+                      disabled={marked}
+                    >
+                      {url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                        <img
+                          src={url}
+                          alt={`Receipt file ${idx + 1}`}
+                          className="w-20 h-20 object-contain rounded border bg-white"
+                          style={{ maxWidth: 80, maxHeight: 80 }}
+                        />
+                      ) : (
+                        <iframe
+                          src={url}
+                          title={`PDF preview ${idx + 1}`}
+                          className="rounded border bg-white"
+                          style={{
+                            width: 80,
+                            height: 80,
+                            objectFit: "contain",
+                            display: "block",
+                            background: "#fff",
+                            pointerEvents: "none",
+                          }}
+                        />
+                      )}
+                    </button>
+                    {/* Delete/Undo button: simple cross, no background */}
+                    {marked ? (
+                      <button
+                        type="button"
+                        onClick={() => handleUnmarkDelete(url)}
+                        className="absolute top-0 right-0 p-1 text-green-400 text-lg hover:text-green-600"
+                        title="Undo delete"
+                        style={{ background: "none", border: "none" }}
+                      >
+                        &#8634;
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleMarkDelete(url)}
+                        className="absolute top-0 right-0 p-1 text-white text-lg hover:text-pink-400"
+                        title="Mark for deletion"
+                        style={{ background: "none", border: "none" }}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {toDelete.length > 0 && (
+              <div className="mt-2 text-xs text-pink-400">
+                Files marked for deletion will be removed after saving.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Full preview modal */}
+        {previewUrl && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80">
+            <div className="relative bg-white rounded-lg shadow-xl p-4 max-w-2xl w-full flex flex-col items-center">
+              <button
+                className="absolute top-2 right-2 text-2xl text-gray-700 hover:text-pink-500"
+                onClick={() => setPreviewUrl(null)}
+                title="Close"
+                style={{ background: "none", border: "none" }}
+              >
+                ×
+              </button>
+              {previewUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                <div
+                  style={{
+                    width: "100%",
+                    height: "70vh",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: "#fff",
+                  }}
+                >
+                  <img
+                    src={previewUrl}
+                    alt="Full preview"
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "100%",
+                      objectFit: "contain",
+                      borderRadius: "0.5rem",
+                      background: "#fff",
+                      display: "block",
+                    }}
+                  />
+                </div>
+              ) : (
+                <iframe
+                  src={previewUrl}
+                  title="PDF Full Preview"
+                  className="w-full"
+                  style={{ minHeight: "70vh", background: "#fff" }}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
         <input
           type="file"
           multiple
@@ -308,7 +477,7 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
         <div className="flex justify-between">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleCancel}
             className="px-4 py-2 text-white rounded bg-neutral-600 hover:bg-neutral-500"
           >
             Cancel
@@ -317,7 +486,7 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
             type="button"
             onClick={handleSubmit}
             disabled={uploading}
-            className="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700"
+            className="button-main"
           >
             {uploading ? "Uploading..." : "Save Receipt"}
           </button>
@@ -678,10 +847,10 @@ const handleShare = async () => {
   const calculateSum = (type) => {
     switch (type) {
       case "Total Spent":
-        return receipts.reduce(
-          (sum, receipt) => sum + (receipt.price || 0),
-          vehicle?.boughtAt || 0
-        );
+        return (
+        receipts.reduce((sum, receipt) => sum + (receipt.price || 0), 0) +
+        (Number(vehicle?.boughtAt) || 0)
+      );
       case "Without Purchase Price":
         return receipts.reduce((sum, receipt) => sum + (receipt.price || 0), 0);
       case "Repair":
@@ -1385,7 +1554,7 @@ const handleShare = async () => {
                   {[
                     {
                       label: "Total Spent",
-                      value: `$${calculateSum("Total").toFixed(2)}`,
+                      value: `$${calculateSum("Total Spent").toFixed(2)}`,
                     },
                     {
                       label: "Without Purchase Price",
@@ -1428,7 +1597,7 @@ const handleShare = async () => {
                           [
                             {
                               label: "Total Spent",
-                              value: `$${calculateSum("Total").toFixed(2)}`,
+                              value: `$${calculateSum("Total Spent").toFixed(2)}`,
                             },
                             {
                               label: "Without Purchase Price",
@@ -1852,7 +2021,7 @@ const handleShare = async () => {
                         <button
                         type="button"
                           onClick={removeFromMarketplace}
-                          className="px-1 py-2 font-medium border border-gray-300 text-gray-400 bg-transparent rounded-lg hover:border-red-400 hover:text-red-600 transition"
+                          className="px-1 py-2 font-xs border border-gray-300 text-gray-400 bg-transparent rounded-lg hover:border-red-400 hover:text-red-600 transition"
                         >
                           Remove from Marketplace
                         </button>
@@ -2021,45 +2190,77 @@ const handleShare = async () => {
           </div>
         )}
         {/* New Admin Document Modal */}
-        {selectedAdminDocUrl && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
-            <div className="relative w-full max-w-3xl p-6 bg-white rounded-lg shadow-xl">
-              <div className="flex justify-between mb-4">
-                <h2 className="text-2xl font-semibold">Admin Document</h2>
-                <button
-                type="button"
-                  onClick={() => setSelectedAdminDocUrl(null)}
-                  className="text-2xl font-bold"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="overflow-auto h-96">
-                <iframe
-                  src={selectedAdminDocUrl}
-                  className="w-full h-full border"
-                  title="Admin Document"
-                ></iframe>
-              </div>
-              <div className="flex justify-end mt-4 space-x-4">
-                <a
-                  href={selectedAdminDocUrl}
-                  download
-                  className="px-4 py-2 text-white transition bg-green-600 rounded hover:bg-green-700"
-                >
-                  Download
-                </a>
-                <button
-                type="button"
-                  onClick={() => setSelectedAdminDocUrl(null)}
-                  className="px-4 py-2 text-white transition bg-gray-600 rounded hover:bg-gray-700"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+{selectedAdminDocUrl && (
+  <div
+    className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90"
+    onClick={() => setSelectedAdminDocUrl(null)}
+    style={{ cursor: "zoom-out" }}
+  >
+    <button
+      className="absolute text-3xl text-white top-6 right-8 hover:text-gray-300"
+      onClick={e => {
+        e.stopPropagation();
+        setSelectedAdminDocUrl(null);
+      }}
+      style={{ zIndex: 10 }}
+    >
+      &times;
+    </button>
+    <div className="flex items-center justify-center w-full h-full">
+      {selectedAdminDocUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+        <img
+          src={selectedAdminDocUrl}
+          alt="Document Preview"
+          style={{
+            maxWidth: "100vw",
+            maxHeight: "100vh",
+            width: "auto",
+            height: "auto",
+            objectFit: "contain",
+            borderRadius: "0.5rem",
+            background: "#fff",
+            display: "block",
+            margin: "0 auto",
+            boxShadow: "0 4px 32px rgba(0,0,0,0.4)"
+          }}
+        />
+      ) : (
+        <iframe
+          src={selectedAdminDocUrl}
+          className="w-full h-[90vh] rounded-lg"
+          style={{
+            backgroundColor: "#fff",
+            border: "none",
+            maxWidth: "90vw",
+            borderRadius: "0.5rem",
+            boxShadow: "0 4px 32px rgba(0,0,0,0.4)"
+          }}
+          title="Admin Document"
+        />
+      )}
+    </div>
+    <div className="absolute bottom-8 right-8 flex space-x-4 z-20">
+      <a
+        href={selectedAdminDocUrl}
+        download
+        className="button-main"
+        onClick={e => e.stopPropagation()}
+      >
+        Download
+      </a>
+      <button
+        type="button"
+        onClick={e => {
+          e.stopPropagation();
+          setSelectedAdminDocUrl(null);
+        }}
+        className="px-4 py-2 text-white transition bg-gray-600 rounded hover:bg-gray-700"
+      >
+        Close
+      </button>
+    </div>
+  </div>
+)}
       </div>
     </>
   );
