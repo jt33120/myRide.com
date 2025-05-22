@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/router";
 import { auth, db, storage } from "../../lib/firebase";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import {
   doc,
   getDoc,
@@ -38,13 +39,9 @@ import {
   Info,
   Zap,
   Droplets,
-  FileText, // added for Registration Document
-  Shield, // added for Insurance Certificate
-  Clipboard, // added for Inspection Document
   PlusCircle, // added for file upload icon
   Eye, // added for view document icon
   EyeOff, // <-- added EyeOff icon
-  Trash, // new delete icon
   Edit, // new modify icon
 } from "lucide-react";
 
@@ -1171,7 +1168,7 @@ const handleShare = async () => {
           </h1>
           <button
             onClick={handleShare}
-            className="ml-3 p-2 rounded-full bg-blue-700 hover:bg-blue-800 transition"
+            className="ml-3 w-10 h-10 flex items-center justify-center rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 transition"
             title="Share this vehicle"
             type="button"
           >
@@ -1203,9 +1200,15 @@ const handleShare = async () => {
             <h2 className="text-2xl font-bold">Vehicle Info</h2>
             <button
               onClick={() => setShowInfo((v) => !v)}
-              className="px-3 py-1 text-sm bg-blue-600 rounded text-white"
+              className="ml-3 p-2 group transition" // No rounded, no bg, just padding for click area
+              title={showInfo ? "Hide Info" : "Show Info"}
+              type="button"
             >
-              {showInfo ? "Hide" : "Show"}
+              {showInfo ? (
+                <ChevronUp className="w-6 h-6 text-purple-400 group-hover:text-pink-500 transition-colors" />
+              ) : (
+                <ChevronDown className="w-6 h-6 text-purple-400 group-hover:text-pink-500 transition-colors" />
+              )}
             </button>
           </div>
 
@@ -1215,11 +1218,13 @@ const handleShare = async () => {
               <h2 className="text-2xl font-bold">Vehicle Info</h2>
               {user.uid === vehicle.uid && (
                 <button
-                  onClick={() => setEditMode(true)}
-                  className="px-4 py-2 text-sm font-medium text-white transition bg-blue-600 rounded hover:bg-blue-700"
-                >
-                  ✏️ Edit
-                </button>
+                onClick={() => setEditMode(true)}
+                className="group p-1 transition"
+                title="Edit Vehicle"
+                type="button"
+              >
+                <Edit className="w-6 h-6 text-purple-400 group-hover:text-pink-500 transition-colors" />
+              </button>
               )}
             </div>
             {/* Updated Vehicle Info container: force 2 columns on all screens */}
@@ -1511,24 +1516,24 @@ const handleShare = async () => {
                         toast.error("Failed to refresh AI recommendation.");
                       }
                     }}
-                    className="p-2 text-white transition bg-blue-600 rounded hover:bg-blue-700"
-                    title="Refresh AI Recommendation"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      strokeWidth="1.5"
-                      stroke="currentColor"
-                      className="w-6 h-6"
+                      className="p-2 rounded-full  text-purple-500 transition hover:text-pink-500"
+                      title="Refresh AI Recommendation"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
-                      />
-                    </svg>
-                  </button>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth="1.5"
+                        stroke="currentColor"
+                        className="w-6 h-6"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
+                        />
+                      </svg>
+                    </button>
                 </div>
                 <pre className="p-3 whitespace-pre-wrap rounded bg-neutral-700 txt-xs">
                   {aiRec}
@@ -1548,7 +1553,7 @@ const handleShare = async () => {
                 <button
                   onClick={askAi}
                   disabled={loadingAiQuestion}
-                  className="w-full py-2 mb-4 text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50"
+                  className="button-main w-full mb-4"
                 >
                   {loadingAiQuestion ? "Loading..." : "Ask AI"}
                 </button>
@@ -1561,76 +1566,83 @@ const handleShare = async () => {
               </div>
               {/* Receipts Section */}
               <div className="mt-4">
-                <h3 className="mb-2 text-xl font-semibold text-white">
-                  Receipts
-                </h3>
+                <h3 className="mb-2 text-xl font-semibold text-white">Receipts</h3>
                 <div className="max-h-[30vh] overflow-y-auto">
                   {receipts.length ? (
                     <div className="space-y-2">
                       {receipts.map((r) => (
                         <div
                           key={r.id}
-                          className="flex items-center justify-between"
+                          className="flex items-center justify-between gap-4"
                         >
-                          <div className="flex flex-col">
-                            <div className="flex items-center">
-                              <button
-                                onClick={() => {
-                                  if (r.urls && r.urls.length > 0) {
-                                    setSelectedReceiptUrls(r.urls);
-                                  }
-                                }}
-                                className="text-left text-blue-400 hover:underline"
-                              >
-                                {/* Format the date as YYYY-MM-DD */}
-                                {r.date
-                                  ? `${new Date(
-                                      r.date.seconds ? r.date.seconds * 1000 : r.date
-                                    ).toISOString().split("T")[0]} - `
-                                  : ""}
-                                {r.title}
-                              </button>
-                              <span className="ml-2 text-neutral-400">
-                                - ${r.price.toFixed(2)}
-                              </span>
-                            </div>
-                          </div>
-                          {vehicle.uid === user.uid ? (
-                            <div className="space-x-2">
-                              <button
-                                onClick={() => {
-                                  setEditingReceipt(r);
-                                  setShowReceiptForm(true);
-                                }}
-                                className="p-1 rounded hover:bg-blue-700 transition"
-                                title="Edit Receipt"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-                                  <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                </svg>
-
-                              </button>
-                              <button onClick={() => setReceiptToDelete(r)}>
-                                ✖️
-                              </button>
-                            </div>
-                          ) : (
+                          {/* Title left, price center, icons right */}
+                          <div className="flex-1 min-w-0">
                             <button
                               onClick={() => {
                                 if (r.urls && r.urls.length > 0) {
-                                  setSelectedReceiptUrl(r.urls);
+                                  setSelectedReceiptUrls(r.urls);
                                 }
                               }}
-                              className="ml-auto"
-                              disabled={!(r.urls && r.urls.length > 0)}
+                              className="block text-left text-purple-500 hover:underline hover:text-pink-500 truncate w-full"
+                              title={r.title}
                             >
-                              {r.urls && r.urls.length > 0 ? (
-                                <Eye className="w-6 h-6 text-blue-400 hover:text-blue-500" />
-                              ) : (
-                                <EyeOff className="w-6 h-6 text-red-500" />
-                              )}
+                              {r.date
+                                ? `${new Date(
+                                    r.date.seconds ? r.date.seconds * 1000 : r.date
+                                  ).toISOString().split("T")[0]}`
+                                : ""}
+                              <br />
+                              <span className="font-medium">{r.title}</span>
                             </button>
-                          )}
+                          </div>
+                          <div className="flex items-center flex-shrink-0 min-w-[100px] justify-center">
+                            <span className="text-neutral-400 font-semibold">
+                              ${r.price.toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="flex items-center flex-shrink-0 min-w-[70px] justify-end">
+                            {vehicle.uid === user.uid ? (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setEditingReceipt(r);
+                                    setShowReceiptForm(true);
+                                  }}
+                                  className="p-1 rounded text-purple-400 hover:text-pink-500 transition"
+                                  title="Edit Receipt"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => setReceiptToDelete(r)}
+                                  className="p-1 rounded text-purple-500 hover:text-pink-500 transition"
+                                  title="Delete Receipt"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  if (r.urls && r.urls.length > 0) {
+                                    setSelectedReceiptUrl(r.urls);
+                                  }
+                                }}
+                                className="ml-auto"
+                                disabled={!(r.urls && r.urls.length > 0)}
+                              >
+                                {r.urls && r.urls.length > 0 ? (
+                                  <Eye className="w-6 h-6 text-blue-400 hover:text-blue-500" />
+                                ) : (
+                                  <EyeOff className="w-6 h-6 text-red-500" />
+                                )}
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1645,7 +1657,7 @@ const handleShare = async () => {
                         setEditingReceipt(null);
                         setShowReceiptForm(true);
                       }}
-                      className="px-4 py-2 mt-3 bg-blue-600 rounded hover:bg-blue-700"
+                      className="button-main mt-3"
                     >
                       + Add Receipt
                     </button>
@@ -1661,154 +1673,165 @@ const handleShare = async () => {
                   Paperwork
                 </h2>
                 {/* Grid for Title, Registration and Inspection */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                  {["title", "registration", "inspection"].map((type) => {
-                    const docObj = allDocs.find((d) =>
-                      d.name.toLowerCase().includes(type)
-                    );
-                    const labels = {
-                      title: "Title",
-                      registration: "Registration",
-                      inspection: "Inspection",
-                    };
-                    const IconComponent =
-                      type === "title"
-                        ? FileText
-                        : type === "registration"
-                        ? Shield
-                        : Clipboard;
+                  <div className="flex gap-4 justify-center">
+                    {["title", "registration", "inspection"].map((type) => {
+                      const docObj = allDocs.find((d) =>
+                        d.name.toLowerCase().includes(type)
+                      );
+                      const labels = {
+                        title: "Title",
+                        registration: "Registration",
+                        inspection: "Inspection",
+                      };
+                      // Use PNG icons from public/
+                      const iconSrcs = {
+                        title: "/title_icon.png",
+                        registration: "/registration_icon.png",
+                        inspection: "/inspection_icon.png",
+                      };
 
-                    // Extract the deadline from the document name (MM-DD-YYYY format)
-                    const deadlineMatch =
-                      docObj?.name.match(/\d{2}-\d{2}-\d{4}/);
-                    const deadline = deadlineMatch
-                      ? new Date(deadlineMatch[0])
-                      : null;
-                    const isExpired = deadline && deadline < new Date(); // Check if the deadline has passed
+                      // Extract the deadline from the document name (MM-DD-YYYY format)
+                      const deadlineMatch = docObj?.name.match(/\d{2}-\d{2}-\d{4}/);
+                      const deadline = deadlineMatch ? new Date(deadlineMatch[0]) : null;
+                      const isExpired = deadline && deadline < new Date();
 
-                    return (
-                      <div
-                        key={type}
-                        className={`flex flex-col items-center p-4 rounded-lg ${
-                          type === "title"
-                            ? "bg-blue-900" // Title is always blue
-                            : docObj
-                            ? isExpired
-                              ? "bg-red-900" // Red if deadline has passed
-                              : "bg-blue-900" // Blue if deadline is valid
-                            : "bg-gray-500" // Gray if no document
-                        }`}
-                      >
-                        {vehicle.uid === user.uid ? (
-                          <>
-                            <div className="flex items-center justify-center w-16 h-16 mb-2 rounded-full">
-                              <IconComponent className="w-8 h-8 text-white" />
-                            </div>
-                            <span className="text-sm font-medium text-white">
-                              {labels[type]}
-                            </span>
+                      // Color logic: purple for valid, pink for expired, gray for missing
+                      const bgColor =
+                        type === "title"
+                          ? "bg-purple-900"
+                          : docObj
+                          ? isExpired
+                            ? "bg-pink-900"
+                            : "bg-purple-900"
+                          : "bg-gray-500";
 
-                            {docObj ? (
-                              <>
-                                <div className="flex flex-col items-center mt-1 space-y-1">
-                                  <button
-                                    onClick={() =>
-                                      setSelectedAdminDocUrl(docObj.url)
-                                    }
-                                    className="cursor-pointer"
-                                    title="View document"
-                                  >
-                                    <Eye className="w-8 h-8 text-blue-300 hover:text-blue-400" />
-                                  </button>
-                                  <div className="flex space-x-2">
+                      // Pick icon filter based on bgColor for best match
+                      // For purple: invert(1) hue-rotate(270deg) brightness(1.2)
+                      // For pink: invert(1) sepia(1) hue-rotate(290deg) saturate(4) brightness(1.1)
+                      // For gray: invert(0.7) brightness(1.2)
+                      let iconFilter = "";
+                      if (bgColor.includes("purple")) {
+                        iconFilter = "invert(1) hue-rotate(270deg) brightness(1.2)";
+                      } else if (bgColor.includes("pink")) {
+                        iconFilter = "invert(1) sepia(1) hue-rotate(290deg) saturate(4) brightness(1.1)";
+                      } else {
+                        iconFilter = "invert(0.7) brightness(1.2)";
+                      }
+
+                      return (
+                        <div
+                          key={type}
+                          className={`flex flex-col items-center p-4 rounded-lg ${bgColor}`}
+                          style={{ width: "auto", minWidth: 140, maxWidth: 180 }}
+                        >
+                          {vehicle.uid === user.uid ? (
+                            <>
+                              <div className="flex items-center justify-center w-16 h-16 mb-2">
+                                <img
+                                  src={iconSrcs[type]}
+                                  alt={labels[type]}
+                                  className="w-8 h-8 object-contain"
+                                  style={{ filter: iconFilter }}
+                                />
+                              </div>
+                              <span className="text-sm font-medium text-white">
+                                {labels[type]}
+                              </span>
+
+                              {docObj ? (
+                                <>
+                                  <div className="flex flex-col items-center mt-1 space-y-1">
                                     <button
-                                      onClick={() => removeDocument(type)}
-                                      className="text-red-500 hover:text-red-600"
-                                      title="Delete document"
+                                      onClick={() => setSelectedAdminDocUrl(docObj.url)}
+                                      className="cursor-pointer"
+                                      title="View document"
                                     >
-                                      <Trash className="w-4 h-4" />
+                                      <Eye className="w-8 h-8 text-purple-300 hover:text-purple-400" />
                                     </button>
-                                    <button
-                                      onClick={() =>
-                                        document
-                                          .getElementById(
-                                            `modify-file-input-${type}`
-                                          )
-                                          .click()
-                                      }
-                                      className="text-green-500 hover:text-green-600"
-                                      title="Modify document"
-                                    >
-                                      <Edit className="w-4 h-4" />
-                                    </button>
+                                    <div className="flex space-x-2">
+                                      {/* Edit button on the left */}
+                                      <button
+                                        onClick={() =>
+                                          document
+                                            .getElementById(`modify-file-input-${type}`)
+                                            .click()
+                                        }
+                                        className="text-purple-200 hover:text-pink-200"
+                                        title="Modify document"
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </button>
+                                      {/* Cross (delete) button on the right */}
+                                      <button
+                                        onClick={() => removeDocument(type)}
+                                        className="text-purple-200 hover:text-pink-200"
+                                        title="Delete document"
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                        </svg>
+                                      </button>
+                                    </div>
                                   </div>
-                                </div>
-                                <input
-                                  id={`modify-file-input-${type}`}
-                                  type="file"
-                                  className="hidden"
-                                  onChange={(e) =>
-                                    e.target.files[0] &&
-                                    handleUploadAdminDocument(
-                                      type,
-                                      e.target.files[0]
-                                    )
-                                  }
+                                  <input
+                                    id={`modify-file-input-${type}`}
+                                    type="file"
+                                    className="hidden"
+                                    onChange={(e) =>
+                                      e.target.files[0] &&
+                                      handleUploadAdminDocument(type, e.target.files[0])
+                                    }
+                                  />
+                                </>
+                              ) : (
+                                <>
+                                  <label
+                                    htmlFor={`file-input-${type}`}
+                                    className="mt-1 cursor-pointer"
+                                    title="Add document"
+                                  >
+                                    <PlusCircle className="w-8 h-8 text-gray-200 hover:text-gray-100" />
+                                  </label>
+                                  <input
+                                    id={`file-input-${type}`}
+                                    type="file"
+                                    className="hidden"
+                                    onChange={(e) =>
+                                      e.target.files[0] &&
+                                      handleUploadAdminDocument(type, e.target.files[0])
+                                    }
+                                  />
+                                </>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <div
+                                className={`w-16 h-16 flex items-center justify-center mb-2`}
+                              >
+                                <img
+                                  src={iconSrcs[type]}
+                                  alt={labels[type]}
+                                  className="w-8 h-8 object-contain"
+                                  style={{ filter: iconFilter }}
                                 />
-                              </>
-                            ) : (
-                              <>
-                                <label
-                                  htmlFor={`file-input-${type}`}
-                                  className="mt-1 cursor-pointer"
-                                  title="Add document"
-                                >
-                                  <PlusCircle className="w-8 h-8 text-gray-200 hover:text-gray-100" />
-                                </label>
-                                <input
-                                  id={`file-input-${type}`}
-                                  type="file"
-                                  className="hidden"
-                                  onChange={(e) =>
-                                    e.target.files[0] &&
-                                    handleUploadAdminDocument(
-                                      type,
-                                      e.target.files[0]
-                                    )
-                                  }
-                                />
-                              </>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <div
-                              className={`w-16 h-16 flex items-center justify-center rounded-full mb-2 ${
-                                docObj
+                              </div>
+                              <h3 className="text-sm font-medium text-white">
+                                {labels[type]}
+                              </h3>
+                              <span className="mt-1 text-xs text-gray-300">
+                                {docObj
                                   ? isExpired
-                                    ? "bg-red-500"
-                                    : "bg-green-500"
-                                  : "bg-gray-500"
-                              }`}
-                            >
-                              <IconComponent className="w-8 h-8 text-white" />
-                            </div>
-                            <h3 className="text-sm font-medium text-white">
-                              {labels[type]}
-                            </h3>
-                            <span className="mt-1 text-xs text-gray-300">
-                              {docObj
-                                ? isExpired
-                                  ? "Expired"
-                                  : "Valid"
-                                : "Not Added"}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                                    ? "Expired"
+                                    : "Valid"
+                                  : "Not Added"}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
 
                 {/* notice for non-owners */}
                 {vehicle.uid !== user.uid && (
@@ -1829,7 +1852,7 @@ const handleShare = async () => {
                         <button
                         type="button"
                           onClick={removeFromMarketplace}
-                          className="px-6 py-2 text-white transition bg-red-600 rounded hover:bg-red-700"
+                          className="px-1 py-2 font-medium border border-gray-300 text-gray-400 bg-transparent rounded-lg hover:border-red-400 hover:text-red-600 transition"
                         >
                           Remove from Marketplace
                         </button>

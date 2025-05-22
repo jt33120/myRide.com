@@ -381,7 +381,7 @@ Please:
       {showPreAuthFirstName && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
           <form
-            className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md"
+            className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md relative"
             onSubmit={e => {
               e.preventDefault();
               if (preAuthFirstName.trim()) {
@@ -389,6 +389,15 @@ Please:
               }
             }}
           >
+            {/* Close (cross) button */}
+            <button
+              type="button"
+              onClick={() => router.push("/Welcome_page")}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-2xl"
+              aria-label="Close"
+            >
+              &times;
+            </button>
             <h2 className="mb-6 text-2xl font-semibold text-center text-black">Welcome!</h2>
             <div>
               <label className="block mb-1 text-black">First Name *</label>
@@ -403,15 +412,33 @@ Please:
             </div>
             <button
               type="submit"
-              className="w-full py-2 mt-6 font-bold text-white bg-gradient-to-r from-pink-500 to-purple-700 rounded-lg hover:from-pink-600 hover:to-purple-800"
+              className="button-main w-full mt-6"
               disabled={!preAuthFirstName.trim()}
             >
               Continue
             </button>
+            {/* Already have an account link */}
+            <p className="mt-4 text-sm text-center text-gray-500">
+              Already have an account?{" "}
+              <Link href="/login_page" className="font-semibold text-purple-600 hover:underline">
+                Sign In
+              </Link>
+            </p>
           </form>
         </div>
       )}
       <div className="relative w-full max-w-2xl flex flex-row bg-white shadow-lg rounded-2xl">
+        {/* Cross for authentication method box */}
+        {!showPreAuthFirstName && authMethod === null && (
+          <button
+            type="button"
+            onClick={() => router.push("/Welcome_page")}
+            className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-2xl z-10"
+            aria-label="Close"
+          >
+            &times;
+          </button>
+        )}
         {/* Profile Picture Preview (left) - only show in Step 3 */}
         {step === 3 && (
           <div className="flex flex-col items-center justify-center w-1/3 p-4 border-r border-gray-200">
@@ -501,7 +528,7 @@ Please:
               <h2 className="mb-4 text-2xl font-semibold text-center text-black">Sign Up</h2>
               <button
                 onClick={() => setAuthMethod("email")}
-                className="w-full py-3 font-bold text-white rounded-lg bg-gradient-to-r from-pink-500 to-purple-700 hover:from-pink-600 hover:to-purple-800"
+                className="button-main w-full"
               >
                 Continue with Email
               </button>
@@ -515,6 +542,7 @@ Please:
                 </svg>
                 Continue with Apple
               </button>
+              {/* Already have an account link */}
               <p className="mt-4 text-sm text-center text-gray-500">
                 Already have an account?{" "}
                 <Link href="/login_page" className="font-semibold text-purple-600 hover:underline">
@@ -594,10 +622,10 @@ Please:
                       </p>
                     )}
                   </div>
-                  <div className="flex justify-end mt-4">
+                  <div className="button-main w-full">
                     <button
                       onClick={handleNext}
-                      className="px-4 py-2 font-bold text-white bg-gradient-to-r from-pink-500 to-purple-700 rounded-lg hover:from-pink-600 hover:to-purple-800"
+                      className="button-main w-full"
                       disabled={
                         checkingEmail ||
                         !!errors.email ||
