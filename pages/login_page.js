@@ -79,7 +79,7 @@ const LoginPage = () => {
         </div>
         <button
           onClick={handleLogin}
-          className="button-main w-full flex items-center justify-center gap-2"
+          className="flex items-center justify-center w-full gap-2 button-main"
         >
           <FaSignInAlt /> Sign In
         </button>

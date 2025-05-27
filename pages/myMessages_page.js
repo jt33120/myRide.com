@@ -109,186 +109,117 @@ export default function MyMessagesPage() {
   }
 
   return (
-    <div className="container min-h-screen px-4 py-10 mx-auto text-white bg-zinc-900">
-      {/* Titre */}
-      <div className="mb-6 text-center md:mt-36">
-        <h1 className="text-4xl font-bold">My Messages</h1>
-        <p className="mt-2 text-gray-400">
-          View and manage all your messages in one place.
-        </p>
-      </div>
+    <section className="flex flex-col h-screen text-white md:hidden bg-zinc-900">
+      {/* Header */}
+      <header className="px-2 py-4 bg-gray-800">
+        <h1 className="text-3xl font-bold text-center">Messages</h1>
+      </header>
 
-      {/* Les cartes de convo */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 justify-items-center">
+      {/* List */}
+      <ul className="flex-1 px-4 py-4 space-y-3 overflow-auto">
         {conversations.length === 0 ? (
-          <p className="text-gray-400">You don’t have any chats yet.</p>
+          <li className="text-center text-gray-400">No chats yet.</li>
         ) : (
-          conversations
-            .slice(0, 1)
-            .map(({ id, sellerName, vehicleName, picture }) => (
-              <div
-                key={id}
-                onClick={() =>
-                  openConversation({ id, sellerName, vehicleName, picture })
-                }
-                className="w-full max-w-sm p-6 bg-gray-800 border border-gray-700 shadow-lg cursor-pointer rounded-2xl hover:shadow-xl"
-              >
-                <div className="flex items-center mb-4">
-                  <Image
-                    src={picture || "https://i.pravatar.cc/150?img=3"}
-                    alt={`${sellerName}'s profile`}
-                    width={48}
-                    height={48}
-                    className="w-12 h-12 border-2 border-white rounded-full"
-                  />
-                  <div className="ml-4">
-                    <h2 className="text-lg font-semibold">{sellerName}</h2>
-                    <p className="text-sm text-gray-400">
-                      {vehicleName || "Audi A5 2018"}
-                    </p>
-                  </div>
-                </div>
-                <p className="mt-4 text-sm text-gray-500">
-                  Tap to continue chat →
+          conversations.map(({ id, sellerName, vehicleName, picture }) => (
+            <li
+              key={id}
+              onClick={() =>
+                openConversation({ id, sellerName, vehicleName, picture })
+              }
+              className="flex items-center p-3 bg-gray-800 rounded-lg cursor-pointer"
+            >
+              <img
+                src={picture || "https://i.pravatar.cc/150?img=3"}
+                alt=""
+                className="w-12 h-12 border-2 border-purple-500 rounded-full"
+              />
+              <div className="ml-3">
+                <p className="font-medium">{sellerName}</p>
+                <p className="text-sm text-gray-400">
+                  {vehicleName || "Vehicle"}
                 </p>
               </div>
-            ))
+            </li>
+          ))
         )}
-      </div>
+      </ul>
 
-      {/* Modal conversation */}
+      {/* Chat Modal */}
       {selectedConversation && (
-        // overlay catches taps
-        <div
-          onClick={closeConversation}
-          className="inset-0 z-50 flex items-center justify-center max-sm:-mt-52 bg-opacity-80"
-        >
-          {/* prevent inner clicks from closing */}
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="flex flex-col p-6 mx-auto bg-gray-900 shadow-2xl rounded-2xl"
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-gray-700">
-              <div className="flex items-center">
-                <Image
-                  src={selectedConversation.sellerAvatar}
-                  alt={`${selectedConversation.sellerName}`}
-                  width={50}
-                  height={50}
-                  className="w-12 h-12 border-2 border-purple-500 rounded-full"
-                />
-                <div className="ml-4">
-                  <h2 className="text-lg font-bold text-white">
-                    {selectedConversation.sellerName}
-                  </h2>
-                  <p className="text-sm text-gray-400">
-                    Chat about{" "}
-                    {selectedConversation.vehicleName || "Audi A5 2018"}
-                  </p>
-                </div>
+        <div className="fixed inset-0 z-50 flex flex-col bg-zinc-900">
+          {/* Modal Header */}
+          <div className="flex items-center justify-between px-4 py-3 bg-gray-800">
+            <div className="flex items-center">
+              <img
+                src={selectedConversation.sellerAvatar}
+                alt=""
+                className="w-10 h-10 border-2 border-purple-500 rounded-full"
+              />
+              <div className="ml-2">
+                <p className="font-semibold">
+                  {selectedConversation.sellerName}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {selectedConversation.vehicleName}
+                </p>
               </div>
-              <button
-                onClick={closeConversation}
-                className="text-2xl text-gray-400 hover:text-white"
-              >
-                ×
-              </button>
             </div>
+            <button onClick={closeConversation} className="text-2xl">
+              ×
+            </button>
+          </div>
 
-            {/* Messages */}
-            <div
-              ref={scrollRef}
-              className="flex-1 h-64 p-4 overflow-y-auto bg-gray-800 rounded-2xl"
-            >
-              {selectedConversation.messages.map((msg, idx) => {
-                const isUser = msg.sender === selectedConversation.buyerName;
-                return (
+          {/* Messages */}
+          <div
+            ref={scrollRef}
+            className="flex-1 px-4 py-3 space-y-2 overflow-auto"
+          >
+            {selectedConversation.messages.map((msg, i) => {
+              const isUser = msg.sender === selectedConversation.buyerName;
+              return (
+                <div
+                  key={i}
+                  className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+                >
                   <div
-                    key={idx}
-                    className={`mb-4 flex items-end ${
-                      isUser ? "justify-end" : "justify-start"
+                    className={`px-3 py-2 rounded-2xl max-w-[80%] ${
+                      isUser
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-700 text-gray-100"
                     }`}
                   >
-                    {/* avatar vendeur */}
-                    {!isUser && (
-                      <Image
-                        src={selectedConversation.sellerAvatar}
-                        alt="seller avatar"
-                        width={32}
-                        height={32}
-                        className="w-8 h-8 mr-2 rounded-full"
-                      />
-                    )}
-
-                    <div
-                      className={`message-bubble max-w-xs px-4 py-2 text-sm ${
-                        isUser ? "user" : "other"
-                      }`}
-                    >
-                      <p>{msg.text}</p>
-                      <p className="mt-1 text-xs text-right text-gray-900">
-                        {new Date().toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
-                    </div>
-
-                    {/* avatar user */}
-                    {isUser && (
-                      <Image
-                        src={selectedConversation.buyerAvatar}
-                        alt="your avatar"
-                        width={32}
-                        height={32}
-                        className="w-8 h-8 ml-2 rounded-full"
-                      />
-                    )}
+                    <p className="text-sm">{msg.text}</p>
+                    <span className="block mt-1 text-xs text-right text-gray-300">
+                      {new Date().toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
+          </div>
 
-            {/* Input + bouton Send */}
-            <div className="flex items-center mt-4">
-              <input
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                placeholder="Type your message..."
-                className="flex-1 px-4 py-2 text-white bg-gray-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                onClick={handleSend}
-                className="px-4 py-2 ml-2 text-white bg-blue-500 rounded-xl hover:bg-blue-600"
-              >
-                Send
-              </button>
-            </div>
-
-            {/* CSS bulles épurées */}
-            <style jsx>{`
-              .message-bubble {
-                border-radius: 18px;
-              }
-              .message-bubble.user {
-                background-color: #0a84ff;
-                color: white;
-              }
-              .message-bubble.other {
-                background-color: #e5e5ea;
-                color: #1c1c1e;
-              }
-            `}</style>
+          {/* Input */}
+          <div className="flex items-center px-4 py-3 bg-gray-800">
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSend()}
+              placeholder="Type a message..."
+              className="flex-1 px-3 py-2 text-white bg-gray-700 rounded-xl focus:outline-none"
+            />
+            <button
+              onClick={handleSend}
+              className="px-4 py-2 ml-3 text-white bg-purple-500 rounded-xl"
+            >
+              Send
+            </button>
           </div>
         </div>
       )}
-
-      <p className="mt-12 text-center text-gray-500">
-        Coming soon: message previews, group chats, and more!
-      </p>
-    </div>
+    </section>
   );
 }

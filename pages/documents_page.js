@@ -50,58 +50,52 @@ const DocumentsPage = () => {
     fetchDocumentUrls();
   }, []);
 
-  // const handleView = (type) => {
-  //   alert(`Viewing ${documents[type]}`);
-  // };
-
   if (!user) {
     return <p className="text-center text-white">Loading...</p>; // Show loading message
   }
 
   return (
-    <div className="container min-h-screen py-10 mx-auto text-white bg-zmx-auto ">
-      {/* Title Section */}
-      <div className="mb-10 text-center md:mt-32 ">
-        <h1 className="text-4xl font-bold text-white">Documents</h1>
+    <section className="flex flex-col min-h-screen px-4 py-6 text-white md:hidden bg-zinc-900">
+      
+      {/* Header */}
+      <header className="mb-6 text-center">
+        <h1 className="text-2xl font-bold">Documents</h1>
         <p className="mt-2 text-gray-400">
-          Manage and upload all your essential documents here. Ensure everything
-          is up to date for a seamless experience.
+          Téléchargez vos documents essentiels.
         </p>
-      </div>
+      </header>
 
-      {/* Cards Section */}
-      <div className="grid grid-cols-1 gap-6 px-6 sm:grid-cols-2 lg:grid-cols-3">
-        {[
-          {
-            type: "registration",
-            title: "Motorcycle Checklist",
-            subtitle: "How to buy a used motorcycle? (XLSX)",
-          },
-          {
-            type: "insurance",
-            title: "Bill of Sale Template",
-            subtitle: "Template for vehicle sale (PDF)",
-          },
-          {
-            type: "maintenance",
-            title: "Car Checklist",
-            subtitle: "How to buy a used car? (XLSX)",
-          },
-        ].map(({ type, title, subtitle }) => (
-          <div
-            key={type}
-            className="p-6 text-center transition bg-white border-4 border-gray-500 shadow-md rounded-xl hover:shadow-lg hover:scale-105"
-          >
-            <h2 className="mb-2 text-lg font-semibold text-gray-800">
-              {title}
-            </h2>
-            <p className="mb-4 text-sm text-gray-600">{subtitle}</p>
-            <div className="mb-4">
-              {documents[type] ? (
-                <span className="text-green-500">
+      {/* Cards */}
+      <main className="flex-1 space-y-4 overflow-auto">
+        {["registration", "insurance", "maintenance"].map((type) => {
+          const url = documents[type];
+          const label =
+            type === "registration"
+              ? "Motorcycle Checklist"
+              : type === "insurance"
+              ? "Bill of Sale Template"
+              : "Car Checklist";
+          const desc =
+            type === "registration"
+              ? "Guide d’achat moto (XLSX)"
+              : type === "insurance"
+              ? "Modèle de facture de vente (PDF)"
+              : "Guide d’achat voiture (XLSX)";
+
+          return (
+            <article
+              key={type}
+              className="flex flex-col p-4 bg-white rounded-lg shadow"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-semibold text-gray-800">{label}</h2>
+                  <p className="mt-1 text-sm text-gray-600">{desc}</p>
+                </div>
+                {url ? (
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="w-8 h-8 mx-auto"
+                    className="w-6 h-6 text-green-500"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -113,12 +107,10 @@ const DocumentsPage = () => {
                       d="M5 13l4 4L19 7"
                     />
                   </svg>
-                </span>
-              ) : (
-                <span className="text-red-500">
+                ) : (
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="w-8 h-8 mx-auto"
+                    className="w-6 h-6 text-red-500"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -130,24 +122,24 @@ const DocumentsPage = () => {
                       d="M6 18L18 6M6 6l12 12"
                     />
                   </svg>
-                </span>
-              )}
-            </div>
-            {documents[type] ? (
+                )}
+              </div>
               <a
-                href={documents[type]}
-                download
-                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white transition bg-purple-600 rounded-lg hover:bg-purple-700"
+                href={url || "#"}
+                download={!!url}
+                className={`mt-4 block w-full text-center py-2 rounded-lg font-medium ${
+                  url
+                    ? "bg-purple-600 text-white hover:bg-purple-700"
+                    : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                }`}
               >
-                Download
+                {url ? "Download" : "Unavailable"}
               </a>
-            ) : (
-              <span className="text-gray-500">Not available</span>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
+            </article>
+          );
+        })}
+      </main>
+    </section>
   );
 };
 
