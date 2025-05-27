@@ -8,7 +8,7 @@ import { useRouter } from "next/router";
 export default function MarketplacePage() {
   const router = useRouter();
   const [vehicles, setVehicles] = useState([]);
-  const [showAuthPopup, setShowAuthPopup] = useState(false); // État pour la pop-up
+  const [showAuthPopup, setShowAuthPopup] = useState(false);
 
   const fetchVehicleImages = useCallback(async (vehicleId) => {
     const imagesRef = ref(storage, `listing/${vehicleId}/photos`);
@@ -21,34 +21,6 @@ export default function MarketplacePage() {
     return imageUrls;
   }, []);
 
-  const fetchSellerProfile = async (uid) => {
-    if (!uid)
-      return {
-        profilePicture: "/default-profile.png",
-        firstName: "Unknown Seller",
-        rating: 0,
-      };
-    try {
-      const userSnap = await getDoc(doc(db, "members", uid));
-      if (userSnap.exists()) {
-        const u = userSnap.data();
-        const pic = await getDownloadURL(
-          ref(storage, `members/${uid}/profilepicture.png`)
-        ).catch(() => "/default-profile.png");
-        return {
-          profilePicture: pic,
-          firstName: u.firstName || "Unknown Seller",
-          rating: u.rating || 0,
-        };
-      }
-    } catch {}
-    return {
-      profilePicture: "/default-profile.png",
-      firstName: "Unknown Seller",
-      rating: 0,
-    };
-  };
-
   useEffect(() => {
     (async () => {
       const snap = await getDocs(collection(db, "on_marketplace"));
@@ -56,18 +28,12 @@ export default function MarketplacePage() {
       for (const docSnap of snap.docs) {
         const vId = docSnap.id;
         const listing = (await getDoc(doc(db, "listing", vId))).data() || {};
-        const { profilePicture, firstName, rating } = await fetchSellerProfile(
-          listing.uid
-        );
         const images = await fetchVehicleImages(vId);
         list.push({
           id: vId,
           make: listing.make || "Unknown Make",
           model: listing.model || "Unknown Model",
           year: listing.year || "Unknown Year",
-          owner: firstName,
-          profilePicture,
-          rating,
           images,
           price: docSnap.data().price || "N/A",
           mileage: listing.mileage || "N/A",
@@ -80,98 +46,65 @@ export default function MarketplacePage() {
   }, [fetchVehicleImages]);
 
   const handleVehicleClick = (vehicleId) => {
-    const user = auth.currentUser; // Vérifie si l'utilisateur est connecté
-    if (!user) {
-      setShowAuthPopup(true); // Affiche la pop-up si non connecté
-    } else {
-      router.push(`/vehicleCard_page/${vehicleId}`);
-    }
+    const user = auth.currentUser;
+    if (!user) setShowAuthPopup(true);
+    else router.push(`/vehicleCard_page/${vehicleId}`);
   };
 
   return (
-    <div className="min-h-screen bg-zinc-900 md:pt-28">
-      <main className="container py-8 mx-auto">
-        <h1 className="mb-2 text-4xl font-bold text-center text-white">
-          Marketplace
-        </h1>
-        <p className="mb-8 text-center text-gray-400">
-          No filters anymore, a simple AI prompt is coming soon! An invitation
-          will be required to access the marketplace. Vehicle details will be
-          AI-verified to protect the buyer by ensuring they are pre-verified.
-        </p>
-        {/* Vehicle Cards */}
-        <div className="grid grid-cols-1 gap-6 px-4 sm:grid-cols-2 lg:grid-cols-3">
-          {vehicles.length
-            ? vehicles.map((vehicle) => (
-                <div
-                  key={vehicle.id}
-                  onClick={() => handleVehicleClick(vehicle.id)}
-                  className="transition duration-300 transform bg-white border border-gray-200 shadow-md cursor-pointer rounded-xl hover:shadow-lg hover:scale-105"
-                >
-                  <div className="relative h-48 overflow-hidden rounded-t-xl">
-                    <Image
-                      src={vehicle.images[0] || "/default-vehicle.png"}
-                      alt={`${vehicle.make} ${vehicle.model}`}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <div className="p-5">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-lg font-bold text-gray-800">
-                        {vehicle.year} {vehicle.make} {vehicle.model}
-                      </h3>
-                      <span className="px-2 py-1 text-sm font-medium text-white bg-blue-600 rounded">
-                        {vehicle.engine}
-                      </span>
-                    </div>
-                    <p className="text-lg font-semibold text-blue-600">
-                      €{vehicle.price}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      Mileage: {vehicle.mileage || "N/A"} miles
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      Location: {vehicle.city || ""}
-                    </p>
-                    <div className="flex items-center mt-3">
-                      <Image
-                        src={vehicle.profilePicture}
-                        alt={vehicle.owner}
-                        width={40}
-                        height={40}
-                        className="border border-gray-300 rounded-full"
-                      />
-                      <div className="ml-3">
-                        <p className="text-sm font-medium text-gray-700">
-                          {vehicle.owner}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Rating: {vehicle.rating} ★
-                        </p>
-                      </div>
-                    </div>
-                    {/* Contact Seller Button */}
-                    <div className="mt-4">
-                      <button
-                        onClick={() =>
-                          alert("Contact Seller for " + vehicle.model)
-                        }
-                        className="w-full px-4 py-2 text-white transition bg-green-600 rounded-lg hover:bg-green-700"
-                      >
-                        Contact Seller
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))
-            : Array.from({ length: 6 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-64 bg-gray-200 rounded-xl animate-pulse"
-                />
-              ))}
-        </div>
+    <section className="flex flex-col min-h-screen mb-16 bg-zinc-900">
+      {/* header mobile */}
+      <header className="py-4 text-center bg-gray-800">
+        <h1 className="text-3xl font-bold text-white">Marketplace</h1>
+      </header>
+
+      <main className="flex-grow px-4 py-6 space-y-4 overflow-auto">
+        {vehicles.map((v) => (
+          <article
+            key={v.id}
+            onClick={() => handleVehicleClick(v.id)}
+            className="overflow-hidden bg-white rounded-lg shadow-lg cursor-pointer"
+          >
+            {/* image + badge moteur */}
+            <div className="relative h-48">
+              <Image
+                src={v.images[0] || "/default-vehicle.png"}
+                alt={`${v.make} ${v.model}`}
+                fill
+                className="object-cover"
+              />
+              <span className="absolute px-2 py-1 text-xs text-white bg-purple-600 rounded top-2 right-2">
+                {v.engine}
+              </span>
+            </div>
+
+            {/* infos */}
+            <div className="p-4">
+              <h2 className="text-lg font-semibold text-gray-800">
+                {v.year} {v.make} {v.model}
+              </h2>
+              <p className="mt-1 font-bold text-purple-600">€{v.price}</p>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  alert("Contact Seller for " + v.model);
+                }}
+                className="w-full py-2 mt-4 font-medium text-white bg-green-600 rounded-lg"
+              >
+                Contact Seller
+              </button>
+            </div>
+          </article>
+        ))}
+
+        {/* skeleton loader */}
+        {!vehicles.length &&
+          Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-48 bg-gray-700 rounded-lg animate-pulse"
+            />
+          ))}
       </main>
 
       {/* Auth Popup */}
@@ -207,6 +140,6 @@ export default function MarketplacePage() {
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }

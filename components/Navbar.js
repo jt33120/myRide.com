@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { useRouter } from "next/router";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import { useAuth } from "../hooks/useAuth";
 import { ref, getDownloadURL } from "firebase/storage";
 import { storage, auth } from "../lib/firebase";
@@ -27,13 +27,10 @@ export default function Navbar() {
 
   const mobileRef = useRef(null);
 
+  // tous les items utilisent maintenant Icon pour faciliter la colorisation
   const items = [
     { label: "Home", Icon: HiOutlineHome, path: "/Welcome_page" },
-    {
-      label: "Garage",
-      Icon: null, // We'll handle this separately below
-      path: "/myVehicles_page",
-    },
+    { label: "Garage", Icon: StoreIcon, path: "/myVehicles_page" },
     {
       label: "Chat",
       Icon: HiOutlineChatBubbleLeftRight,
@@ -98,143 +95,45 @@ export default function Navbar() {
 
   return (
     <>
-      {/* Desktop Navbar */}
-      <nav className="hidden md:fixed md:top-3 md:left-1/2 md:-translate-x-1/2 md:z-50 md:flex md:items-center md:justify-center md:w-[90%] md:max-w-5xl md:px-10 md:py-4 md:text-white md:bg-gray-900 md:backdrop-blur md:border md:border-gray-800 md:rounded-xl md:shadow-lg md:transition-all md:m-0">
-        <div className="flex items-center space-x-8">
-          {items.map(({ label, Icon, path }) => (
-            <Link
-              key={label}
-              href={path}
-              className={`
-              flex flex-col items-center px-3 py-1 rounded-lg transition-colors
-              hover:bg-gray-800 focus:outline-none
-              ${router.pathname === path ? "font-semibold" : ""}
-            `}
-            >
-              {label === "Garage" ? (
-                <Image
-                  src="/garage.svg"
-                  alt="Garage"
-                  width={24}
-                  height={24}
-                  className="w-6 h-6"
-                  style={{
-                    filter: "invert(100%) sepia(0%) saturate(0%) hue-rotate(180deg) brightness(100%) contrast(100%)",
-                  }}
-                  priority={false}
-                />
-              ) : (
-                <Icon className="w-6 h-6 text-white" />
-              )}
-              <span className="mt-1 text-xs text-white">{label}</span>
-            </Link>
-          ))}
-
-          {/* Help */}
-          <Link
-            href="/help_page"
-            className={`
-              flex flex-col items-center px-3 py-1 rounded-lg transition-colors
-              hover:bg-gray-800 focus:outline-none
-              ${
-                router.pathname === "/help_page"
-                  ? "font-semibold"
-                  : ""
-              }
-            `}
-          >
-            <HiOutlineQuestionMarkCircle className="w-6 h-6" />
-            <span className="mt-1 text-xs">Help</span>
-          </Link>
-
-          {/* Profile */}
-          <Link
-            href="/userProfile_page"
-            className={`
-              flex flex-col items-center px-3 py-1 rounded-lg transition-colors
-              hover:bg-gray-800 focus:outline-none
-              ${
-                router.pathname === "/userProfile_page"
-                  ? "font-semibold"
-                  : ""
-              }
-            `}
-          >
-            {profileImage ? (
-              <Image
-                src={profileImage}
-                alt="profile"
-                width={24}
-                height={24}
-                className="rounded-full"
-              />
-            ) : (
-              <HiOutlineUserCircle className="w-6 h-6" />
-            )}
-            <span className="mt-1 text-xs">Profile</span>
-          </Link>
-
-          {/* Logout */}
-          {currentUser && (
-            <button
-              onClick={logout}
-              className="flex flex-col items-center px-3 py-1 transition-colors rounded-lg hover:bg-gray-800 focus:outline-none"
-            >
-              <IoLogOutOutline className="w-6 h-6" />
-              <span className="mt-1 text-xs">Logout</span>
-            </button>
-          )}
-        </div>
-      </nav>
-
-      {/* Mobile Navbar */}
-      {router.pathname !== "/Welcome_page" && (
-        <nav
-          className={`
-            md:hidden fixed bottom-0 w-full bg-gray-900 text-white flex justify-around py-2
-            transition-transform duration-300
-            ${showMobile ? "translate-y-0" : "translate-y-full"} z-50
-          `}
-        >
+      {/* MOBILE NAVBAR ONLY */}
+      {currentUser && router.pathname !== "/Welcome_page" && (
+        <nav className="fixed bottom-0 z-50 flex justify-around w-full py-2 bg-gray-900">
+          {/* Parcourez `items` et affichez Icon+label */}
           {items
             .filter(
               (item) =>
                 // remove Home only when signed in
                 !(currentUser && item.label === "Home")
             )
-            .map(({ label, Icon, path }) => (
-              <Link
-                key={label}
-                href={path}
-                className={`
-                  flex flex-col items-center focus:outline-none
-                  ${router.pathname === path ? "font-semibold" : ""}
-                `}
-              >
-                {label === "Garage" ? (
-                  <Image
-                    src="/garage.svg"
-                    alt="Garage"
-                    width={24}
-                    height={24}
-                    className="w-6 h-6"
-                    style={{
-                      filter: "invert(100%) sepia(0%) saturate(0%) hue-rotate(180deg) brightness(100%) contrast(100%)",
-                    }}
-                    priority={false}
+            .map(({ label, Icon, path }) => {
+              const active = router.pathname === path;
+              return (
+                <Link
+                  key={label}
+                  href={path}
+                  className="flex flex-col items-center"
+                >
+                  <Icon
+                    className={`w-6 h-6 ${
+                      active ? "text-white" : "text-purple-500"
+                    }`}
                   />
-                ) : (
-                  <Icon className="w-6 h-6 text-white" />
-                )}
-                <span className="mt-1 text-xs text-white">{label}</span>
-              </Link>
-            ))}
+                  <span
+                    className={`mt-1 text-xs ${
+                      active ? "text-white" : "text-purple-500"
+                    }`}
+                  >
+                    {label}
+                  </span>
+                </Link>
+              );
+            })}
 
-          {/* Mobile Dropdown */}
+          {/* Profil / menu déroulant */}
           <div className="relative" ref={mobileRef}>
             <button
               onClick={() => setMobileOpen((o) => !o)}
-              className="p-1 rounded-full hover:text-purple-400 focus:outline-none"
+              className="p-1 rounded-full"
             >
               {profileImage ? (
                 <Image
@@ -254,8 +153,7 @@ export default function Navbar() {
                   <>
                     <Link
                       href="/userProfile_page"
-                      className="block w-full px-4 py-2 text-left hover:bg-gray-100"
-                      onClick={() => setMobileOpen(false)}
+                      className="block px-4 py-2 hover:bg-gray-100"
                     >
                       Profile
                     </Link>
@@ -268,39 +166,29 @@ export default function Navbar() {
                     >
                       Logout
                     </button>
-                    <Link
-                      href="/help_page"
-                      className="block w-full px-4 py-2 text-left hover:bg-gray-100"
-                      onClick={() => setMobileOpen(false)}
-                    >
-                      Help
-                    </Link>
                   </>
                 ) : (
                   <>
                     <Link
                       href="/login_page"
-                      className="block w-full px-4 py-2 text-left hover:bg-gray-100"
-                      onClick={() => setMobileOpen(false)}
+                      className="block px-4 py-2 hover:bg-gray-100"
                     >
                       Log In
                     </Link>
                     <Link
                       href="/signup_page"
-                      className="block w-full px-4 py-2 text-left hover:bg-gray-100"
-                      onClick={() => setMobileOpen(false)}
+                      className="block px-4 py-2 hover:bg-gray-100"
                     >
                       Sign Up
                     </Link>
-                    <Link
-                      href="/help_page"
-                      className="block w-full px-4 py-2 text-left hover:bg-gray-100"
-                      onClick={() => setMobileOpen(false)}
-                    >
-                      Help
-                    </Link>
                   </>
                 )}
+                <Link
+                  href="/help_page"
+                  className="block px-4 py-2 hover:bg-gray-100"
+                >
+                  Help
+                </Link>
               </div>
             )}
           </div>
