@@ -60,6 +60,14 @@ function buildSeries(chartData) {
   }));
 }
 
+function formatDateMMDDYYYY(dateObj) {
+  const d = new Date(dateObj);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${mm}/${dd}/${yyyy}`;
+}
+
 // ApexCharts default options, design revu
 const defaultOptions = {
   chart: {
@@ -391,6 +399,7 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
           <option>Scheduled Maintenance</option>
           <option>Cosmetic Mods</option>
           <option>Performance Mods</option>
+          <option>Paperwork & Taxes</option>
         </select>
         <input
           placeholder="Mileage"
@@ -922,6 +931,7 @@ export default function VehicleCardPage() {
       case "Scheduled Maintenance":
       case "Cosmetic Mods":
       case "Performance Mods":
+      case "Paperwork & Taxes":
         return receipts
           .filter((receipt) => receipt.category === type)
           .reduce((sum, receipt) => sum + (receipt.price || 0), 0);
@@ -1328,6 +1338,18 @@ export default function VehicleCardPage() {
                   />
                 </label>
               </div>
+              <div>
+                <label className="block mb-1 text-sm font-semibold">
+                  Paperwork & Taxes
+                  <input
+                    type="number"
+                    name="paperworkTaxes"
+                    value={formData.paperworkTaxes}
+                    onChange={handleFormChange}
+                    className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
+                  />
+                </label>
+              </div>
             </div>
             {/* Full-width Description Field */}
             <div className="md:col-span-3">
@@ -1703,6 +1725,12 @@ export default function VehicleCardPage() {
                           2
                         )}`,
                       },
+                      {
+                        label: "Paperwork & Taxes",
+                        value: `$${calculateSum("Paperwork & Taxes").toFixed(
+                          2
+                        )}`,
+                      },
                     ].map((item, idx) => (
                       <option key={idx} value={item.label}>
                         {item.label}
@@ -1752,6 +1780,12 @@ export default function VehicleCardPage() {
                                 label: "Performance Mods",
                                 value: `$${calculateSum(
                                   "Performance Mods"
+                                ).toFixed(2)}`,
+                              },
+                              {
+                                label: "Paperwork & Taxes",
+                                value: `$${calculateSum(
+                                  "Paperwork & Taxes"
                                 ).toFixed(2)}`,
                               },
                             ].find((item) => item.label === selectedItem)?.value
@@ -1886,15 +1920,9 @@ export default function VehicleCardPage() {
                               title={r.title}
                             >
                               {r.date
-                                ? `${
-                                    new Date(
-                                      r.date.seconds
-                                        ? r.date.seconds * 1000
-                                        : r.date
-                                    )
-                                      .toISOString()
-                                      .split("T")[0]
-                                  }`
+                                ? formatDateMMDDYYYY(
+                                    r.date.seconds ? r.date.seconds * 1000 : r.date
+                                  )
                                 : ""}
                               <br />
                               <span className="font-medium">{r.title}</span>
