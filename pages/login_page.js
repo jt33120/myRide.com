@@ -79,7 +79,7 @@ const LoginPage = () => {
         </div>
         <button
           onClick={handleLogin}
-          className="w-full flex items-center justify-center gap-2 py-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-xl font-semibold text-lg shadow-md hover:scale-[1.02] hover:shadow-lg transition"
+          className="flex items-center justify-center w-full gap-2 button-main"
         >
           <FaSignInAlt /> Sign In
         </button>

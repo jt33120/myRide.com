@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/router";
 import { auth, db, storage } from "../../lib/firebase";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import {
   doc,
   getDoc,
@@ -20,7 +21,6 @@ import {
   deleteObject, // added for removing documents
 } from "firebase/storage";
 import Image from "next/image";
-import { Line } from "react-chartjs-2";
 import "chart.js/auto";
 import { onAuthStateChanged } from "firebase/auth";
 import { ToastContainer, toast } from "react-toastify";
@@ -38,15 +38,83 @@ import {
   Info,
   Zap,
   Droplets,
-  FileText, // added for Registration Document
-  Shield, // added for Insurance Certificate
-  Clipboard, // added for Inspection Document
   PlusCircle, // added for file upload icon
-  Eye, // added for view document icon
-  EyeOff, // <-- added EyeOff icon
-  Trash, // new delete icon
-  Edit, // new modify icon
+  Eye, // view icon (owner only)
+  Edit,
+  Download, // new download icon
 } from "lucide-react";
+import dynamic from "next/dynamic";
+const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
+import { Loader2 } from "lucide-react";
+
+// Helper: convert chartData to ApexCharts series,
+// now handles both raw numeric arrays and {x,y} objets
+function buildSeries(chartData) {
+  return chartData.datasets.map((ds) => ({
+    name: ds.label,
+    data: ds.data.map((pt, i) =>
+      pt && pt.x !== undefined && pt.y !== undefined
+        ? pt
+        : { x: chartData.labels[i], y: pt }
+    ),
+  }));
+}
+
+function formatDateMMDDYYYY(dateObj) {
+  const d = new Date(dateObj);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${mm}/${dd}/${yyyy}`;
+}
+
+// ApexCharts default options, design revu
+const defaultOptions = {
+  chart: {
+    id: "vehicle-value-chart",
+    toolbar: { show: false },
+    background: "#1f2937",
+  },
+  colors: ["#34d399", "#60a5fa", "#a78bfa", "#f87171"],
+  dataLabels: {
+    enabled: true,
+    offsetY: -6,
+    style: { fontSize: "10px", colors: ["#1f2937"] },
+  },
+  stroke: { curve: "smooth", width: 2 },
+  markers: { size: 4, hover: { size: 6 } },
+  grid: {
+    show: true,
+    borderColor: "#374151",
+    strokeDashArray: 6,
+    yaxis: { lines: { show: true } },
+  },
+  xaxis: {
+    type: "datetime",
+    tickAmount: 6,
+    labels: {
+      datetimeUTC: false,
+      format: "dd MMM",
+      style: { colors: "#9ca3af", fontSize: "11px" },
+    },
+  },
+  yaxis: {
+    title: { text: "Value ($)", style: { color: "#9ca3af" } },
+    labels: {
+      style: { colors: "#fff" },
+      formatter: (val) => `$${val.toLocaleString()}`,
+    },
+  },
+  tooltip: {
+    theme: "dark",
+    x: { format: "dd MMM yy" },
+    y: { formatter: (val) => `$${val.toFixed(2)}` },
+  },
+  legend: {
+    position: "top",
+    labels: { colors: "#f3f4f8" },
+  },
+};
 
 // Icônes et catégories
 
@@ -173,18 +241,51 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
   const [files, setFiles] = useState([]);
   const [existing] = useState(initialData?.urls || []);
   const [uploading, setUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null); // For full preview modal
+  const [toDelete, setToDelete] = useState([]); // Track files marked for deletion
+
+  // Mark a file for deletion (but don't delete from storage yet)
+  const handleMarkDelete = (url) => {
+    setToDelete((prev) => [...prev, url]);
+  };
+
+  // Unmark a file for deletion
+  const handleUnmarkDelete = (url) => {
+    setToDelete((prev) => prev.filter((u) => u !== url));
+  };
+
+  // Actually delete files from Firebase Storage after Save
+  const deleteMarkedFiles = async () => {
+    for (const url of toDelete) {
+      try {
+        const baseUrl = `listing/${vehicleId}/docs/receipts/`;
+        const fileName = url.split("%2F").pop().split("?")[0];
+        const filePath = baseUrl + decodeURIComponent(fileName);
+        await deleteObject(ref(storage, filePath));
+      } catch (e) {
+        console.error(e);
+        toast.error("Error deleting file: " + url);
+      }
+    }
+  };
+
   const handleSubmit = async () => {
     if (!title || !date || !category || !price) {
       return toast.error("All fields are required");
     }
     setUploading(true);
     try {
+      // Remove marked-for-deletion files from the urls array
+      const keptExisting = existing.filter((url) => !toDelete.includes(url));
+      // Upload new files
       const receiptId =
         initialData?.id ||
         doc(collection(db, `listing/${vehicleId}/receipts`)).id;
       const uploadedUrls = [];
       for (let file of files) {
-        const name = `${receiptId}-${Date.now()}`;
+        // preserve file extension
+        const ext = file.name.substring(file.name.lastIndexOf("."));
+        const name = `${receiptId}-${Date.now()}${ext}`;
         const storageRef = ref(
           storage,
           `listing/${vehicleId}/docs/receipts/${name}`
@@ -198,7 +299,7 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
         category,
         mileage: isNaN(+mileage) ? null : +mileage,
         price: +price,
-        urls: [...existing, ...uploadedUrls],
+        urls: [...keptExisting, ...uploadedUrls],
       };
       await setDoc(
         doc(db, `listing/${vehicleId}/receipts`, receiptId),
@@ -206,10 +307,25 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
         { merge: true }
       );
 
-      // Call the aiEstimator API
-      const vehicleSnap = await getDoc(doc(db, "listing", vehicleId));
+      // Delete files from storage only after successful save
+      await deleteMarkedFiles();
+
+      // --- Update vehicle mileage if needed ---
+      const vehicleRef = doc(db, "listing", vehicleId);
+      const vehicleSnap = await getDoc(vehicleRef);
       if (vehicleSnap.exists()) {
         const vehicleData = vehicleSnap.data();
+        const currentMileage = Number(vehicleData.mileage) || 0;
+        const newMileage = isNaN(+mileage) ? currentMileage : Number(mileage);
+        if (newMileage > currentMileage) {
+          await setDoc(vehicleRef, { mileage: newMileage }, { merge: true });
+        }
+      }
+
+      // Call the aiEstimator API
+      const vehicleSnap2 = await getDoc(doc(db, "listing", vehicleId));
+      if (vehicleSnap2.exists()) {
+        const vehicleData = vehicleSnap2.data();
         const response = await fetch("/api/aiEstimator", {
           method: "POST",
           headers: {
@@ -248,6 +364,13 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
     }
   };
 
+  // Reset all changes if cancel is clicked
+  const handleCancel = () => {
+    setToDelete([]);
+    setFiles([]);
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
       <div className="w-full max-w-md p-8 border rounded-lg shadow-xl bg-neutral-800 border-neutral-700">
@@ -276,6 +399,7 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
           <option>Scheduled Maintenance</option>
           <option>Cosmetic Mods</option>
           <option>Performance Mods</option>
+          <option>Paperwork & Taxes</option>
         </select>
         <input
           placeholder="Mileage"
@@ -290,6 +414,134 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
           value={price}
           onChange={(e) => setPrice(e.target.value)}
         />
+
+        {/* Existing files preview and delete */}
+        {existing.length > 0 && (
+          <div className="mb-4">
+            <div className="mb-2 font-semibold text-white">Existing Files:</div>
+            <div className="flex flex-wrap gap-3">
+              {existing.map((url, idx) => {
+                const marked = toDelete.includes(url);
+                return (
+                  <div key={url} className="relative group">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewUrl(url)}
+                      style={{
+                        padding: 0,
+                        border: "none",
+                        background: "none",
+                        cursor: marked ? "not-allowed" : "pointer",
+                        opacity: marked ? 0.4 : 1,
+                      }}
+                      title={marked ? "Will be deleted" : "Click to enlarge"}
+                      disabled={marked}
+                    >
+                      {url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                        <img
+                          src={url}
+                          alt={`Receipt file ${idx + 1}`}
+                          className="object-contain w-20 h-20 bg-white border rounded"
+                          style={{ maxWidth: 80, maxHeight: 80 }}
+                        />
+                      ) : (
+                        <iframe
+                          src={url}
+                          title={`PDF preview ${idx + 1}`}
+                          className="bg-white border rounded"
+                          style={{
+                            width: 80,
+                            height: 80,
+                            objectFit: "contain",
+                            display: "block",
+                            background: "#fff",
+                            pointerEvents: "none",
+                          }}
+                        />
+                      )}
+                    </button>
+                    {/* Delete/Undo button: simple cross, no background */}
+                    {marked ? (
+                      <button
+                        type="button"
+                        onClick={() => handleUnmarkDelete(url)}
+                        className="absolute top-0 right-0 p-1 text-lg text-green-400 hover:text-green-600"
+                        title="Undo delete"
+                        style={{ background: "none", border: "none" }}
+                      >
+                        &#8634;
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleMarkDelete(url)}
+                        className="absolute top-0 right-0 p-1 text-lg text-white hover:text-pink-400"
+                        title="Mark for deletion"
+                        style={{ background: "none", border: "none" }}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {toDelete.length > 0 && (
+              <div className="mt-2 text-xs text-pink-400">
+                Files marked for deletion will be removed after saving.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Full preview modal */}
+        {previewUrl && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80">
+            <div className="relative flex flex-col items-center w-full max-w-2xl p-4 bg-white rounded-lg shadow-xl">
+              <button
+                className="absolute text-2xl text-gray-700 top-2 right-2 hover:text-pink-500"
+                onClick={() => setPreviewUrl(null)}
+                title="Close"
+                style={{ background: "none", border: "none" }}
+              >
+                ×
+              </button>
+              {previewUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                <div
+                  style={{
+                    width: "100%",
+                    height: "70vh",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: "#fff",
+                  }}
+                >
+                  <img
+                    src={previewUrl}
+                    alt="Full preview"
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "100%",
+                      objectFit: "contain",
+                      borderRadius: "0.5rem",
+                      background: "#fff",
+                      display: "block",
+                    }}
+                  />
+                </div>
+              ) : (
+                <iframe
+                  src={previewUrl}
+                  title="PDF Full Preview"
+                  className="w-full"
+                  style={{ minHeight: "70vh", background: "#fff" }}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
         <input
           type="file"
           multiple
@@ -299,7 +551,7 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
         <div className="flex justify-between">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleCancel}
             className="px-4 py-2 text-white rounded bg-neutral-600 hover:bg-neutral-500"
           >
             Cancel
@@ -308,7 +560,7 @@ function ReceiptForm({ vehicleId, initialData, onClose, onSaved }) {
             type="button"
             onClick={handleSubmit}
             disabled={uploading}
-            className="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700"
+            className="button-main"
           >
             {uploading ? "Uploading..." : "Save Receipt"}
           </button>
@@ -330,7 +582,6 @@ export default function VehicleCardPage() {
   const [ownerName, setOwnerName] = useState("");
   const [receipts, setReceipts] = useState([]);
   const [images, setImages] = useState([]);
-  const [, setLoading] = useState(true);
   const [aiRec, setAiRec] = useState("");
   const [timeWindow, setTimeWindow] = useState("Last Year");
   const [isListed, setIsListed] = useState(false);
@@ -339,7 +590,7 @@ export default function VehicleCardPage() {
   const [showReceiptForm, setShowReceiptForm] = useState(false);
   const [editingReceipt, setEditingReceipt] = useState(null);
   const [allDocs, setAllDocs] = useState([]);
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedItem, setSelectedItem] = useState("Total Spent");
   // Added state for enlarged image index
   const [enlargedIdx, setEnlargedIdx] = useState(null);
   // Add state definition for marketplace modal:
@@ -376,45 +627,46 @@ export default function VehicleCardPage() {
   const [selectedReceiptUrls, setSelectedReceiptUrls] = useState([]); // Updated state
   const [receiptToDelete, setReceiptToDelete] = useState(null);
   const [selectedAdminDocUrl, setSelectedAdminDocUrl] = useState(null); // New state for admin document modal
+  const [loading, setLoading] = useState(true);
 
   // ...inside VehicleCardPage component...
-const handleShare = async () => {
-  try {
-    // Fetch the current user's firstName from Firebase
-    const userRef = doc(db, 'members', auth.currentUser.uid);
-    const userSnap = await getDoc(userRef);
+  const handleShare = async () => {
+    try {
+      // Fetch the current user's firstName from Firebase
+      const userRef = doc(db, "members", auth.currentUser.uid);
+      const userSnap = await getDoc(userRef);
 
-    if (!userSnap.exists()) {
-      console.error('User data not found.');
-      return;
-    }
-
-    const { firstName } = userSnap.data();
-
-    // Prepare the share data
-    const shareData = {
-      title: `${firstName} invites you to check this ${vehicle.year} ${vehicle.make} ${vehicle.model}`,
-      url: window.location.href,
-    };
-
-    // Use the Web Share API if available
-    if (navigator.share) {
-      try {
-        await navigator.share(shareData);
-        console.log('Page shared successfully');
-      } catch (error) {
-        console.error('Error sharing the page:', error);
+      if (!userSnap.exists()) {
+        console.error("User data not found.");
+        return;
       }
-    } else {
-      // Fallback for browsers that don't support the Web Share API
-      navigator.clipboard.writeText(shareData.url).then(() => {
-        alert('Link copied to clipboard!');
-      });
+
+      const { firstName } = userSnap.data();
+
+      // Prepare the share data
+      const shareData = {
+        title: `${firstName} invites you to check this ${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+        url: window.location.href,
+      };
+
+      // Use the Web Share API if available
+      if (navigator.share) {
+        try {
+          await navigator.share(shareData);
+          console.log("Page shared successfully");
+        } catch (error) {
+          console.error("Error sharing the page:", error);
+        }
+      } else {
+        // Fallback for browsers that don't support the Web Share API
+        navigator.clipboard.writeText(shareData.url).then(() => {
+          alert("Link copied to clipboard!");
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching user data for sharing:", error);
     }
-  } catch (error) {
-    console.error('Error fetching user data for sharing:', error);
-  }
-};
+  };
 
   useEffect(() => setLogLevel("debug"), []);
   useEffect(() => {
@@ -428,6 +680,7 @@ const handleShare = async () => {
   // Fetch global data
   useEffect(() => {
     if (!id) return;
+    setLoading(true);
     (async () => {
       const snapV = await getDoc(doc(db, "listing", id));
       if (!snapV.exists()) return;
@@ -464,6 +717,7 @@ const handleShare = async () => {
         }))
       );
       setAllDocs(docs);
+      setLoading(false);
     })();
   }, [id]);
 
@@ -518,8 +772,6 @@ const handleShare = async () => {
       } catch (error) {
         console.error("Error fetching vehicle data:", error);
         toast.error("Error fetching vehicle data.");
-      } finally {
-        setLoading(false);
       }
     }
 
@@ -669,9 +921,9 @@ const handleShare = async () => {
   const calculateSum = (type) => {
     switch (type) {
       case "Total Spent":
-        return receipts.reduce(
-          (sum, receipt) => sum + (receipt.price || 0),
-          vehicle?.boughtAt || 0
+        return (
+          receipts.reduce((sum, receipt) => sum + (receipt.price || 0), 0) +
+          (Number(vehicle?.boughtAt) || 0)
         );
       case "Without Purchase Price":
         return receipts.reduce((sum, receipt) => sum + (receipt.price || 0), 0);
@@ -679,6 +931,7 @@ const handleShare = async () => {
       case "Scheduled Maintenance":
       case "Cosmetic Mods":
       case "Performance Mods":
+      case "Paperwork & Taxes":
         return receipts
           .filter((receipt) => receipt.category === type)
           .reduce((sum, receipt) => sum + (receipt.price || 0), 0);
@@ -695,14 +948,26 @@ const handleShare = async () => {
     const purchasePrice = vehicle.boughtAt;
     const purchaseYear = Number(vehicle.purchaseYear); // Correction : Utilisation de purchaseYear
     const now = new Date();
-    const start = new Date(now);
-    if (timeWindow === "Last Week") start.setDate(now.getDate() - 7);
-    else if (timeWindow === "Last Month") start.setMonth(now.getMonth() - 1);
-    else start.setFullYear(now.getFullYear() - 1);
-    const dates = [];
-    for (let d = new Date(start); d <= now; d.setDate(d.getDate() + 1)) {
-      dates.push(new Date(d));
+    let start = new Date(now),
+      countPoints = 0;
+    if (timeWindow === "Last Week") {
+      start.setDate(now.getDate() - 7);
+      countPoints = 7;
+    } else if (timeWindow === "Last Month") {
+      start.setMonth(now.getMonth() - 1);
+      countPoints = 8;
+    } else {
+      start.setFullYear(now.getFullYear() - 1);
+      countPoints = 12;
     }
+    const dates = Array.from(
+      { length: countPoints },
+      (_, i) =>
+        new Date(
+          start.getTime() +
+            (now.getTime() - start.getTime()) * (i / (countPoints - 1))
+        )
+    );
     const rate = 0.15;
     const k = 0.18;
     const straight = dates.map(
@@ -715,16 +980,24 @@ const handleShare = async () => {
         purchasePrice *
         Math.exp(-k * (d.getFullYear() + d.getMonth() / 12 - purchaseYear))
     );
+    const straightSeries = dates.map((d, i) => ({
+      x: d.getTime(),
+      y: straight[i],
+    }));
+    const expSeries = dates.map((d, i) => ({
+      x: d.getTime(),
+      y: exponential[i],
+    }));
     return {
-      labels: dates.map((d) => d.toLocaleDateString()),
+      labels: [], // datetime axis ignore labels array
       datasets: [
-        { label: "Straight", data: straight, fill: false, borderWidth: 2 },
         {
-          label: "Exponential",
-          data: exponential,
+          label: "Straight",
+          data: straightSeries,
           fill: false,
           borderWidth: 2,
         },
+        { label: "Exponential", data: expSeries, fill: false, borderWidth: 2 },
       ],
     };
   }, [vehicle, timeWindow]);
@@ -740,58 +1013,49 @@ const handleShare = async () => {
     }
 
     const aiArray = vehicle.ai_estimated_value;
-
-    // Define the start date based on the selected time window
     const now = new Date();
-    let startDate;
+    let startDate = new Date(now),
+      countPoints = 0;
     if (timeWindow === "Last Week") {
-      startDate = new Date(now);
       startDate.setDate(now.getDate() - 7);
+      countPoints = 7;
     } else if (timeWindow === "Last Month") {
-      startDate = new Date(now);
       startDate.setMonth(now.getMonth() - 1);
-    } else if (timeWindow === "Last Year") {
-      startDate = new Date(now);
-      startDate.setFullYear(now.getFullYear() - 1);
+      countPoints = 8;
     } else {
-      startDate = new Date(0); // Default to include all dates if no valid time window is selected
+      startDate.setFullYear(now.getFullYear() - 1);
+      countPoints = 12;
     }
 
     // Parse and filter AI points based on the time window
-    const aiPts = aiArray
+    const aiRaw = aiArray
       .map((e) => {
-        const [val, date] = e.split(/-(.+)/); // Split on the first "-"
-        const parsedDate = new Date(date); // Parse the date
-        if (isNaN(parsedDate)) {
-          console.error(`Invalid date format: ${date}`);
-          return null; // Skip invalid entries
-        }
-        return { x: parsedDate, y: +val }; // Keep the raw date object for filtering
+        const [val, date] = e.split(/-(.+)/);
+        const d = new Date(date);
+        return isNaN(d) ? null : { x: d, y: +val };
       })
-      .filter(
-        (point) => point && point.x >= startDate && point.x <= now // Filter points within the time window
-      )
-      .map((point) => ({
-        x: point.x.toLocaleDateString("en-US"), // Format date for x-axis
-        y: point.y,
-      }));
+      .filter((p) => p && p.x >= startDate && p.x <= now);
+
+    // Downsample to countPoints
+    const sampledAi = [];
+    if (aiRaw.length && countPoints > 1) {
+      for (let i = 0; i < countPoints; i++) {
+        const idx = Math.floor((i * (aiRaw.length - 1)) / (countPoints - 1));
+        const pt = aiRaw[idx];
+        sampledAi.push({ x: pt.x.getTime(), y: pt.y });
+      }
+    } else {
+      sampledAi.push(...aiRaw.map((pt) => ({ x: pt.x.getTime(), y: pt.y })));
+    }
 
     // Add a point for `boughtAt` using `createdAt` as the x-axis, and filter it
     const boughtAtPoint =
       vehicle?.boughtAt && vehicle?.createdAt
-        ? {
-            x: new Date(vehicle.createdAt.seconds * 1000), // Convert Firestore timestamp to Date
-            y: vehicle.boughtAt, // Use `boughtAt` as the y-value
-          }
+        ? { x: new Date(vehicle.createdAt.seconds * 1000), y: vehicle.boughtAt }
         : null;
-
-    // Filter the `boughtAtPoint` based on the time window
     const filteredBoughtAtPoint =
       boughtAtPoint && boughtAtPoint.x >= startDate && boughtAtPoint.x <= now
-        ? {
-            x: boughtAtPoint.x.toLocaleDateString("en-US"), // Format date for x-axis
-            y: boughtAtPoint.y,
-          }
+        ? { x: boughtAtPoint.x.getTime(), y: boughtAtPoint.y }
         : null;
 
     return {
@@ -800,7 +1064,7 @@ const handleShare = async () => {
         ...baseChart.datasets,
         {
           label: "AI Estimated",
-          data: aiPts,
+          data: sampledAi,
           parsing: false,
           pointRadius: 4,
           borderColor: "blue",
@@ -818,8 +1082,16 @@ const handleShare = async () => {
     };
   }, [baseChart, vehicle, timeWindow]);
 
+  // Si l'utilisateur n'est pas connecté, rediriger vers la page de bienvenue
   if (!user) return null;
-  if (!vehicle) return <p>Loading…</p>;
+  if (loading || !vehicle) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-900">
+        <Loader2 className="w-12 h-12 mb-4 text-purple-500 animate-spin" />
+        <span className="text-lg text-white">Loading vehicle...</span>
+      </div>
+    );
+  }
 
   // Si en mode édition, afficher le formulaire refait
   if (editMode) {
@@ -1066,6 +1338,18 @@ const handleShare = async () => {
                   />
                 </label>
               </div>
+              <div>
+                <label className="block mb-1 text-sm font-semibold">
+                  Paperwork & Taxes
+                  <input
+                    type="number"
+                    name="paperworkTaxes"
+                    value={formData.paperworkTaxes}
+                    onChange={handleFormChange}
+                    className="w-full p-2 border rounded-md border-neutral-600 bg-neutral-700"
+                  />
+                </label>
+              </div>
             </div>
             {/* Full-width Description Field */}
             <div className="md:col-span-3">
@@ -1100,6 +1384,11 @@ const handleShare = async () => {
         </div>
       </div>
     );
+  }
+
+  // add helper to request fullscreen
+  function requestFullScreen(el) {
+    if (el.requestFullscreen) el.requestFullscreen();
   }
 
   const removeDocument = async (docType) => {
@@ -1148,18 +1437,46 @@ const handleShare = async () => {
     }
   };
 
+  // add helper to download receipt URLs
+  function handleDownloadReceipt(urls) {
+    urls.forEach((url) => {
+      const original = decodeURIComponent(url.split("/").pop().split("?")[0]);
+      const isImage = /\.(jpe?g|png|gif|webp)$/i.test(original);
+      const name = isImage
+        ? original
+        : original.replace(/\.[^/.]+$/, "") + ".pdf";
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+  }
+
+  // Finance values from AI dataset
+  const rawAiData =
+    chartData.datasets.find((ds) => ds.label === "AI Estimated")?.data || [];
+  const aiSeries =
+    rawAiData.map((pt) => (pt && pt.y !== undefined ? pt.y : Number(pt))) || [];
+  const aiCurrentValue = aiSeries[aiSeries.length - 1] || 0;
+  const aiVariationPct =
+    aiSeries.length > 1
+      ? ((aiCurrentValue / aiSeries[0] - 1) * 100).toFixed(2)
+      : null;
+
   return (
     <>
       <ToastContainer />
       <div className="container px-4 py-10 mx-auto text-white md:pt-28 bg-zinc-900">
         {/* Header */}
-        <header className="mb-8 text-center flex items-center justify-center gap-2">
+        <header className="flex items-center justify-center gap-2 pt-8 mb-8 text-center">
           <h1 className="text-4xl font-bold">
             {vehicle.year} {vehicle.make} {vehicle.model}
           </h1>
           <button
             onClick={handleShare}
-            className="ml-3 p-2 rounded-full bg-blue-700 hover:bg-blue-800 transition"
+            className="flex items-center justify-center w-10 h-10 ml-3 transition rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
             title="Share this vehicle"
             type="button"
           >
@@ -1185,28 +1502,39 @@ const handleShare = async () => {
               </div>
             ))}
           </div>
-          
 
-          <div className="flex items-center justify-between md:hidden mb-2">
+          <div className="flex items-center justify-between mb-2 md:hidden">
             <h2 className="text-2xl font-bold">Vehicle Info</h2>
             <button
               onClick={() => setShowInfo((v) => !v)}
-              className="px-3 py-1 text-sm bg-blue-600 rounded text-white"
+              className="p-2 ml-3 transition group" // No rounded, no bg, just padding for click area
+              title={showInfo ? "Hide Info" : "Show Info"}
+              type="button"
             >
-              {showInfo ? "Hide" : "Show"}
+              {showInfo ? (
+                <ChevronUp className="w-6 h-6 text-purple-400 transition-colors group-hover:text-pink-500" />
+              ) : (
+                <ChevronDown className="w-6 h-6 text-purple-400 transition-colors group-hover:text-pink-500" />
+              )}
             </button>
           </div>
 
           {/* Vehicle Info & Actions Card */}
-          <div className={`p-6 border rounded-lg shadow-lg bg-neutral-800 border-neutral-700 ${showInfo ? "" : "hidden"} md:block`}>
+          <div
+            className={`p-6 border rounded-lg shadow-lg bg-neutral-800 border-neutral-700 ${
+              showInfo ? "" : "hidden"
+            } md:block`}
+          >
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold">Vehicle Info</h2>
               {user.uid === vehicle.uid && (
                 <button
                   onClick={() => setEditMode(true)}
-                  className="px-4 py-2 text-sm font-medium text-white transition bg-blue-600 rounded hover:bg-blue-700"
+                  className="p-1 transition group"
+                  title="Edit Vehicle"
+                  type="button"
                 >
-                  ✏️ Edit
+                  <Edit className="w-6 h-6 text-purple-400 transition-colors group-hover:text-pink-500" />
                 </button>
               )}
             </div>
@@ -1355,101 +1683,121 @@ const handleShare = async () => {
                 )}
               </div>
 
-              <div className="flex items-center space-x-4">
-                {/* Dropdown for selecting a count */}
-                <select
-                  className="p-2 text-white border rounded bg-neutral-700 border-neutral-600"
-                  value={selectedItem || ""}
-                  onChange={(e) => setSelectedItem(e.target.value)}
-                >
-                  <option value="" disabled>
-                    Select a count
-                  </option>
-                  {[
-                    {
-                      label: "Total Spent",
-                      value: `$${calculateSum("Total").toFixed(2)}`,
-                    },
-                    {
-                      label: "Without Purchase Price",
-                      value: `$${calculateSum("Without Purchase Price").toFixed(
-                        2
-                      )}`,
-                    },
-                    {
-                      label: "Repair",
-                      value: `$${calculateSum("Repair").toFixed(2)}`,
-                    },
-                    {
-                      label: "Scheduled Maintenance",
-                      value: `$${calculateSum("Scheduled Maintenance").toFixed(
-                        2
-                      )}`,
-                    },
-                    {
-                      label: "Cosmetic Mods",
-                      value: `$${calculateSum("Cosmetic Mods").toFixed(2)}`,
-                    },
-                    {
-                      label: "Performance Mods",
-                      value: `$${calculateSum("Performance Mods").toFixed(2)}`,
-                    },
-                  ].map((item, idx) => (
-                    <option key={idx} value={item.label}>
-                      {item.label}
+              <div className="flex space-x-4 justify-items-center">
+                {/* Dropdown for selecting a value */}
+                <div className="flex flex-col gap-4 mx-auto justify-items-center">
+                  <select
+                    className="p-2 text-white border rounded bg-neutral-700 border-neutral-600 min-w-[160px]"
+                    value={selectedItem || ""}
+                    onChange={(e) => setSelectedItem(e.target.value)}
+                  >
+                    <option value="" disabled>
+                      Select a value
                     </option>
-                  ))}
-                </select>
+                    {[
+                      {
+                        label: "Total Spent",
+                        value: `$${calculateSum("Total Spent").toFixed(2)}`,
+                      },
+                      {
+                        label: "Without Purchase Price",
+                        value: `$${calculateSum(
+                          "Without Purchase Price"
+                        ).toFixed(2)}`,
+                      },
+                      {
+                        label: "Repair",
+                        value: `$${calculateSum("Repair").toFixed(2)}`,
+                      },
+                      {
+                        label: "Scheduled Maintenance",
+                        value: `$${calculateSum(
+                          "Scheduled Maintenance"
+                        ).toFixed(2)}`,
+                      },
+                      {
+                        label: "Cosmetic Mods",
+                        value: `$${calculateSum("Cosmetic Mods").toFixed(2)}`,
+                      },
+                      {
+                        label: "Performance Mods",
+                        value: `$${calculateSum("Performance Mods").toFixed(
+                          2
+                        )}`,
+                      },
+                      {
+                        label: "Paperwork & Taxes",
+                        value: `$${calculateSum("Paperwork & Taxes").toFixed(
+                          2
+                        )}`,
+                      },
+                    ].map((item, idx) => (
+                      <option key={idx} value={item.label}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
 
-                {/* Display the value of the selected count */}
-                <div className="p-4 text-white border rounded bg-neutral-800 border-neutral-600">
-                  {selectedItem ? (
-                    <div>
-                      <h3 className="text-lg font-semibold">{selectedItem}</h3>
-                      <p className="text-sm">
-                        {
-                          [
-                            {
-                              label: "Total Spent",
-                              value: `$${calculateSum("Total").toFixed(2)}`,
-                            },
-                            {
-                              label: "Without Purchase Price",
-                              value: `$${calculateSum(
-                                "Without Purchase Price"
-                              ).toFixed(2)}`,
-                            },
-                            {
-                              label: "Repair",
-                              value: `$${calculateSum("Repair").toFixed(2)}`,
-                            },
-                            {
-                              label: "Scheduled Maintenance",
-                              value: `$${calculateSum(
-                                "Scheduled Maintenance"
-                              ).toFixed(2)}`,
-                            },
-                            {
-                              label: "Cosmetic Mods",
-                              value: `$${calculateSum("Cosmetic Mods").toFixed(
-                                2
-                              )}`,
-                            },
-                            {
-                              label: "Performance Mods",
-                              value: `$${calculateSum(
-                                "Performance Mods"
-                              ).toFixed(2)}`,
-                            },
-                          ].find((item) => item.label === selectedItem)?.value
-                        }
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-neutral-400">
-                      Select a count to see its value
-                    </p>
-                  )}
+                  {/* Value card */}
+                  <div className="flex flex-col justify-center items-start min-w-[160px] px-6 py-4 rounded-lg bg-neutral-900 border border-neutral-700 shadow-lg">
+                    {selectedItem ? (
+                      <>
+                        <span className="text-lg font-semibold text-white">
+                          {selectedItem}
+                        </span>
+                        <span className="mt-1 text-2xl font-bold text-green-400">
+                          {
+                            [
+                              {
+                                label: "Total Spent",
+                                value: `$${calculateSum("Total Spent").toFixed(
+                                  2
+                                )}`,
+                              },
+                              {
+                                label: "Without Purchase Price",
+                                value: `$${calculateSum(
+                                  "Without Purchase Price"
+                                ).toFixed(2)}`,
+                              },
+                              {
+                                label: "Repair",
+                                value: `$${calculateSum("Repair").toFixed(2)}`,
+                              },
+                              {
+                                label: "Scheduled Maintenance",
+                                value: `$${calculateSum(
+                                  "Scheduled Maintenance"
+                                ).toFixed(2)}`,
+                              },
+                              {
+                                label: "Cosmetic Mods",
+                                value: `$${calculateSum(
+                                  "Cosmetic Mods"
+                                ).toFixed(2)}`,
+                              },
+                              {
+                                label: "Performance Mods",
+                                value: `$${calculateSum(
+                                  "Performance Mods"
+                                ).toFixed(2)}`,
+                              },
+                              {
+                                label: "Paperwork & Taxes",
+                                value: `$${calculateSum(
+                                  "Paperwork & Taxes"
+                                ).toFixed(2)}`,
+                              },
+                            ].find((item) => item.label === selectedItem)?.value
+                          }
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-sm text-neutral-400">
+                        Select a value to see its amount
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1499,7 +1847,7 @@ const handleShare = async () => {
                         toast.error("Failed to refresh AI recommendation.");
                       }
                     }}
-                    className="p-2 text-white transition bg-blue-600 rounded hover:bg-blue-700"
+                    className="p-2 text-purple-500 transition rounded-full hover:text-pink-500"
                     title="Refresh AI Recommendation"
                   >
                     <svg
@@ -1536,7 +1884,7 @@ const handleShare = async () => {
                 <button
                   onClick={askAi}
                   disabled={loadingAiQuestion}
-                  className="w-full py-2 mb-4 text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50"
+                  className="w-full mb-4 button-main"
                 >
                   {loadingAiQuestion ? "Loading..." : "Ask AI"}
                 </button>
@@ -1552,67 +1900,105 @@ const handleShare = async () => {
                 <h3 className="mb-2 text-xl font-semibold text-white">
                   Receipts
                 </h3>
-                {receipts.length ? (
-                  <div className="space-y-2">
-                    {receipts.map((r) => (
-                      <div
-                        key={r.id}
-                        className="flex items-center justify-between"
-                      >
-                        <div className="flex flex-col">
-                          <div className="flex items-center">
+                <div className="max-h-[30vh] overflow-y-auto">
+                  {receipts.length ? (
+                    <div className="space-y-2">
+                      {receipts.map((r) => (
+                        <div
+                          key={r.id}
+                          className="flex items-center justify-between gap-4"
+                        >
+                          {/* Title left, price center, icons right */}
+                          <div className="flex-1 min-w-0">
                             <button
                               onClick={() => {
                                 if (r.urls && r.urls.length > 0) {
                                   setSelectedReceiptUrls(r.urls);
                                 }
                               }}
-                              className="text-left text-blue-400 hover:underline"
+                              className="block w-full text-left text-purple-500 truncate hover:underline hover:text-pink-500"
+                              title={r.title}
                             >
-                              {r.title}
+                              {r.date
+                                ? formatDateMMDDYYYY(
+                                    r.date.seconds ? r.date.seconds * 1000 : r.date
+                                  )
+                                : ""}
+                              <br />
+                              <span className="font-medium">{r.title}</span>
                             </button>
-                            <span className="ml-2 text-neutral-400">
-                              - ${r.price.toFixed(2)}
+                          </div>
+                          <div className="flex items-center flex-shrink-0 min-w-[100px] justify-center">
+                            <span className="font-semibold text-neutral-400">
+                              ${r.price.toFixed(2)}
                             </span>
                           </div>
-                        </div>
-                        {vehicle.uid === user.uid ? (
-                          <div className="space-x-2">
-                            <button
-                              onClick={() => {
-                                setEditingReceipt(r);
-                                setShowReceiptForm(true);
-                              }}
-                            >
-                              ✏️
-                            </button>
-                            <button onClick={() => setReceiptToDelete(r)}>
-                              ✖️
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              if (r.urls && r.urls.length > 0) {
-                                setSelectedReceiptUrl(r.urls);
-                              }
-                            }}
-                            className="ml-auto"
-                            disabled={!(r.urls && r.urls.length > 0)}
-                          >
-                            {r.urls && r.urls.length > 0 ? (
-                              <Eye className="w-6 h-6 text-blue-400 hover:text-blue-500" />
+                          <div className="flex items-center flex-shrink-0 min-w-[70px] justify-end">
+                            {vehicle.uid === user.uid ? (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setEditingReceipt(r);
+                                    setShowReceiptForm(true);
+                                  }}
+                                  className="p-1 text-purple-400 transition rounded hover:text-pink-500"
+                                  title="Edit Receipt"
+                                >
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    strokeWidth="1.5"
+                                    stroke="currentColor"
+                                    className="w-5 h-5"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"
+                                    />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => setReceiptToDelete(r)}
+                                  className="p-1 transition rounded text-purple500 hover:text-pink-500"
+                                  title="Delete Receipt"
+                                >
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    strokeWidth="1.5"
+                                    stroke="currentColor"
+                                    className="w-6 h-6"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      d="M6 18 18 6M6 6l12 12"
+                                    />
+                                  </svg>
+                                </button>
+                              </>
                             ) : (
-                              <EyeOff className="w-6 h-6 text-red-500" />
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadReceipt(r.urls)}
+                                className="p-1 ml-auto"
+                                disabled={!(r.urls && r.urls.length > 0)}
+                                title="Download receipt"
+                              >
+                                <Download className="w-6 h-6 text-blue-400 hover:text-blue-500" />
+                              </button>
                             )}
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p>No receipts</p>
-                )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p>No receipts</p>
+                  )}
+                </div>
                 {vehicle.uid === user.uid && (
                   <div className="flex space-x-4">
                     <button
@@ -1620,7 +2006,7 @@ const handleShare = async () => {
                         setEditingReceipt(null);
                         setShowReceiptForm(true);
                       }}
-                      className="px-4 py-2 mt-3 bg-blue-600 rounded hover:bg-blue-700"
+                      className="mt-3 button-main"
                     >
                       + Add Receipt
                     </button>
@@ -1636,7 +2022,7 @@ const handleShare = async () => {
                   Paperwork
                 </h2>
                 {/* Grid for Title, Registration and Inspection */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="flex gap-2 p-2 overflow-x-auto no-scrollbar">
                   {["title", "registration", "inspection"].map((type) => {
                     const docObj = allDocs.find((d) =>
                       d.name.toLowerCase().includes(type)
@@ -1646,38 +2032,50 @@ const handleShare = async () => {
                       registration: "Registration",
                       inspection: "Inspection",
                     };
-                    const IconComponent =
-                      type === "title"
-                        ? FileText
-                        : type === "registration"
-                        ? Shield
-                        : Clipboard;
-
-                    // Extract the deadline from the document name (MM-DD-YYYY format)
+                    const iconSrcs = {
+                      title: "/title_icon.png",
+                      registration: "/registration_icon.png",
+                      inspection: "/inspection_icon.png",
+                    };
                     const deadlineMatch =
                       docObj?.name.match(/\d{2}-\d{2}-\d{4}/);
                     const deadline = deadlineMatch
                       ? new Date(deadlineMatch[0])
                       : null;
-                    const isExpired = deadline && deadline < new Date(); // Check if the deadline has passed
+                    const isExpired = deadline && deadline < new Date();
+                    const bgColor = !docObj
+                      ? "bg-gray-500"
+                      : isExpired
+                      ? "bg-pink-900"
+                      : "bg-purple-900";
+
+                    // --- Ajouter ici ---
+                    let iconFilter = "";
+                    if (bgColor.includes("purple")) {
+                      iconFilter =
+                        "invert(1) hue-rotate(270deg) brightness(1.2)";
+                    } else if (bgColor.includes("pink")) {
+                      iconFilter =
+                        "invert(1) sepia(1) hue-rotate(290deg) saturate(4) brightness(1.1)";
+                    } else {
+                      iconFilter = "invert(0.7) brightness(1.2)";
+                    }
 
                     return (
                       <div
                         key={type}
-                        className={`flex flex-col items-center p-4 rounded-lg ${
-                          type === "title"
-                            ? "bg-blue-900" // Title is always blue
-                            : docObj
-                            ? isExpired
-                              ? "bg-red-900" // Red if deadline has passed
-                              : "bg-blue-900" // Blue if deadline is valid
-                            : "bg-gray-500" // Gray if no document
-                        }`}
+                        className={`flex-shrink-0 flex flex-col items-center p-4 rounded-lg ${bgColor}`}
+                        style={{ minWidth: 140, maxWidth: 180 }}
                       >
                         {vehicle.uid === user.uid ? (
                           <>
-                            <div className="flex items-center justify-center w-16 h-16 mb-2 rounded-full">
-                              <IconComponent className="w-8 h-8 text-white" />
+                            <div className="flex items-center justify-center w-10 h-16 mb-2">
+                              <img
+                                src={iconSrcs[type]}
+                                alt={labels[type]}
+                                className="object-contain w-8 h-8"
+                                style={{ filter: iconFilter }}
+                              />
                             </div>
                             <span className="text-sm font-medium text-white">
                               {labels[type]}
@@ -1693,16 +2091,10 @@ const handleShare = async () => {
                                     className="cursor-pointer"
                                     title="View document"
                                   >
-                                    <Eye className="w-8 h-8 text-blue-300 hover:text-blue-400" />
+                                    <Eye className="w-8 h-8 text-purple-300 hover:text-purple-400" />
                                   </button>
                                   <div className="flex space-x-2">
-                                    <button
-                                      onClick={() => removeDocument(type)}
-                                      className="text-red-500 hover:text-red-600"
-                                      title="Delete document"
-                                    >
-                                      <Trash className="w-4 h-4" />
-                                    </button>
+                                    {/* Edit button on the left */}
                                     <button
                                       onClick={() =>
                                         document
@@ -1711,10 +2103,31 @@ const handleShare = async () => {
                                           )
                                           .click()
                                       }
-                                      className="text-green-500 hover:text-green-600"
+                                      className="text-purple-200 hover:text-pink-200"
                                       title="Modify document"
                                     >
                                       <Edit className="w-4 h-4" />
+                                    </button>
+                                    {/* Cross (delete) button on the right */}
+                                    <button
+                                      onClick={() => removeDocument(type)}
+                                      className="text-purple-200 hover:text-pink-200"
+                                      title="Delete document"
+                                    >
+                                      <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        strokeWidth="1.5"
+                                        stroke="currentColor"
+                                        className="w-5 h-5"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          d="M6 18 18 6M6 6l12 12"
+                                        />
+                                      </svg>
                                     </button>
                                   </div>
                                 </div>
@@ -1758,15 +2171,14 @@ const handleShare = async () => {
                         ) : (
                           <>
                             <div
-                              className={`w-16 h-16 flex items-center justify-center rounded-full mb-2 ${
-                                docObj
-                                  ? isExpired
-                                    ? "bg-red-500"
-                                    : "bg-green-500"
-                                  : "bg-gray-500"
-                              }`}
+                              className={`w-16 h-16 flex items-center justify-center mb-2`}
                             >
-                              <IconComponent className="w-8 h-8 text-white" />
+                              <img
+                                src={iconSrcs[type]}
+                                alt={labels[type]}
+                                className="object-contain w-8 h-8"
+                                style={{ filter: iconFilter }}
+                              />
                             </div>
                             <h3 className="text-sm font-medium text-white">
                               {labels[type]}
@@ -1793,226 +2205,145 @@ const handleShare = async () => {
                 )}
               </div>
               {/* Finance section */}
-              <div className="p-6 border rounded-lg shadow-lg bg-neutral-800 border-neutral-700">
-                <div className="flex items-center justify-between pb-2 mb-4 border-b">
-                  <h2 className="text-2xl font-bold text-white">
-                    Finance Section
-                  </h2>
-                  {user.uid === vehicle.uid && (
-                    <>
-                      {isListed ? (
-                        <button
-                        type="button"
-                          onClick={removeFromMarketplace}
-                          className="px-6 py-2 text-white transition bg-red-600 rounded hover:bg-red-700"
-                        >
-                          Remove from Marketplace
-                        </button>
-                      ) : (
-                        <button
-                        type="button"
-                          onClick={() => {
-                            if (!vehicle.vin || vehicle.vin.trim() === "") {
-                              toast.error(
-                                "Veuillez renseigner le VIN avant de lister sur le marketplace"
-                              );
-                              return;
-                            }
-                            setShowMarketplaceModal(true);
-                          }}
-                          className="px-6 py-2 text-white transition bg-green-600 rounded hover:bg-green-700"
-                        >
-                          Add to Marketplace
-                        </button>
-                      )}
-                    </>
-                  )}
+              <section className="p-6 rounded-lg shadow-lg bg-neutral-800">
+                {/* En-tête KPI */}
+                <div className="flex flex-col items-start justify-between md:flex-row">
+                  <div>
+                    <h3 className="text-xl font-semibold text-white">
+                      ESTIMATED AI VALUE
+                    </h3>
+                    <p className="text-3xl font-bold text-green-400">
+                      ${aiCurrentValue.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="mt-2 md:mt-0">
+                    <h4 className="text-sm text-neutral-400">AI VARIATION</h4>
+                    {aiVariationPct !== null && (
+                      <p
+                        className={`text-xl font-semibold ${
+                          aiVariationPct >= 0
+                            ? "text-green-400"
+                            : "text-red-400"
+                        }`}
+                      >
+                        {Math.abs(aiVariationPct)}%
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <select
-                  className="p-2 mb-4 text-white rounded bg-neutral-700"
-                  value={timeWindow}
-                  onChange={(e) => setTimeWindow(e.target.value)}
-                >
-                  <option value="Last Week">Last Week</option>
-                  <option value="Last Month">Last Month</option>
-                  <option value="Last Year">Last Year</option>
-                </select>
-                <div className="h-64">
-                  <Line
-                    data={chartData}
-                    options={{ maintainAspectRatio: false }}
-                  />
+                {/* Graphique + sélecteur */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-end mb-2">
+                    <select
+                      className="p-2 text-white rounded bg-neutral-900"
+                      value={timeWindow}
+                      onChange={(e) => setTimeWindow(e.target.value)}
+                    >
+                      <option value="Last Week">1 week</option>
+                      <option value="Last Month">1 month</option>
+                      <option value="Last Year">1 year</option>
+                    </select>
+                  </div>
+                  <div className="w-auto rounded-lg h-80">
+                    <Chart
+                      options={defaultOptions}
+                      series={buildSeries(chartData)}
+                      type="line"
+                      height="100%"
+                    />
+                  </div>
                 </div>
-              </div>
-            </div>
-          </div>
-          {/* Receipt Form Modal */}
-          {showReceiptForm && (
-            <ReceiptForm
-              vehicleId={id}
-              initialData={editingReceipt}
-              onClose={() => setShowReceiptForm(false)}
-              onSaved={() => window.location.reload()}
-            />
-          )}
-        </section>
-        {/* Marketplace Modal */}
-        {showMarketplaceModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
-            <div className="w-full max-w-sm p-6 text-white border rounded shadow-xl bg-neutral-800 border-neutral-700">
-              <h2 className="mb-4 text-xl font-bold text-center">
-                Add to Marketplace
-              </h2>
-              <label className="block mb-2 text-white">Price ($):
-              <input
-                type="number"
-                step="0.01"
-                value={salePrice || ""}
-                onChange={(e) => setSalePrice(e.target.value)}
-                className="w-full p-2 mb-4 text-white border rounded border-neutral-600 bg-neutral-700"
-              /></label>
-              <div className="flex justify-end space-x-4">
-                <button
-                type="button"
-                  onClick={() => setShowMarketplaceModal(false)}
-                  className="px-4 py-2 rounded bg-neutral-600 hover:bg-neutral-500"
-                >
-                  Cancel
-                </button>
-                <button
-                type="button"
-                  onClick={() => {
-                    confirmAdd(salePrice);
-                    setShowMarketplaceModal(false);
-                  }}
-                  className="px-4 py-2 bg-green-600 rounded hover:bg-green-700"
-                >
-                  Confirm
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        {/* Owner Manual Modal */}
-        {showManual && (
-          <OwnerManualModal
-            vehicleId={id}
-            onClose={() => setShowManual(false)}
-            onSync={() => window.location.reload()}
-          />
-        )}
+                {/* End Finance Section */}
 
-        {/* Receipt Modal */}
-        {selectedReceiptUrls.length > 0 && (
-          <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-70">
-            <div className="relative w-full max-w-3xl p-6 bg-white rounded-lg shadow-xl">
-              <div className="flex justify-between mb-4">
-                <h2 className="text-2xl font-semibold">Receipt Details</h2>
-                <button
-                type="button"
-                  onClick={() => setSelectedReceiptUrls([])}
-                  className="text-2xl font-bold"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="space-y-4 overflow-auto h-96">
-                {selectedReceiptUrls.map((url, index) => (
-                  <iframe
-                    key={index}
-                    src={url}
-                    className="w-full h-64 border"
-                    title={`Receipt ${index + 1}`}
-                  ></iframe>
-                ))}
-              </div>
-              <div className="flex justify-end mt-4 space-x-4">
-                <button
-                type="button"
-                  onClick={() => setSelectedReceiptUrls([])}
-                  className="px-4 py-2 text-white transition bg-gray-600 rounded hover:bg-gray-700"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        {/* Confirmation modal for receipt deletion */}
-        {receiptToDelete && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="w-full max-w-sm p-6 rounded shadow-lg bg-zinc-600">
-              <h3 className="mb-4 text-xl font-semibold">Confirm Deletion</h3>
-              <p className="mb-6">
-                Are you sure you want to delete it? :{" "}
-                <strong>{receiptToDelete.title}</strong> ?
-              </p>
-              <div className="flex justify-end space-x-4">
-                <button
-                type="button"
-                  onClick={() => setReceiptToDelete(null)}
-                  className="px-4 py-2 text-red-700 bg-gray-300 rounded hover:bg-gray-400"
-                >
-                  Cancel
-                </button>
-                <button
-                type="button"
-                  onClick={async () => {
-                    await deleteDoc(
-                      doc(db, `listing/${id}/receipts`, receiptToDelete.id)
-                    );
-                    setReceiptToDelete(null);
-                    window.location.reload();
-                  }}
-                  className="px-4 py-2 text-white bg-red-600 rounded hover:bg-red-700"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        {/* New Admin Document Modal */}
-        {selectedAdminDocUrl && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
-            <div className="relative w-full max-w-3xl p-6 bg-white rounded-lg shadow-xl">
-              <div className="flex justify-between mb-4">
-                <h2 className="text-2xl font-semibold">Admin Document</h2>
-                <button
-                type="button"
-                  onClick={() => setSelectedAdminDocUrl(null)}
-                  className="text-2xl font-bold"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="overflow-auto h-96">
-                <iframe
-                  src={selectedAdminDocUrl}
-                  className="w-full h-full border"
-                  title="Admin Document"
-                ></iframe>
-              </div>
-              <div className="flex justify-end mt-4 space-x-4">
-                <a
-                  href={selectedAdminDocUrl}
-                  download
-                  className="px-4 py-2 text-white transition bg-green-600 rounded hover:bg-green-700"
-                >
-                  Download
-                </a>
-                <button
-                type="button"
-                  onClick={() => setSelectedAdminDocUrl(null)}
-                  className="px-4 py-2 text-white transition bg-gray-600 rounded hover:bg-gray-700"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </>
-  );
-}
+                {/* Actions */}
+                <div className="flex flex-col items-center justify-between space-y-3 md:flex-row md:space-y-0 md:space-x-4">
+                  {user.uid === vehicle.uid &&
+                    (isListed ? (
+                      <button
+                        onClick={removeFromMarketplace}
+                        className="w-full px-6 py-2 text-red-400 bg-transparent border border-red-400 rounded md:w-auto hover:bg-red-500/10"
+                      >
+                        Remove from Marketplace
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setShowMarketplaceModal(true)}
+                        className="w-full px-6 py-2 text-white rounded md:w-auto bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                      >
+                        Add to Marketplace
+                      </button>
+                    ))}
+                  <button
+                    onClick={handleShare}
+                    className="flex items-center justify-center w-full px-6 py-2 rounded md:w-auto bg-neutral-700 hover:bg-neutral-600"
+                  >
+                    <Share2 className="w-5 h-5 mr-2 text-white" /> Share
+                  </button>
+                </div>
+              </section>
+
+              {/* Receipt Form Modal */}
+              {showReceiptForm && (
+                <ReceiptForm
+                  vehicleId={id}
+                  initialData={editingReceipt}
+                  onClose={() => setShowReceiptForm(false)}
+                  onSaved={() => window.location.reload()}
+                />
+              )}
+              {/* Marketplace Modal */}
+              {showMarketplaceModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
+                  <div className="w-full max-w-sm p-6 text-white border rounded shadow-xl bg-neutral-800 border-neutral-700">
+                    <h2 className="mb-4 text-xl font-bold text-center">
+                      Add to Marketplace
+                    </h2>
+                    <label className="block mb-2 text-white">
+                      Price ($):
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={salePrice || ""}
+                        onChange={(e) => setSalePrice(e.target.value)}
+                        className="w-full p-2 mb-4 text-white border rounded border-neutral-600 bg-neutral-700"
+                      />
+                    </label>
+                    <div className="flex justify-end space-x-4">
+                      <button
+                        type="button"
+                        onClick={() => setShowMarketplaceModal(false)}
+                        className="px-4 py-2 rounded bg-neutral-600 hover:bg-neutral-500"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          confirmAdd(salePrice);
+                          setShowMarketplaceModal(false);
+                        }}
+                        className="px-4 py-2 bg-green-600 rounded hover:bg-green-700"
+                      >
+                        Confirm
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {/* Owner Manual Modal */}
+              {showManual && (
+                <OwnerManualModal
+                  vehicleId={id}
+                  onClose={() => setShowManual(false)}
+                  onSync={() => window.location.reload()}
+                />
+              )}
+            </div>{" "}
+            // close inner grid
+          </div>{" "}
+        </section>{" "}
+        <secton />
+      </div>{" "}
+    </> // close Fragment
+  ); // end of return
+} // end of VehicleCardPage
